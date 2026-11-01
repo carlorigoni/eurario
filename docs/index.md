@@ -112,6 +112,7 @@ Eurario è stato ingegnerizzato attorno alle reali complessità organizzative, d
 
 ### 3. Logistica Multi-Plesso & Aule Speciali
 * **Centrale e Succursali**: Gestione del personale docente in servizio su più edifici scolastici, con parametri per il tempo di viaggio stradale (*travel time*) e vincoli sul numero massimo di cambi sede al giorno.
+* **TimeMachine Plessi & Flussi Spazio-Temporali**: Simulatore interattivo ora per ora con player multimediale e scorciatoie da tastiera. Traccia l'occupazione dei plessi, le migrazioni dei docenti itineranti nel corridoio di transito (con rating di comfort: buca, intervallo, ore consecutive), le classi con inizio giornata fuori sede e una mappa metropolitana stile subway per ciascun docente.
 * **Aule Speciali e Palestre**: Gestione delle aule a capienza limitata, palestre con suddivisione a metà campo e laboratori specialistici condivisi tra più classi.
 
 ### 4. Gestione Disposizioni & Supplenze ("D")

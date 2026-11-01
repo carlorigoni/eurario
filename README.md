@@ -25,7 +25,8 @@ Zero external Python dependencies, clean Google Classroom / Material 3 reactive 
   - **Classes & Student Groups**: language articulations (e.g., French, Spanish, German), tracks and multi-year divisions.
   - **Rooms & Specialized Facilities**: standard classrooms, shared sports gyms with automatic capacity thresholds, and specialized science/computer laboratories.
   - **Macro-Subjects & Combinations**: intelligent merging of related subjects (e.g., *Italian, Latin, History & Geography*) for balanced pedagogical pacing.
-  - **Duty & On-Call Allocation**: smart placement of on-call availability hours without dead gaps or conflicts with multi-hour blocks.
+  - **Duty & On-Call Allocation**: smart placement of on-call availability hours without dead gaps, on-duty distribution matrix, and real-time density badges (`👥 X D`).
+  - **Campus TimeMachine & Itinerant Faculty**: interactive spatiotemporal timeline simulator monitoring building occupancy (Main vs Branch), traveling teachers in the transit corridor (with comfort ratings: gap, break, consecutive), off-site start alerts, and subway-style metro line maps.
 - **Word Document (.docx) & Google Docs Staff Synchronization**:
   - Direct download of the pre-formatted **Word (.docx) Teaching Staff Template** or one-click export of current school staff to Word.
   - Automatic synchronization from Word (.docx) or Google Docs with side-by-side diff preview and selective confirmation.

@@ -68,8 +68,8 @@
     "announcements": [
       {
         "badge": "Novità Recenti",
-        "date": "Ottobre 2026",
-        "text": "Perfezionamento contrasto Dark Theme per flyout di configurazione e sincronizzazione anagrafica dinamica del selettore istituti (Scuola di Atene)."
+        "date": "Novembre 2026",
+        "text": "TimeMachine Plessi & Docenti Itineranti: simulatore dinamico interattivo dell'occupazione delle sedi (Centrale vs Succursale), corridoio di transito e mappa metropolitana."
       }
     ],
     "pillars_header": {
@@ -566,8 +566,8 @@
     "announcements": [
       {
         "badge": "Latest Updates",
-        "date": "October 2026",
-        "text": "Dark theme contrast refinement for configuration flyouts and dynamic metadata synchronization across multi-school switcher."
+        "date": "November 2026",
+        "text": "Campus TimeMachine & Traveling Faculty: interactive spatiotemporal simulation of campus occupancy (Main vs Branch), transit corridor flows, and subway-style metro map."
       }
     ],
     "pillars_header": {

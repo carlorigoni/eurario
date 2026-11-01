@@ -25,7 +25,8 @@ Zero dipendenze esterne Python, interfaccia reattiva in stile Google Classroom /
   - **Classi e Gruppi**: articolazioni per lingua straniera (es. Francese, Spagnolo, Tedesco), suddivisioni biennio/triennio per indirizzo di studio.
   - **Aule e Spazi Specialistici**: aule base, palestre condivise con gestione capienza contemporanea automatica, laboratori specialistici.
   - **Macro-Materie e Accorpamenti**: unione intelligente di cattedre affini (es. *Italiano Latino Storia e Geografia*) per un bilanciamento didattico ottimale.
-  - **Disposizioni Intelligenti**: collocazione automatica delle ore a disposizione senza buchi e senza sovrapposizioni a lezioni pluri-orarie.
+  - **Disposizioni Intelligenti**: collocazione automatica delle ore a disposizione senza buchi, matrice di distribuzione settimanale e indicatori di densità oraria (`👥 X D`).
+  - **TimeMachine Plessi & Docenti Itineranti**: simulatore interattivo spazio-temporale per monitorare l'occupazione delle sedi (Centrale vs Succursale), i tragitti dei docenti itineranti con analisi del comfort (buca, intervallo, ore consecutive), le classi con inizio fuori sede e la mappa metropolitana a stazioni.
 - **Sincronizzazione Organico e Modello Word (.docx)**:
   - Download diretto del **Modello Word (.docx)** pre-formattato per l'organico docenti o esportazione istantanea dell'organico attuale della scuola in Word.
   - Sincronizzazione automatica da file Word (.docx) o Google Docs con anteprima differenziale e conferma selettiva.

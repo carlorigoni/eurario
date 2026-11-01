@@ -159,3 +159,47 @@ Eurario include un algoritmo euristico proprietario (`place_disposizioni_in_time
 * **Esportazione Classi PDF & HTML**:
   * Visualizzazione a colori con palette pastello per materia.
   * Modalità *Toner-Save* monocromatica per la stampa massiva a basso consumo di inchiostro.
+
+---
+
+## 7. TimeMachine Plessi & Docenti Itineranti (Simulatore Spazio-Temporale)
+
+Negli istituti scolastici articolati su più sedi (es. **Sede Centrale** e **Sede Succursale** distaccata), la gestione dei docenti itineranti e delle classi che effettuano lezioni fuori dal proprio plesso ordinario (es. laboratori, palestre esterne) rappresenta uno dei punti critici per la fattibilità dell'orario.
+
+La **TimeMachine** di Eurario trasforma il tabellone orario in un simulatore dinamico interattivo, consentendo alla commissione orario e alla dirigenza di navigare ora per ora lungo l'intera settimana scolastica per validare la sostenibilità logistica degli spostamenti.
+
+```mermaid
+flowchart LR
+    Centrale["🏫 Sede Centrale\n(Aule ordinarie & Lab)"] <-->|"🚗 Corridoio di Transito\n(Docenti Itineranti con Analisi Comfort)"| Succursale["🏛️ Sede Succursale\n(Classi residenti)"]
+```
+
+### Le Funzionalità Chiave della TimeMachine:
+
+#### 1. 🎛️ Mission Control & Player Multimediale
+* **Selettore Giornaliero con Contatori di Flusso**: Barra superiore con pulsanti per ciascun giorno (Lunedì–Venerdì). Ogni giorno riporta un badge con il totale dei tragitti programmati tra i plessi (es. `🚗 31`).
+* **Scrubber Orario a Segmenti Interattivi**: Permette di saltare con un clic a qualsiasi ora (1ª - 6ª ora). Ciascun segmento include micro-indicatori:
+  * 🚗 **Punto Arancione**: indica la presenza di docenti in viaggio in quell'ora.
+  * 📍 **Punto Rosso**: segnala classi che svolgono o iniziano lezione fuori sede.
+* **Player Automatico & Velocità**: Pulsante **▶ Play / ⏸ Pausa** per animare la giornata in continuo, con toggle di velocità `1x` / `2x`.
+* **Scorciatoie da Tastiera**: Navigazione ergonomica con `Spazio` (Play/Pausa) e `Frecce Destra / Sinistra` (Ora successiva / precedente).
+
+#### 2. 🗺️ Vista Spaziale (Campus Map a 3 Colonne)
+* **Colonna Centrale & Colonna Succursale**: Mostrano in tempo reale tutte le classi e i docenti fisicamente presenti nell'ora selezionata.
+* **Rilevamento "Inizio Fuori Sede" (🌅 Badge Rosso Pulsante)**: Identifica automaticamente le classi residenti in Succursale che **iniziano la prima ora in Centrale** (o viceversa) per ragioni logistiche (es. Scienze Motorie in Palestra Atene).
+* **Badge Classe Ospite**: Evidenzia le classi che in quell'ora si trovano fuori dalla propria aula o sede abituale.
+* **Tab Docenti in Cattedra**: Alterna istantaneamente la vista delle classi a quella dei docenti in servizio in quel plesso, con indicazione dell'aula e delle eventuali ore a disposizione (`D`).
+* **Corridoio di Transito Centrale (Autostrada Spaziale)**:
+  * Visualizza le schede animate dei docenti attualmente in viaggio tra le sedi.
+  * Indica la direzione del viaggio con freccia direzionale cromatica (Centrale ➔ Succursale o Succursale ➔ Centrale).
+  * **Analisi di Comfort dello Spostamento**:
+    * 🟩 **Con Buca Intermedia**: il docente ha almeno un'ora libera per effettuare lo spostamento senza fretta.
+    * ☕ **Durante Intervallo**: il cambio plesso avviene durante la ricreazione d'istituto.
+    * ⚠️ **Ore Consecutive**: segnalazione critica di spostamento senza pausa tra l'ora di fine lezione e la successiva ora di inizio.
+
+#### 3. 🚇 Mappa Metropolitana (Metro Subway Board)
+* Ispirata ai diagrammi delle metropolitane, visualizza l'intera settimana di ciascun docente itinerante su una linea di stazioni consecutive:
+  * 🔵 **Stazione Blu**: Ora di lezione svolta in Sede Centrale.
+  * 🟣 **Stazione Viola**: Ora di lezione svolta in Sede Succursale.
+  * ⚪ **Tratteggio**: Ora buca o non lavorativa.
+  * 🚗 **Bandierina di Cambio Plesso**: Posizionata tra le ore in cui si verifica lo spostamento. Cliccando sulla bandierina, la TimeMachine si posiziona automaticamente su quel giorno e su quell'ora.
+* **Filtro di Ricerca Istantaneo**: Permette di digitare il cognome del docente per isolare immediatamente la sua linea di viaggio settimanale.

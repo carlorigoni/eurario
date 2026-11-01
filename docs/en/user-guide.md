@@ -25,7 +25,8 @@ flowchart TD
     F7 -->|"Solution found"| F9["9. On-Duty Balancing Algorithm (D)\n(Plugs gaps & balances substitutes)"]
     F8 --> F5
     F9 --> F10["10. Drag & Drop Refinement & Snapshots"]
-    F10 --> F11["11. Typographic Word (.docx A3) & PDF Export"]
+    F10 --> F11["11. TimeMachine Simulation\n(Spatiotemporal flows & itinerant faculty)"]
+    F11 --> F12["12. Typographic Word (.docx A3) & PDF Export"]
 ```
 
 ---
@@ -139,7 +140,20 @@ Accessible via the **`⚖️ Disposizioni Matrix`** button on the Solved Timetab
 
 ---
 
-### Step 11: Official Word (.docx) & PDF Export
+### Step 11: Spatiotemporal Validation with Campus TimeMachine
+Before finalizing and publishing schedules for multi-campus schools:
+1. Open **⏳ TimeMachine Plessi** from the sidebar or via the shortcut button in the Timetable toolbar.
+2. **Period-by-Period Flow Inspection**:
+   * Use the keyboard arrow keys or the **▶ Play** button to animate the progression of each day.
+   * Check the **Transit Highway** to ensure no itinerant teachers have hazardous transfers without a gap or break (marked with red ⚠️ *Consecutive Periods*).
+3. **Monitor Off-Site Beginnings**:
+   * Check **🌅 Off-Site Start** badges: flags branch campus classes scheduled at the main building for Period 1 (e.g., for sports center or science lab access).
+4. **Subway Journey View**:
+   * Click **🚇 Metro Map** to inspect the complete weekly line for each traveling teacher and jump directly to any period by clicking on the transit flag 🚗.
+
+---
+
+### Step 12: Official Word (.docx) & PDF Export
 1. Click **Official Printouts**.
 2. Export **Master Teacher Board (.docx)**:
    * Generated in **A3 Landscape** format compliant with institutional inspection standards.

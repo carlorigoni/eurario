@@ -158,3 +158,47 @@ Eurario provides an automated greedy placement algorithm (`place_disposizioni_in
 * **Class Timetables (PDF & HTML)**:
   * High-contrast pastel color coding by subject.
   * High-volume, toner-friendly monochrome format (*Toner-Save*).
+
+---
+
+## 7. Campus TimeMachine & Itinerant Faculty (Spatiotemporal Simulation)
+
+In multi-campus institutions (e.g., **Main Campus** and a distant **Branch Campus**), tracking faculty travelling between buildings and classes scheduled off-site (e.g., sports centers, dedicated laboratories) is essential for timetable viability.
+
+Eurario's **TimeMachine** provides an interactive simulation engine allowing administrators to navigate period-by-period across the entire school week and validate physical transfer logistics.
+
+```mermaid
+flowchart LR
+    MainCampus["🏫 Main Campus\n(Standard classrooms & labs)"] <-->|"🚗 Transit Corridor\n(Itinerant Teachers & Comfort Analysis)"| BranchCampus["🏛️ Branch Campus\n(Resident classes)"]
+```
+
+### Key TimeMachine Capabilities:
+
+#### 1. 🎛️ Mission Control & Media Player
+* **Daily Selector with Transfer Counts**: Top day-bar (Monday–Friday) showing badges with total scheduled campus changes (e.g., `🚗 31`).
+* **Segmented Period Scrubber**: Instant navigation between periods (1st through 6th/8th). Features micro-indicators:
+  * 🚗 **Orange Dot**: Itinerant teachers currently traveling in transit.
+  * 📍 **Red Dot**: Classes attending or starting off-site lessons.
+* **Continuous Playback**: Interactive **▶ Play / ⏸ Pause** controls with speed toggle (`1x` / `2x`).
+* **Keyboard Hotkeys**: Fast navigation using `Space` (Play/Pause) and `Left / Right Arrows` (Previous / Next period).
+
+#### 2. 🗺️ Spatial View (3-Column Campus Map)
+* **Main & Branch Campus Columns**: Period-specific rosters of all classes and faculty present on each campus.
+* **Off-Site Start Alerts (🌅 Pulsing Red Badge)**: Automatically flags classes resident in the Branch campus that **must arrive at the Main campus for Period 1** (e.g., for athletics or specialty labs).
+* **Guest Class Badge**: Labels classes temporarily relocated outside their resident base building.
+* **Faculty Roster Tab**: Toggles from class cards to teachers on duty, detailing rooms and on-call status (`D`).
+* **Central Transit Highway**:
+  * Real-time animated cards for faculty members currently moving between campuses.
+  * Directional flow indicators (Main ➔ Branch or Branch ➔ Main).
+  * **Transit Comfort Rating**:
+    * 🟩 **With Free Period Gap**: Teacher has at least one free period to travel comfortably.
+    * ☕ **During School Break**: Transfer aligns with the mid-morning recreation pause.
+    * ⚠️ **Back-to-Back Consecutive**: Critical warning for travel with zero gap between consecutive teaching periods.
+
+#### 3. 🚇 Metro Subway Map (Itinerant Schedule Diagram)
+* Subway-line visualization charting each itinerant teacher across the week:
+  * 🔵 **Blue Station**: Period taught at Main Campus.
+  * 🟣 **Purple Station**: Period taught at Branch Campus.
+  * ⚪ **Dashed Node**: Free period or gap.
+  * 🚗 **Transfer Flag**: Station change indicator. Clicking any flag or node jumps the TimeMachine directly to that exact day and period.
+* **Instant Name Filter**: Search box to isolate any teacher's weekly travel trajectory.

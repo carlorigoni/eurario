@@ -112,6 +112,7 @@ Eurario was engineered around real-world logistical, contractual, and educationa
 
 ### 3. Multi-Building Logistics & Shared Facilities
 * **Main Building & Annexes (Plessi)**: Native support for teachers commuting between buildings, incorporating travel times and capping daily building changes.
+* **Campus TimeMachine & Spatiotemporal Simulation**: Interactive period-by-period timeline simulator with media playback and keyboard shortcuts. Tracks campus occupancy, traveling teachers in the transit corridor (with comfort ratings: gap, break, consecutive), off-site start alerts, and subway-style metro line maps.
 * **Specialized Rooms & Gyms**: Manages capacity-restricted spaces, half-court gyms, and computer/science labs shared across multiple classes.
 
 ### 4. Dynamic On-Duty & Substitute Balancing ("D")

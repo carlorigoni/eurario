@@ -25,7 +25,8 @@ flowchart TD
     F7 -->|"Soluzione trovata"| F9["9. Algoritmo Disposizioni (D)\n(Copertura buchi e supplenze)"]
     F8 --> F5
     F9 --> F10["10. Rifinitura Drag & Drop & Snapshot"]
-    F10 --> F11["11. Esportazione Ufficiale Word (.docx A3) & PDF"]
+    F10 --> F11["11. Simulazione TimeMachine Plessi\n(Flussi spaziali & docenti itineranti)"]
+    F11 --> F12["12. Esportazione Ufficiale Word (.docx A3) & PDF"]
 ```
 
 ---
@@ -139,7 +140,20 @@ Accessibile tramite il pulsante **`⚖️ Distribuzione Disposizioni`** nella to
 
 ---
 
-### Fase 11: Esportazione Ufficiale Word (.docx) e PDF
+### Fase 11: Validazione Spazio-Temporale con la TimeMachine Plessi
+Prima di procedere alla firma e alla pubblicazione dell'orario negli istituti multi-sede:
+1. Accedere a **⏳ TimeMachine Plessi** dal menu laterale o dal pulsante rapido presente nella barra strumenti del Tabellone Orario.
+2. **Ispezione Flussi Ora per Ora**:
+   * Usare i tasti freccia o il pulsante **▶ Play** per riprodurre lo scorrere della giornata scolastica.
+   * Controllare nel **Corridoio di Transito** che nessun docente itinerante abbia spostamenti critici senza intervallo o buca intermedia (evidenziati dal badge rosso ⚠️ *Ore Consecutive*).
+3. **Controllo Inizio Fuori Sede**:
+   * Verificare i badge **🌅 Inizio Fuori Sede**: segnalano le classi con sede ordinaria in succursale che devono presentarsi in centrale alla 1ª ora (es. per l'accesso ai laboratori o palestre).
+4. **Mappa Metropolitana dei Docenti Itineranti**:
+   * Cliccare su **🚇 Mappa Metro** per visionare la linea di percorrenza settimanale di ciascun docente itinerante e saltare direttamente allo slot desiderato cliccando sulle bandierine di cambio sede 🚗.
+
+---
+
+### Fase 12: Esportazione Ufficiale Word (.docx) e PDF
 1. Cliccare su **Stampe Ufficiali**.
 2. Selezionare **Tabellone Docenti Word (.docx)**:
    * File in formato **A3 Orizzontale** conforme alla Procedura 12 ministeriale.
