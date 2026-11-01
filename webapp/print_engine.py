@@ -1943,6 +1943,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
   <title>{escape(institution)} — {escape(doc_title)}</title>
   <style>
     @page {{
+      size: landscape;
       size: {paper_size} landscape;
       margin: 8mm 8mm 8mm 8mm;
     }}
@@ -1951,23 +1952,34 @@ def generate_transfers_print_html(data, tm_data, options=None):
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }}
-    body {{
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    html, body {{
+      width: 100%;
+      height: auto;
       margin: 0;
-      padding: 12px;
+      padding: 0;
+      background: #f8fafc;
       color: #0f172a;
-      background: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       font-size: 11px;
       line-height: 1.35;
+    }}
+    .board-container {{
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 14px 18px 24px;
+      background: #ffffff;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.06);
     }}
 
     /* Toolbar a schermo (nascosta in stampa) */
     .screen-toolbar {{
+      position: sticky;
+      top: 0;
+      z-index: 1000;
       background: #0f172a;
       color: #f8fafc;
       padding: 10px 16px;
-      border-radius: 8px;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -1999,16 +2011,63 @@ def generate_transfers_print_html(data, tm_data, options=None):
       background: #059669;
     }}
 
+    /* Stili di Stampa Ufficiali & Risoluzione Pagine Bianche */
     @media print {{
-      .screen-toolbar {{
+      @page {{
+        size: landscape;
+        size: {paper_size} landscape;
+        margin: 8mm 8mm 8mm 8mm;
+      }}
+      html, body {{
+        width: 100% !important;
+        height: auto !important;
+        min-height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        overflow: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }}
+      .screen-toolbar, .no-print {{
         display: none !important;
       }}
-      body {{
+      .board-container {{
+        max-width: none !important;
+        width: 100% !important;
+        margin: 0 !important;
         padding: 0 !important;
+        background: #ffffff !important;
+        box-shadow: none !important;
+        border: none !important;
       }}
       .page-break {{
-        page-break-before: always;
-        break-before: page;
+        page-break-before: always !important;
+        break-before: page !important;
+      }}
+      .days-columns {{
+        display: block !important;
+        width: 100% !important;
+      }}
+      .day-block {{
+        display: inline-block !important;
+        vertical-align: top !important;
+        width: 48.5% !important;
+        margin-right: 2% !important;
+        margin-bottom: 12px !important;
+        box-sizing: border-box !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }}
+      .day-block:nth-child(2n) {{
+        margin-right: 0 !important;
+      }}
+      table.data-table thead, table.matrix-table thead {{
+        display: table-header-group !important;
+      }}
+      table.data-table tr, table.matrix-table tr {{
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }}
     }}
 
@@ -2020,6 +2079,8 @@ def generate_transfers_print_html(data, tm_data, options=None):
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }}
     .board-title {{
       font-size: 18px;
@@ -2123,6 +2184,8 @@ def generate_transfers_print_html(data, tm_data, options=None):
       gap: 6px;
       border-bottom: 1.5px solid #0f172a;
       padding-bottom: 4px;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }}
 
     /* Badge Comfort */
@@ -2146,15 +2209,19 @@ def generate_transfers_print_html(data, tm_data, options=None):
       font-weight: 800;
     }}
 
-    /* Griglia 2 Colonne per Giorni */
+    /* Colonne per Giorni */
     .days-columns {{
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+      display: flex;
+      flex-wrap: wrap;
       gap: 12px;
+      justify-content: space-between;
     }}
     .day-block {{
-      page-break-inside: avoid;
+      flex: 0 0 calc(50% - 6px);
+      width: calc(50% - 6px);
+      box-sizing: border-box;
       break-inside: avoid;
+      page-break-inside: avoid;
       margin-bottom: 12px;
     }}
     .day-header {{
@@ -2223,6 +2290,8 @@ def generate_transfers_print_html(data, tm_data, options=None):
       display: flex;
       justify-content: space-between;
       align-items: center;
+      page-break-inside: avoid;
+      break-inside: avoid;
     }}
   </style>
   <script>
@@ -2233,7 +2302,10 @@ def generate_transfers_print_html(data, tm_data, options=None):
       if (val === 'all') {{
         if (secAlert) secAlert.style.display = 'block';
         if (secChrono) secChrono.style.display = 'block';
-        if (secMatrix) secMatrix.style.display = 'block';
+        if (secMatrix) {{
+          secMatrix.style.display = 'block';
+          secMatrix.classList.add('page-break');
+        }}
       }} else if (val === 'chronology') {{
         if (secAlert) secAlert.style.display = 'block';
         if (secChrono) secChrono.style.display = 'block';
@@ -2241,15 +2313,33 @@ def generate_transfers_print_html(data, tm_data, options=None):
       }} else if (val === 'teachers') {{
         if (secAlert) secAlert.style.display = 'none';
         if (secChrono) secChrono.style.display = 'none';
-        if (secMatrix) secMatrix.style.display = 'block';
+        if (secMatrix) {{
+          secMatrix.style.display = 'block';
+          secMatrix.classList.remove('page-break');
+        }}
       }}
+    }}
+
+    function closePrintView() {{
+      try {{
+        window.close();
+      }} catch (e) {{}}
+      setTimeout(function() {{
+        if (window.opener && !window.opener.closed) {{
+          try {{ window.close(); }} catch(e) {{}}
+        }} else if (window.history.length > 1) {{
+          window.history.back();
+        }} else {{
+          window.location.href = '/';
+        }}
+      }}, 120);
     }}
   </script>
 </head>
 <body>
 
   <!-- Barra comandi a schermo -->
-  <div class="screen-toolbar">
+  <div class="screen-toolbar no-print">
     <div style="display:flex;align-items:center;gap:12px;">
       <button type="button" class="btn-print" onclick="window.print()">🖨️ {('Stampa / Salva in PDF' if not is_en else 'Print / Save PDF')}</button>
       <label style="font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;">
@@ -2263,26 +2353,27 @@ def generate_transfers_print_html(data, tm_data, options=None):
       <span style="font-size:11px;color:#94a3b8;">Format: <b>{paper_size} Landscape</b></span>
     </div>
     <div>
-      <button type="button" onclick="window.close()">{('Chiudi' if not is_en else 'Close')}</button>
+      <button type="button" onclick="closePrintView()">{('Chiudi' if not is_en else 'Close')}</button>
     </div>
   </div>
 
-  <!-- Testata Istituzionale -->
-  <div class="board-header">
-    <div>
-      <div class="board-title">{escape(institution)}</div>
-      <div class="board-sub">{escape(doc_title)} &mdash; {('Destinazione: Portineria, Collaboratori Scolastici e Sala Docenti' if not is_en else 'Target: Front Desk, Security Staff and Faculty Room')}</div>
-      <div class="board-kpis">
-        <span class="kpi-pill">🚗 {('Docenti Itineranti:' if not is_en else 'Itinerant Faculty:')} <b>{total_itinerant}</b></span>
-        <span class="kpi-pill">🔄 {('Trasferimenti Settimanali:' if not is_en else 'Weekly Transfers:')} <b>{total_transfers}</b></span>
-        <span class="kpi-pill">🌅 {('Classi Inizio Fuori Sede:' if not is_en else 'Off-Site Start Cohorts:')} <b>{anomalous_count}</b></span>
+  <div class="board-container">
+    <!-- Testata Istituzionale -->
+    <div class="board-header">
+      <div>
+        <div class="board-title">{escape(institution)}</div>
+        <div class="board-sub">{escape(doc_title)} &mdash; {('Destinazione: Portineria, Collaboratori Scolastici e Sala Docenti' if not is_en else 'Target: Front Desk, Security Staff and Faculty Room')}</div>
+        <div class="board-kpis">
+          <span class="kpi-pill">🚗 {('Docenti Itineranti:' if not is_en else 'Itinerant Faculty:')} <b>{total_itinerant}</b></span>
+          <span class="kpi-pill">🔄 {('Trasferimenti Settimanali:' if not is_en else 'Weekly Transfers:')} <b>{total_transfers}</b></span>
+          <span class="kpi-pill">🌅 {('Classi Inizio Fuori Sede:' if not is_en else 'Off-Site Start Cohorts:')} <b>{anomalous_count}</b></span>
+        </div>
+      </div>
+      <div class="board-meta">
+        <div><b>{('Orario Ufficiale in vigore dal:' if not is_en else 'Schedule Valid From:')}</b> {escape(validity_date)}</div>
+        <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.36</div>
       </div>
     </div>
-    <div class="board-meta">
-      <div><b>{('Orario Ufficiale in vigore dal:' if not is_en else 'Schedule Valid From:')}</b> {escape(validity_date)}</div>
-      <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.33</div>
-    </div>
-  </div>
 """)
 
     # 1. SEZIONE CLASSI CON INIZIO FUORI SEDE
@@ -2422,8 +2513,10 @@ def generate_transfers_print_html(data, tm_data, options=None):
 
     # 3. SEZIONE MATRICE SETTIMANALE DEI DOCENTI ITINERANTI (PER LA SALA PROFESSORI)
     matrix_disp = "none" if layout == "chronology" else "block"
+    has_prior_sections = bool(all_anomalous_events or any(timeline.get(d, {}).get(h, {}).get("transfers") for d in days for h in hours))
+    matrix_class = "page-break" if (layout != "teachers" and has_prior_sections) else ""
     html_parts.append(f"""
-  <div id="secMatrix" class="page-break" style="margin-top:16px;display:{matrix_disp};">
+  <div id="secMatrix" class="{matrix_class}" style="margin-top:16px;display:{matrix_disp};">
     <div class="section-title">
       <span>📋</span>
       <span>{('Matrice Settimanale Docenti Itineranti (Per la Sala Professori)' if not is_en else 'Weekly Faculty Travel Matrix (For Staff Room Noticeboard)')}</span>
@@ -2523,10 +2616,11 @@ def generate_transfers_print_html(data, tm_data, options=None):
     # Note a piè di pagina
     html_parts.append(f"""
     <div class="footer-note">
-      <div><b>Eurario FET Suite v1.9.33</b> &mdash; {('Documento Ufficiale d\'Istituto per la gestione degli accessi e dei varchi' if not is_en else 'Official Institutional Schedule for Access & Gate Management')}</div>
+      <div><b>Eurario FET Suite v1.9.36</b> &mdash; {('Documento Ufficiale d\'Istituto per la gestione degli accessi e dei varchi' if not is_en else 'Official Institutional Schedule for Access & Gate Management')}</div>
       <div>{('Stampato il:' if not is_en else 'Printed on:')} {datetime.now().strftime('%d/%m/%Y %H:%M')}</div>
     </div>
   </div>
+  </div> <!-- end board-container -->
 
 </body>
 </html>""")
