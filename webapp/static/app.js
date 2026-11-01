@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.39';
+let APP_VERSION = '1.9.40';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -3976,22 +3976,22 @@ let navigationHistory = [];
 
 const VIEW_TITLES = {
   dashboard: 'Dashboard Generale',
-  timetable: 'Orario Risolto (Visual Explorer)',
-  timemachine: 'TimeMachine Plessi & Docenti Itineranti',
+  timetable: 'Orario Risolto',
+  timemachine: 'TimeMachine Plessi',
   solver: 'Compilatore FET',
-  diagnostics: 'Pre-Validatore & Advisor Intelligente dei Vincoli',
-  teachers: 'Gestione Docenti',
-  classes: 'Gestione Classi & Gruppi',
-  subjects: 'Gestione Materie',
-  rooms: 'Gestione Plessi & Aule',
+  diagnostics: 'Pre-Validatore & Advisor',
+  teachers: 'Docenti',
+  classes: 'Classi & Gruppi',
+  subjects: 'Materie',
+  rooms: 'Plessi & Aule',
   activities: 'Attività & Cattedre',
   availability: 'Griglia Indisponibilità',
   constraints: 'Vincoli Algoritmo FET',
-  accorpamenti: 'Gestione Accorpamenti Macro-Materie',
-  block_rules: 'Regole Suddivisione Blocchi & Indirizzi Sezioni',
-  parameters: 'Parametri Istituto & Calendario',
-  snapshots: 'Backup, File & Punti di Ripristino (Snapshot)',
-  import_export: 'Backup, File & Punti di Ripristino (Snapshot)'
+  accorpamenti: 'Accorpamenti',
+  block_rules: 'Regole Blocchi & Indirizzi',
+  parameters: 'Parametri Istituto',
+  snapshots: 'Backup & Snapshot',
+  import_export: 'Backup & Snapshot'
 };
 
 const VIEW_SHORT_LABELS = {

@@ -2244,16 +2244,41 @@ textarea:focus:not(:focus-visible) {
 
 .app-page-footer {
   margin-top: auto;
-  padding: 14px 28px;
+  padding: 4px 20px;
+  height: 28px;
+  min-height: 28px;
+  box-sizing: border-box;
   border-top: 1px solid var(--border-light);
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text-muted);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-wrap: nowrap;
+  gap: 12px;
   background: var(--bg-card);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.footer-left-info,
+.footer-right-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+}
+
+.footer-right-links a {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+.footer-right-links a:hover {
+  text-decoration: underline;
 }
 
 .badge-ver {
@@ -2261,11 +2286,12 @@ textarea:focus:not(:focus-visible) {
   background: #e0f2fe;
   color: #0369a1;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 4px;
   border: 1px solid #bae6fd;
+  line-height: 1.2;
 }
 
 /* Main Content Area */
@@ -2301,12 +2327,18 @@ textarea:focus:not(:focus-visible) {
 .topbar-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 .topbar-title {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.2;
 }
 
 .topbar-right {
@@ -2934,15 +2966,24 @@ textarea:focus:not(:focus-visible) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
-  padding: 5px 12px;
+  padding: 4px 10px;
   border-radius: 6px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   color: var(--primary);
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 175px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nav-back-btn span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .nav-back-btn:hover {
