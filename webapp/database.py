@@ -2878,6 +2878,281 @@ class Database:
                     self.place_disposizioni_in_timetable()
             return build_timetable_views(self.data)
 
+    def get_timemachine_data(self):
+        """
+        Costruisce i flussi orari della TimeMachine:
+        - Distribuzione spaziale delle classi e dei docenti plesso per plesso ad ogni ora
+        - Tracciamento dei docenti itineranti in spostamento tra le sedi con analisi del comfort (buca/intervallo)
+        - Rilevamento delle classi che iniziano o svolgono lezioni fuori dalla sede ordinaria
+        - Generazione dei percorsi per la vista Mappa Metropolitana
+        """
+        with self.lock:
+            views = self.get_timetable_views()
+            days = views.get("days", [])
+            hours = views.get("hours", [])
+            raw_hours = hours
+            clean_hours = [h for h in hours if not h.startswith("INT")]
+
+            # Edifici configurati o predefiniti
+            raw_blds = self.data.get("buildings", [])
+            bld_objs = []
+            for b in raw_blds:
+                if isinstance(b, dict):
+                    bld_objs.append({
+                        "name": b.get("name", "Centrale"),
+                        "short_code": b.get("short_code", "C")
+                    })
+                elif isinstance(b, str) and b.strip():
+                    bld_objs.append({
+                        "name": b.strip(),
+                        "short_code": b.strip()[:1].upper()
+                    })
+            if not bld_objs:
+                bld_objs = [
+                    {"name": "Centrale", "short_code": "C"},
+                    {"name": "Succursale", "short_code": "S"}
+                ]
+            if len(bld_objs) == 1 and bld_objs[0]["name"] == "Centrale":
+                bld_objs.append({"name": "Succursale", "short_code": "S"})
+
+            bld_names = [b["name"] for b in bld_objs]
+            primary_bld = bld_names[0]
+
+            # Determina edificio base (di residenza) per ciascuna classe
+            class_base_buildings = {}
+            for c in self.data.get("classes", []):
+                cname = c.get("name", "")
+                if c.get("building"):
+                    class_base_buildings[cname] = c["building"]
+
+            for cname, grid in views.get("by_class", {}).items():
+                if cname not in class_base_buildings:
+                    bld_counts = defaultdict(int)
+                    for d in grid:
+                        for h in grid[d]:
+                            for l in grid[d][h]:
+                                b = l.get("building") or primary_bld
+                                bld_counts[b] += 1
+                    if bld_counts:
+                        class_base_buildings[cname] = max(bld_counts, key=bld_counts.get)
+                    else:
+                        class_base_buildings[cname] = primary_bld
+
+            timeline = {}
+            itinerant_teachers_set = set()
+            teacher_transfers_map = defaultdict(lambda: defaultdict(list))
+            total_transfers_count = 0
+            transfers_per_day = defaultdict(int)
+            anomalous_classes_overall = set()
+            all_anomalous_events = []
+
+            for d in days:
+                timeline[d] = {}
+                for h_idx, h in enumerate(clean_hours):
+                    bld_data = {
+                        bname: {
+                            "classes": [],
+                            "teachers": [],
+                            "stats": {"class_count": 0, "teacher_count": 0}
+                        }
+                        for bname in bld_names
+                    }
+                    transfers = []
+                    anomalous_starts = []
+
+                    # 1. Presenze Classi
+                    for cname, grid in views.get("by_class", {}).items():
+                        slots = grid.get(d, {}).get(h, [])
+                        if slots:
+                            l = slots[0]
+                            curr_bld = l.get("building") or primary_bld
+                            if curr_bld not in bld_data:
+                                bld_data[curr_bld] = {
+                                    "classes": [],
+                                    "teachers": [],
+                                    "stats": {"class_count": 0, "teacher_count": 0}
+                                }
+                            base_bld = class_base_buildings.get(cname, primary_bld)
+                            is_displaced = (curr_bld != base_bld)
+                            is_start = (h_idx == 0)
+
+                            c_entry = {
+                                "class_name": cname,
+                                "room": l.get("room", ""),
+                                "subject": l.get("subject", ""),
+                                "teachers": l.get("teachers", []),
+                                "base_building": base_bld,
+                                "current_building": curr_bld,
+                                "is_displaced": is_displaced,
+                                "is_anomalous_start": is_displaced and is_start
+                            }
+                            bld_data[curr_bld]["classes"].append(c_entry)
+                            if is_displaced and is_start:
+                                anomalous_starts.append(c_entry)
+                                anomalous_classes_overall.add(cname)
+                                all_anomalous_events.append({
+                                    "day": d,
+                                    "hour": h,
+                                    "class_name": cname,
+                                    "base_building": base_bld,
+                                    "actual_building": curr_bld,
+                                    "room": l.get("room", ""),
+                                    "subject": l.get("subject", ""),
+                                    "teachers": l.get("teachers", [])
+                                })
+
+                    # 2. Presenze Docenti
+                    for tname, grid in views.get("by_teacher", {}).items():
+                        slots = grid.get(d, {}).get(h, [])
+                        if slots:
+                            l = slots[0]
+                            curr_bld = l.get("building") or primary_bld
+                            if curr_bld not in bld_data:
+                                bld_data[curr_bld] = {
+                                    "classes": [],
+                                    "teachers": [],
+                                    "stats": {"class_count": 0, "teacher_count": 0}
+                                }
+                            bld_data[curr_bld]["teachers"].append({
+                                "teacher_name": tname,
+                                "room": l.get("room", ""),
+                                "subject": l.get("subject", ""),
+                                "classes": l.get("students", []),
+                                "is_disposizione": l.get("is_disposizione", False)
+                            })
+
+                    # Ordina
+                    for bname in bld_data:
+                        bld_data[bname]["classes"].sort(key=lambda x: x["class_name"])
+                        bld_data[bname]["teachers"].sort(key=lambda x: x["teacher_name"])
+                        bld_data[bname]["stats"]["class_count"] = len(bld_data[bname]["classes"])
+                        bld_data[bname]["stats"]["teacher_count"] = len(bld_data[bname]["teachers"])
+
+                    # 3. Trasferimenti docenti in ingresso in quest'ora
+                    if h_idx > 0:
+                        for tname, grid in views.get("by_teacher", {}).items():
+                            day_lessons = grid.get(d, {})
+                            curr_slots = day_lessons.get(h, [])
+                            if curr_slots:
+                                curr_bld = curr_slots[0].get("building") or primary_bld
+                                prev_h = None
+                                prev_bld = None
+                                prev_room = ""
+                                for p_idx in range(h_idx - 1, -1, -1):
+                                    ph = clean_hours[p_idx]
+                                    p_slots = day_lessons.get(ph, [])
+                                    if p_slots:
+                                        prev_h = ph
+                                        prev_bld = p_slots[0].get("building") or primary_bld
+                                        prev_room = p_slots[0].get("room", "")
+                                        break
+
+                                if prev_bld and prev_bld != curr_bld:
+                                    idx_prev_clean = clean_hours.index(prev_h)
+                                    is_consec = (idx_prev_clean == h_idx - 1)
+
+                                    p_raw_idx = raw_hours.index(prev_h) if prev_h in raw_hours else 0
+                                    c_raw_idx = raw_hours.index(h) if h in raw_hours else 0
+                                    has_recess = any(raw_hours[k].startswith("INT") for k in range(p_raw_idx + 1, c_raw_idx))
+
+                                    if not is_consec:
+                                        comfort = "comodo_buca"
+                                        comfort_lbl = f"Comodo (Buca di {h_idx - idx_prev_clean - 1}h)"
+                                    elif has_recess:
+                                        comfort = "comodo_intervallo"
+                                        comfort_lbl = "Durante Intervallo"
+                                    else:
+                                        comfort = "consecutivo"
+                                        comfort_lbl = "Cambio Diretto Consecutivo"
+
+                                    itinerant_teachers_set.add(tname)
+                                    total_transfers_count += 1
+                                    transfers_per_day[d] += 1
+
+                                    tr_obj = {
+                                        "teacher": tname,
+                                        "from_building": prev_bld,
+                                        "to_building": curr_bld,
+                                        "from_hour": prev_h,
+                                        "to_hour": h,
+                                        "from_room": prev_room,
+                                        "to_room": curr_slots[0].get("room", ""),
+                                        "to_class": ", ".join(curr_slots[0].get("students", [])),
+                                        "to_subject": curr_slots[0].get("subject", ""),
+                                        "comfort": comfort,
+                                        "comfort_label": comfort_lbl,
+                                        "is_consecutive": is_consec
+                                    }
+                                    transfers.append(tr_obj)
+                                    teacher_transfers_map[tname][d].append(tr_obj)
+
+                    timeline[d][h] = {
+                        "buildings": bld_data,
+                        "transfers": transfers,
+                        "anomalous_starts": anomalous_starts
+                    }
+
+            # Costruisci metro lines per tutti i docenti itineranti
+            itinerant_teachers_list = []
+            for tname in sorted(list(itinerant_teachers_set)):
+                t_grid = views.get("by_teacher", {}).get(tname, {})
+                t_transfers_tot = sum(len(tr_list) for tr_list in teacher_transfers_map[tname].values())
+                daily_schedule = {}
+                for d in days:
+                    day_sched = []
+                    for h in clean_hours:
+                        slots = t_grid.get(d, {}).get(h, [])
+                        if slots:
+                            day_sched.append({
+                                "hour": h,
+                                "is_free": False,
+                                "building": slots[0].get("building") or primary_bld,
+                                "room": slots[0].get("room", ""),
+                                "subject": slots[0].get("subject", ""),
+                                "class_name": ", ".join(slots[0].get("students", [])),
+                                "is_disp": slots[0].get("is_disposizione", False)
+                            })
+                        else:
+                            day_sched.append({
+                                "hour": h,
+                                "is_free": True,
+                                "building": None,
+                                "room": "",
+                                "subject": "Buca",
+                                "class_name": "",
+                                "is_disp": False
+                            })
+                    daily_schedule[d] = day_sched
+
+                itinerant_teachers_list.append({
+                    "name": tname,
+                    "total_transfers": t_transfers_tot,
+                    "transfers_by_day": {d: len(teacher_transfers_map[tname][d]) for d in days},
+                    "daily_schedule": daily_schedule
+                })
+
+            itinerant_teachers_list.sort(key=lambda x: x["total_transfers"], reverse=True)
+
+            return {
+                "has_timetable": views.get("has_timetable", False),
+                "institution": self.data.get("institution", "Istituto Scolastico"),
+                "days": days,
+                "hours": clean_hours,
+                "raw_hours": raw_hours,
+                "buildings": bld_objs,
+                "is_multi_building": len(set(class_base_buildings.values())) > 1 or len(itinerant_teachers_set) > 0,
+                "class_base_buildings": class_base_buildings,
+                "timeline": timeline,
+                "itinerant_teachers_list": itinerant_teachers_list,
+                "all_anomalous_events": all_anomalous_events,
+                "weekly_stats": {
+                    "total_itinerant_teachers": len(itinerant_teachers_set),
+                    "total_transfers_week": total_transfers_count,
+                    "transfers_by_day": dict(transfers_per_day),
+                    "anomalous_classes_count": len(anomalous_classes_overall)
+                }
+            }
+
     def toggle_activity_lock(self, aid, locked=None):
         with self.lock:
             aid = str(aid)

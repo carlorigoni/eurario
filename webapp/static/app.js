@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.32';
+let APP_VERSION = '1.9.33';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -3949,6 +3949,7 @@ let navigationHistory = [];
 const VIEW_TITLES = {
   dashboard: 'Dashboard Generale',
   timetable: 'Orario Risolto (Visual Explorer)',
+  timemachine: 'TimeMachine Plessi & Docenti Itineranti',
   solver: 'Compilatore FET',
   diagnostics: 'Pre-Validatore & Advisor Intelligente dei Vincoli',
   teachers: 'Gestione Docenti',
@@ -3968,6 +3969,7 @@ const VIEW_TITLES = {
 const VIEW_SHORT_LABELS = {
   dashboard: 'Dashboard',
   timetable: 'Orario Risolto',
+  timemachine: 'TimeMachine',
   solver: 'Compilatore FET',
   diagnostics: 'Diagnostica & Advisor',
   teachers: 'Docenti',
@@ -3990,6 +3992,7 @@ function getViewShortLabel(view) {
   const enShort = {
     dashboard: 'Dashboard',
     timetable: 'Timetable',
+    timemachine: 'TimeMachine',
     solver: 'FET Solver',
     diagnostics: 'Diagnostics & Advisor',
     teachers: 'Teachers',
@@ -4142,6 +4145,7 @@ async function navigate(view, pushHistory = true, customLabel = null) {
   try {
     if (view === 'dashboard') await renderDashboard();
     else if (view === 'timetable') await renderTimetable();
+    else if (view === 'timemachine') await renderTimeMachine();
     else if (view === 'solver') await renderSolver();
     else if (view === 'diagnostics') await renderDiagnostics();
     else if (view === 'teachers') await renderTeachers();
@@ -4408,6 +4412,7 @@ async function renderTimetable() {
         ${lockedBadgeHtml}
         <button class="btn btn-sec btn-sm" onclick="openDisposizioniOverviewModal()" title="${isEn ? 'View institute-wide on-duty distribution matrix per hour' : 'Visualizza la matrice d\'istituto di distribuzione delle disposizioni per verificare la copertura omogenea delle supplenze'}">📊 ${isEn ? 'On-Duty Board' : 'Quadro Disposizioni'}</button>
         <button class="btn btn-sec btn-sm" onclick="recalcDisposizioni()" title="${isEn ? 'Recalculate and place on-duty periods post-FET' : 'Colloca o ricalcola le ore a disposizione post-calcolo FET (copre buchi orari, preferisce 1ª ora)'}">📍 ${isEn ? 'Recalculate On-Duty' : 'Ricalcola Disposizioni'}</button>
+        <button class="btn btn-primary btn-sm" onclick="navigate('timemachine')" title="${isEn ? 'Campus TimeMachine: Dynamic view of building occupancy and itinerant teachers' : 'TimeMachine Plessi: animazione e flussi dinamici delle sedi e docenti itineranti'}" style="background:linear-gradient(135deg, #1e3a8a, #2563eb);border:none;">⏳ ${isEn ? 'TimeMachine' : 'TimeMachine Plessi'}</button>
         <button class="btn btn-primary btn-sm" onclick="openPrintClassesModal()" title="${isEn ? 'Procedure 9: Print weekly timetable per class in A4 Landscape with articulated classes' : 'Procedura 9: Stampa orario settimanale per classe in A4 Landscape con classi articolate'}">🖨️ ${isEn ? 'Print Classes (PDF)' : 'Stampa Classi (PDF)'}</button>
         <button class="btn btn-sec btn-sm" onclick="openPrintTeachersModal()" title="${isEn ? 'Procedure 12: Generate faculty master board in A3 Landscape' : 'Procedura 12: Genera tabellone generale docenti in A3 Landscape con bande verticali'}">📄 ${isEn ? 'Faculty Board (A3)' : 'Tabellone Docenti (A3)'}</button>
       </div>
@@ -4971,7 +4976,646 @@ async function openDisposizioniOverviewModal() {
   `);
 }
 
-// Navigazione rapida da tastiera (Frecce ◀ ▶) in Orario Risolto e Indisponibilità Singola
+// ============================================================================
+// TIMEMACHINE: FLUSSI PLESSI & DOCENTI ITINERANTI (ANIMAZIONE INTERATTIVA)
+// ============================================================================
+window.timeMachineState = {
+  data: null,
+  day: 'Lun',
+  hour: '1',
+  playing: false,
+  timer: null,
+  speed: 1, // 1 = 2200ms, 2 = 1100ms
+  mode: 'campus', // 'campus' | 'metro'
+  activeSubTab: 'classes', // 'classes' | 'teachers'
+  searchQuery: ''
+};
+
+async function renderTimeMachine() {
+  const container = document.getElementById('mainContent');
+  if (!container) return;
+
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+  container.innerHTML = `
+    <div style="text-align:center;padding:60px 20px;color:var(--text-muted);">
+      <div style="font-size:42px;margin-bottom:14px;animation:eurarioBarMidPulse 1.2s infinite alternate;">⏳</div>
+      <div style="font-weight:700;font-size:15px;color:var(--text-main);">${isEn ? 'Loading TimeMachine Campus Flow...' : 'Caricamento TimeMachine dei Plessi in corso...'}</div>
+      <div style="font-size:12px;margin-top:6px;">${isEn ? 'Analyzing classroom occupancy, anomalous starts and itinerant transfers' : 'Elaborazione presenze, partenze fuori sede e flussi docenti itineranti'}</div>
+    </div>
+  `;
+
+  try {
+    const res = await fetch('/api/timetable/timemachine');
+    if (!res.ok) throw new Error('Impossibile recuperare i dati della TimeMachine');
+    const tmData = await res.json();
+    window.timeMachineState.data = tmData;
+
+    if (!tmData.has_timetable) {
+      container.innerHTML = `
+        <div class="card" style="text-align:center;padding:48px 24px;max-width:580px;margin:30px auto;">
+          <div style="font-size:48px;margin-bottom:14px;">⏳</div>
+          <h3 style="margin-bottom:8px;">${isEn ? 'No Timetable Calculated Yet' : 'Nessun orario calcolato disponibile'}</h3>
+          <p style="color:var(--text-muted);font-size:13px;line-height:1.5;margin:0 0 22px;">
+            ${isEn ? 'Compile the timetable with the FET engine first to explore building occupancy and itinerant teacher movements.' : 'Compila prima l\'orario con il compilatore FET per visualizzare la TimeMachine dinamica delle sedi e i trasferimenti dei docenti itineranti.'}
+          </p>
+          <button class="btn btn-primary" onclick="navigate('solver')">⚡ ${isEn ? 'Go to FET Compiler' : 'Vai al Compilatore FET'}</button>
+        </div>
+      `;
+      return;
+    }
+
+    const days = tmData.days || [];
+    const hours = tmData.hours || [];
+    if (!days.includes(window.timeMachineState.day)) {
+      window.timeMachineState.day = days[0] || 'Lun';
+    }
+    if (!hours.includes(window.timeMachineState.hour)) {
+      window.timeMachineState.hour = hours[0] || '1';
+    }
+
+    renderTimeMachineView();
+  } catch (err) {
+    console.error('TimeMachine load error:', err);
+    container.innerHTML = `
+      <div class="card" style="text-align:center;padding:36px;max-width:580px;margin:30px auto;">
+        <div style="font-size:36px;margin-bottom:12px;">⚠️</div>
+        <h3>Errore nel caricamento della TimeMachine</h3>
+        <p style="color:var(--text-muted);font-size:13px;margin:0 0 16px;">${escapeHtml(err.message || String(err))}</p>
+        <button class="btn btn-primary" onclick="renderTimeMachine()">🔄 Riprova</button>
+      </div>
+    `;
+  }
+}
+
+function renderTimeMachineView() {
+  const container = document.getElementById('mainContent');
+  if (!container || !window.timeMachineState.data) return;
+
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+  const tmData = window.timeMachineState.data;
+  const curDay = window.timeMachineState.day;
+  const curHour = window.timeMachineState.hour;
+  const mode = window.timeMachineState.mode;
+  const isPlaying = window.timeMachineState.playing;
+  const speed = window.timeMachineState.speed;
+  const subTab = window.timeMachineState.activeSubTab;
+
+  const days = tmData.days || [];
+  const hours = tmData.hours || [];
+  const buildings = tmData.buildings || [];
+  const bld1 = buildings[0] ? buildings[0].name : 'Centrale';
+  const bld2 = buildings[1] ? buildings[1].name : (buildings[0] ? buildings[0].name : 'Succursale');
+
+  const slotData = (tmData.timeline && tmData.timeline[curDay] && tmData.timeline[curDay][curHour]) || {
+    buildings: { [bld1]: { classes: [], teachers: [] }, [bld2]: { classes: [], teachers: [] } },
+    transfers: [],
+    anomalous_starts: []
+  };
+
+  const b1Classes = (slotData.buildings && slotData.buildings[bld1] && slotData.buildings[bld1].classes) || [];
+  const b1Teachers = (slotData.buildings && slotData.buildings[bld1] && slotData.buildings[bld1].teachers) || [];
+  const b2Classes = (slotData.buildings && slotData.buildings[bld2] && slotData.buildings[bld2].classes) || [];
+  const b2Teachers = (slotData.buildings && slotData.buildings[bld2] && slotData.buildings[bld2].teachers) || [];
+  const transfers = slotData.transfers || [];
+  const anomalousStarts = slotData.anomalous_starts || [];
+  const stats = tmData.weekly_stats || {};
+  const dayTransfersCount = (stats.transfers_by_day && stats.transfers_by_day[curDay]) || 0;
+
+  // Banner per configurazione a sede unica
+  let singleBuildingBanner = '';
+  if (!tmData.is_multi_building) {
+    singleBuildingBanner = `
+      <div class="tm-single-notice">
+        <span style="font-size:20px;">💡</span>
+        <div>
+          <b>${isEn ? 'Single Campus Detected:' : 'Configurazione a Sede Unica:'}</b> ${isEn ? 'All rooms are currently in Sede Centrale. To see cross-campus flows and itinerant teachers in action, assign some classrooms to Succursale in Rooms & Gyms or load a multi-campus school.' : 'Attualmente tutte le aule dell\'istituto risiedono nella Sede Centrale. Per vedere il flusso dinamico e i docenti itineranti verso la Succursale in azione, assegna alcune aule alla Succursale nella sezione Plessi & Aule.'}
+        </div>
+      </div>
+    `;
+  }
+
+  // Pillole selezione giorno
+  const daysTabsHtml = days.map(d => {
+    const dTransfers = (stats.transfers_by_day && stats.transfers_by_day[d]) || 0;
+    const isActive = (d === curDay);
+    const dLabel = formatDayName(d, false);
+    return `
+      <button type="button" class="tm-day-btn ${isActive ? 'is-active' : ''}" onclick="tmSetDay('${d}')">
+        <span>${escapeHtml(dLabel)}</span>
+        ${dTransfers > 0 ? `<span class="tm-day-count-badge" title="${dTransfers} ${isEn ? 'building changes' : 'trasferimenti tra plessi'}">🚗 ${dTransfers}</span>` : ''}
+      </button>
+    `;
+  }).join('');
+
+  // Segmenti orari su traccia scrubber
+  const hoursSegmentsHtml = hours.map(h => {
+    const isActive = (h === curHour);
+    const hData = (tmData.timeline && tmData.timeline[curDay] && tmData.timeline[curDay][h]) || {};
+    const hTransfersCount = (hData.transfers || []).length;
+    const hAnomalousCount = (hData.anomalous_starts || []).length;
+    return `
+      <button type="button" class="tm-hour-segment ${isActive ? 'is-active' : ''}" onclick="tmSetHour('${h}')" title="${isEn ? `Go to Period ${h}` : `Vai alla ${h}ª ora`}">
+        <span class="tm-hour-num">${h}ª ora</span>
+        <div style="display:flex;gap:3px;align-items:center;">
+          ${hTransfersCount > 0 ? `<span class="tm-seg-dot dot-transfer" title="${hTransfersCount} trasferimenti">🚗</span>` : ''}
+          ${hAnomalousCount > 0 ? `<span class="tm-seg-dot dot-anomalous" title="${hAnomalousCount} classi fuori sede">📍</span>` : ''}
+        </div>
+      </button>
+    `;
+  }).join('');
+
+  // Costruzione della Scena
+  let mainSceneHtml = '';
+  if (mode === 'campus') {
+    // Mode A: Vista Spaziale Campus (3 Colonne)
+    mainSceneHtml = `
+      <div class="tm-campus-grid">
+        <!-- 1. Colonna Sede Centrale -->
+        <div class="tm-bld-card bld-centrale">
+          <div class="tm-bld-header">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="tm-bld-icon">🏫</span>
+              <div>
+                <div class="tm-bld-title">${escapeHtml(bld1)}</div>
+                <div class="tm-bld-sub">${isEn ? 'Main Campus' : 'Sede Centrale'}</div>
+              </div>
+            </div>
+            <div class="tm-bld-pills">
+              <span class="tm-stat-pill" title="Classi presenti">${b1Classes.length} 🎓</span>
+              <span class="tm-stat-pill" title="Docenti in servizio">${b1Teachers.length} 👨‍🏫</span>
+            </div>
+          </div>
+
+          <div class="tm-card-tabs">
+            <button type="button" class="tm-card-tab ${subTab === 'classes' ? 'active' : ''}" onclick="tmSetSubTab('classes')">🎓 ${isEn ? 'Classes' : 'Classi'} (${b1Classes.length})</button>
+            <button type="button" class="tm-card-tab ${subTab === 'teachers' ? 'active' : ''}" onclick="tmSetSubTab('teachers')">👨‍🏫 ${isEn ? 'Faculty' : 'Docenti'} (${b1Teachers.length})</button>
+          </div>
+
+          <div class="tm-bld-body">
+            ${subTab === 'classes' ? `
+              <div class="tm-chips-grid">
+                ${b1Classes.length === 0 ? `<div class="tm-empty-hint">${isEn ? 'No classes in this building this period.' : 'Nessuna classe presente in questa sede in quest\'ora.'}</div>` : ''}
+                ${b1Classes.map(c => `
+                  <div class="tm-class-chip ${c.is_displaced ? 'is-displaced' : ''} ${c.is_anomalous_start ? 'is-anomalous-start' : ''}" title="${c.is_displaced ? (isEn ? `Guest Class: regular residence in ${c.base_building}` : `Classe Ospite: sede ordinaria ${c.base_building}`) : ''}">
+                    <div class="tm-class-head">
+                      <span class="tm-class-name">${escapeHtml(c.class_name)}</span>
+                      <span class="tm-class-room">${escapeHtml(c.room || bld1)}</span>
+                    </div>
+                    <div class="tm-class-subj" title="${escapeHtml(c.subject)}">${escapeHtml(c.subject || 'Lezione')}</div>
+                    ${c.is_anomalous_start ? `
+                      <div class="tm-chip-badge badge-start-anomalous" title="${isEn ? 'Starts day off-site!' : 'Inizia la giornata in Centrale anziché nella propria sede!'}">
+                        🚨 Inizio Fuori Sede
+                      </div>
+                    ` : (c.is_displaced ? `
+                      <div class="tm-chip-badge badge-guest" title="${isEn ? `Regular building: ${c.base_building}` : `Sede ordinaria: ${c.base_building}`}">
+                        📍 Ospite (${c.base_building})
+                      </div>
+                    ` : '')}
+                  </div>
+                `).join('')}
+              </div>
+            ` : `
+              <div class="tm-teachers-list">
+                ${b1Teachers.length === 0 ? `<div class="tm-empty-hint">${isEn ? 'No teachers in this building this period.' : 'Nessun docente in servizio in questa sede in quest\'ora.'}</div>` : ''}
+                ${b1Teachers.map(t => `
+                  <div class="tm-teacher-row ${t.is_disposizione ? 'is-disp' : ''}">
+                    <div class="tm-teacher-avatar">${escapeHtml(t.teacher_name.substring(0, 2).toUpperCase())}</div>
+                    <div style="flex:1;min-width:0;">
+                      <div class="tm-teacher-name">${escapeHtml(t.teacher_name)}</div>
+                      <div class="tm-teacher-meta">
+                        ${t.is_disposizione ? `<span style="color:#b45309;font-weight:700;">🟡 Disposizione</span>` : `<span>${escapeHtml(t.classes.join('+') || '—')}</span> • <span>${escapeHtml(t.subject || '')}</span>`}
+                      </div>
+                    </div>
+                    <span class="tm-teacher-room">${escapeHtml(t.room || '')}</span>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+        </div>
+
+        <!-- 2. Colonna Centrale: Corridoio di Transito ("Il Ponte") -->
+        <div class="tm-highway-col">
+          <div class="tm-highway-header">
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+              <span style="font-size:18px;">🛣️</span>
+              <span class="tm-highway-title">${isEn ? 'TRANSIT CORRIDOR' : 'CORRIDOIO DI TRANSITO'}</span>
+            </div>
+            <div class="tm-highway-sub">
+              ${transfers.length === 0 
+                ? (isEn ? 'No building changes in progress' : 'Nessuno spostamento in quest\'ora') 
+                : `${transfers.length} ${transfers.length === 1 ? (isEn ? 'teacher traveling' : 'docente in viaggio') : (isEn ? 'teachers traveling' : 'docenti in viaggio')}`}
+            </div>
+          </div>
+
+          <div class="tm-highway-track">
+            ${transfers.length === 0 ? `
+              <div class="tm-highway-quiet">
+                <div class="tm-quiet-icon">🕊️</div>
+                <div class="tm-quiet-title">${isEn ? 'Calm Highway' : 'Corridoio Libero'}</div>
+                <div class="tm-quiet-desc">${isEn ? 'All faculty members are stationary in their assigned campuses during this period.' : 'Tutti i docenti sono stabili nelle rispettive aule. Nessun tragitto in corso tra i due plessi.'}</div>
+              </div>
+            ` : `
+              <div class="tm-transfers-stack">
+                ${transfers.map(tr => {
+                  const toSucc = (tr.to_building.toLowerCase().includes('succ'));
+                  return `
+                    <div class="tm-transfer-card ${toSucc ? 'dir-to-succ' : 'dir-to-centrale'}">
+                      <div class="tm-transfer-top">
+                        <span class="tm-vehicle-badge">🚗 In Viaggio</span>
+                        <span class="tm-comfort-badge ${tr.comfort === 'consecutivo' ? 'is-consec' : 'is-comfort'}">
+                          ${escapeHtml(tr.comfort_label)}
+                        </span>
+                      </div>
+                      <div class="tm-transfer-teacher">Prof. ${escapeHtml(tr.teacher)}</div>
+                      <div class="tm-transfer-route">
+                        <span class="tm-route-node">${escapeHtml(tr.from_building)} <small>(${tr.from_hour}ª)</small></span>
+                        <span class="tm-route-arrow ${toSucc ? 'arrow-right' : 'arrow-left'}">➔</span>
+                        <span class="tm-route-node highlight">${escapeHtml(tr.to_building)} <small>(${tr.to_hour}ª)</small></span>
+                      </div>
+                      <div class="tm-transfer-dest">
+                        <b>${isEn ? 'Next:' : 'Arrivo:'}</b> ${escapeHtml(tr.to_class || 'Lezione')} &bull; ${escapeHtml(tr.to_room || tr.to_building)} <small>(${escapeHtml(tr.to_subject || '')})</small>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `}
+          </div>
+        </div>
+
+        <!-- 3. Colonna Sede Succursale -->
+        <div class="tm-bld-card bld-succursale">
+          <div class="tm-bld-header">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="tm-bld-icon">🏛️</span>
+              <div>
+                <div class="tm-bld-title">${escapeHtml(bld2)}</div>
+                <div class="tm-bld-sub">${isEn ? 'Branch Campus' : 'Sede Succursale'}</div>
+              </div>
+            </div>
+            <div class="tm-bld-pills">
+              <span class="tm-stat-pill" title="Classi presenti">${b2Classes.length} 🎓</span>
+              <span class="tm-stat-pill" title="Docenti in servizio">${b2Teachers.length} 👨‍🏫</span>
+            </div>
+          </div>
+
+          <div class="tm-card-tabs">
+            <button type="button" class="tm-card-tab ${subTab === 'classes' ? 'active' : ''}" onclick="tmSetSubTab('classes')">🎓 ${isEn ? 'Classes' : 'Classi'} (${b2Classes.length})</button>
+            <button type="button" class="tm-card-tab ${subTab === 'teachers' ? 'active' : ''}" onclick="tmSetSubTab('teachers')">👨‍🏫 ${isEn ? 'Faculty' : 'Docenti'} (${b2Teachers.length})</button>
+          </div>
+
+          <div class="tm-bld-body">
+            ${subTab === 'classes' ? `
+              <div class="tm-chips-grid">
+                ${b2Classes.length === 0 ? `<div class="tm-empty-hint">${isEn ? 'No classes in this building this period.' : 'Nessuna classe presente in questa sede in quest\'ora.'}</div>` : ''}
+                ${b2Classes.map(c => `
+                  <div class="tm-class-chip ${c.is_displaced ? 'is-displaced' : ''} ${c.is_anomalous_start ? 'is-anomalous-start' : ''}" title="${c.is_displaced ? (isEn ? `Guest Class: regular residence in ${c.base_building}` : `Classe Ospite: sede ordinaria ${c.base_building}`) : ''}">
+                    <div class="tm-class-head">
+                      <span class="tm-class-name">${escapeHtml(c.class_name)}</span>
+                      <span class="tm-class-room">${escapeHtml(c.room || bld2)}</span>
+                    </div>
+                    <div class="tm-class-subj" title="${escapeHtml(c.subject)}">${escapeHtml(c.subject || 'Lezione')}</div>
+                    ${c.is_anomalous_start ? `
+                      <div class="tm-chip-badge badge-start-anomalous" title="${isEn ? 'Starts day off-site!' : 'Inizia la giornata in Succursale anziché nella propria sede!'}">
+                        🚨 Inizio Fuori Sede
+                      </div>
+                    ` : (c.is_displaced ? `
+                      <div class="tm-chip-badge badge-guest" title="${isEn ? `Regular building: ${c.base_building}` : `Sede ordinaria: ${c.base_building}`}">
+                        📍 Ospite (${c.base_building})
+                      </div>
+                    ` : '')}
+                  </div>
+                `).join('')}
+              </div>
+            ` : `
+              <div class="tm-teachers-list">
+                ${b2Teachers.length === 0 ? `<div class="tm-empty-hint">${isEn ? 'No teachers in this building this period.' : 'Nessun docente in servizio in questa sede in quest\'ora.'}</div>` : ''}
+                ${b2Teachers.map(t => `
+                  <div class="tm-teacher-row ${t.is_disposizione ? 'is-disp' : ''}">
+                    <div class="tm-teacher-avatar" style="background:#7c3aed;">${escapeHtml(t.teacher_name.substring(0, 2).toUpperCase())}</div>
+                    <div style="flex:1;min-width:0;">
+                      <div class="tm-teacher-name">${escapeHtml(t.teacher_name)}</div>
+                      <div class="tm-teacher-meta">
+                        ${t.is_disposizione ? `<span style="color:#b45309;font-weight:700;">🟡 Disposizione</span>` : `<span>${escapeHtml(t.classes.join('+') || '—')}</span> • <span>${escapeHtml(t.subject || '')}</span>`}
+                      </div>
+                    </div>
+                    <span class="tm-teacher-room">${escapeHtml(t.room || '')}</span>
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+        </div>
+      </div>
+    `;
+  } else {
+    // Mode B: Mappa Metropolitana (Metro Subway Map)
+    const itinerants = tmData.itinerant_teachers_list || [];
+    const q = (window.timeMachineState.searchQuery || '').trim().toLowerCase();
+    const filteredItinerants = q ? itinerants.filter(it => it.name.toLowerCase().includes(q)) : itinerants;
+
+    mainSceneHtml = `
+      <div class="card tm-metro-board">
+        <div class="tm-metro-header">
+          <div>
+            <h3 style="margin:0 0 4px;font-size:16px;">🚇 ${isEn ? `Itinerant Faculty Metro Map — ${formatDayName(curDay, false)}` : `Mappa Metropolitana Docenti Itineranti — ${formatDayName(curDay, false)}`}</h3>
+            <div style="font-size:12px;color:var(--text-muted);">
+              ${isEn ? 'Full daily journey for all faculty with cross-building transfers. Click any station or transfer to jump in TimeMachine.' : 'Tracciamento del tragitto giornaliero per ciascun docente itinerante. Clicca su una stazione per aprire il momento esatto nella TimeMachine.'}
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;">
+            <input type="text" class="form-input tm-metro-search" placeholder="${isEn ? 'Search teacher...' : 'Cerca docente...'}" value="${escapeHtml(window.timeMachineState.searchQuery || '')}" oninput="tmSearchMetro(this.value)">
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table class="tm-metro-table">
+            <thead>
+              <tr>
+                <th style="min-width:180px;text-align:left;">${isEn ? 'Teacher & Total Changes' : 'Docente & Spostamenti'}</th>
+                ${hours.map(h => `<th style="text-align:center;min-width:110px;">${h}ª ora</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredItinerants.length === 0 ? `
+                <tr><td colspan="${hours.length + 1}" style="text-align:center;padding:30px;color:var(--text-muted);">${isEn ? 'No itinerant teachers matching filter.' : 'Nessun docente itinerante trovato.'}</td></tr>
+              ` : ''}
+              ${filteredItinerants.map(it => {
+                const daySched = (it.daily_schedule && it.daily_schedule[curDay]) || [];
+                const schedMap = {};
+                daySched.forEach(slot => { schedMap[slot.hour] = slot; });
+                return `
+                  <tr>
+                    <td class="tm-metro-td-teacher">
+                      <div style="font-weight:700;font-size:12.5px;color:var(--text-main);">${escapeHtml(it.name)}</div>
+                      <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+                        <span class="badge badge-info" style="font-size:10px;padding:1px 5px;">${it.total_transfers} ${isEn ? 'changes/week' : 'spostamenti tot.'}</span>
+                        ${(it.transfers_by_day && it.transfers_by_day[curDay] > 0) ? `<span class="badge badge-warn" style="font-size:10px;padding:1px 5px;margin-left:4px;">${it.transfers_by_day[curDay]} oggi 🚗</span>` : ''}
+                      </div>
+                    </td>
+                    ${hours.map((h, hIdx) => {
+                      const slot = schedMap[h] || { is_free: true };
+                      const prevSlot = hIdx > 0 ? (schedMap[hours[hIdx - 1]] || {}) : null;
+                      const hasTransfer = prevSlot && !prevSlot.is_free && !slot.is_free && prevSlot.building !== slot.building;
+                      const isCentrale = slot.building && slot.building.toLowerCase().includes('cent');
+                      const isSucc = slot.building && slot.building.toLowerCase().includes('succ');
+
+                      return `
+                        <td class="tm-metro-td-slot">
+                          ${hasTransfer ? `
+                            <div class="tm-metro-transfer-flag" onclick="tmJumpTo('${curDay}', '${h}')" title="Spostamento da ${prevSlot.building} a ${slot.building}">
+                              🚗 ➔
+                            </div>
+                          ` : ''}
+                          <div class="tm-metro-node ${slot.is_free ? 'is-free' : (isCentrale ? 'is-centrale' : 'is-succ')}" onclick="tmJumpTo('${curDay}', '${h}')" title="${slot.is_free ? 'Ora buca' : `${slot.building} — ${slot.class_name} in ${slot.room} (${slot.subject})`}">
+                            ${slot.is_free ? `
+                              <span class="node-free">○</span>
+                            ` : `
+                              <div class="node-filled">
+                                <span class="node-bld-badge">${isCentrale ? 'C' : 'S'}</span>
+                                <span class="node-class">${escapeHtml(slot.class_name || 'D')}</span>
+                              </div>
+                            `}
+                          </div>
+                        </td>
+                      `;
+                    }).join('')}
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  // Full page assembly
+  container.innerHTML = `
+    <div class="timemachine-container">
+      <!-- 1. Mission Control Header -->
+      <div class="tm-mission-control">
+        <div class="tm-mc-top">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div class="tm-mc-logo">⏳</div>
+            <div>
+              <div class="tm-mc-title">${isEn ? 'TimeMachine Campus Flow' : 'TimeMachine — Flussi Plessi & Docenti Itineranti'}</div>
+              <div class="tm-mc-sub">${escapeHtml(tmData.institution || 'Istituto Scolastico')} &bull; ${isEn ? 'Interactive timeline of campus occupancy & teacher migrations' : 'Monitoraggio dinamico dell\'occupazione delle sedi e degli spostamenti'}</div>
+            </div>
+          </div>
+          <div class="tm-mc-actions">
+            <div class="tm-mode-switch">
+              <button type="button" class="tm-mode-btn ${mode === 'campus' ? 'active' : ''}" onclick="tmSetMode('campus')">🗺️ ${isEn ? 'Campus Map' : 'Vista Spaziale'}</button>
+              <button type="button" class="tm-mode-btn ${mode === 'metro' ? 'active' : ''}" onclick="tmSetMode('metro')">🚇 ${isEn ? 'Metro Map' : 'Mappa Metro'}</button>
+            </div>
+            <button class="btn btn-sec btn-sm" onclick="navigate('timetable')">🗓️ ${isEn ? 'Back to Timetable' : 'Torna all\'Orario'}</button>
+          </div>
+        </div>
+
+        ${singleBuildingBanner}
+
+        <!-- 2. Player Deck & Time Scrubber -->
+        <div class="tm-player-deck">
+          <!-- Day selector pills -->
+          <div class="tm-days-bar">
+            ${daysTabsHtml}
+          </div>
+
+          <!-- Time Scrubber & Controls -->
+          <div class="tm-scrubber-row">
+            <!-- Digital Clock Display -->
+            <div class="tm-clock-readout" title="${isEn ? 'Current simulated period' : 'Ora didattica visualizzata'}">
+              <span class="tm-clock-icon">🕒</span>
+              <span class="tm-clock-text">${curHour}ª ORA</span>
+              <span class="tm-clock-day">(${escapeHtml(formatDayName(curDay, false))})</span>
+            </div>
+
+            <!-- Segmented Hour Track -->
+            <div class="tm-hours-track">
+              ${hoursSegmentsHtml}
+            </div>
+
+            <!-- Playback Controls -->
+            <div class="tm-playback-controls">
+              <button type="button" class="tm-ctrl-btn" onclick="tmPrevHour()" title="${isEn ? 'Previous Period' : 'Ora Precedente (o freccia Sinistra ◀)'}">⏮</button>
+              <button type="button" class="tm-play-btn ${isPlaying ? 'is-playing' : ''}" onclick="tmTogglePlay()" title="${isPlaying ? (isEn ? 'Pause TimeMachine' : 'Metti in Pausa') : (isEn ? 'Play Day Journey' : 'Avvia Animazione')}" id="tmPlayBtn">
+                ${isPlaying ? '⏸ Pausa' : '▶ Play'}
+              </button>
+              <button type="button" class="tm-ctrl-btn" onclick="tmNextHour()" title="${isEn ? 'Next Period' : 'Ora Successiva (o freccia Destra ▶)'}">⏭</button>
+              <button type="button" class="tm-speed-btn" onclick="tmToggleSpeed()" title="${isEn ? 'Animation Speed' : 'Velocità di riproduzione'}">${speed}x</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Live KPI Stats Bar -->
+      <div class="tm-kpi-bar">
+        <div class="tm-kpi-card">
+          <div class="tm-kpi-icon">🏫</div>
+          <div>
+            <div class="tm-kpi-val">${b1Classes.length} <small>classi</small></div>
+            <div class="tm-kpi-lbl">${escapeHtml(bld1)} (${b1Teachers.length} docenti)</div>
+          </div>
+        </div>
+        <div class="tm-kpi-card">
+          <div class="tm-kpi-icon">🏛️</div>
+          <div>
+            <div class="tm-kpi-val">${b2Classes.length} <small>classi</small></div>
+            <div class="tm-kpi-lbl">${escapeHtml(bld2)} (${b2Teachers.length} docenti)</div>
+          </div>
+        </div>
+        <div class="tm-kpi-card ${transfers.length > 0 ? 'kpi-alert-glow' : ''}">
+          <div class="tm-kpi-icon">🚗</div>
+          <div>
+            <div class="tm-kpi-val ${transfers.length > 0 ? 'color-amber' : ''}">${transfers.length} <small>in viaggio</small></div>
+            <div class="tm-kpi-lbl">${isEn ? 'In Transit This Hour' : 'In Trasferimento Adesso'}</div>
+          </div>
+        </div>
+        <div class="tm-kpi-card ${anomalousStarts.length > 0 ? 'kpi-start-glow' : ''}">
+          <div class="tm-kpi-icon">🌅</div>
+          <div>
+            <div class="tm-kpi-val ${anomalousStarts.length > 0 ? 'color-amber' : ''}">${anomalousStarts.length} <small>classi</small></div>
+            <div class="tm-kpi-lbl">${isEn ? 'Off-Site Starts (Period 1)' : 'Inizio Fuori Sede (1ª ora)'}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Main Interactive Scene -->
+      ${mainSceneHtml}
+    </div>
+  `;
+}
+
+function tmSetDay(day, stopPlay = true) {
+  if (stopPlay && window.timeMachineState.playing) tmPause();
+  window.timeMachineState.day = day;
+  renderTimeMachineView();
+}
+
+function tmSetHour(hour, stopPlay = true) {
+  if (stopPlay && window.timeMachineState.playing) tmPause();
+  window.timeMachineState.hour = hour;
+  renderTimeMachineView();
+}
+
+function tmPrevHour() {
+  if (window.timeMachineState.playing) tmPause();
+  const tmData = window.timeMachineState.data;
+  if (!tmData) return;
+  const hours = tmData.hours || [];
+  const curIdx = hours.indexOf(window.timeMachineState.hour);
+  if (curIdx > 0) {
+    tmSetHour(hours[curIdx - 1], false);
+  } else {
+    const days = tmData.days || [];
+    const dIdx = days.indexOf(window.timeMachineState.day);
+    const prevD = (dIdx > 0) ? days[dIdx - 1] : days[days.length - 1];
+    tmSetDay(prevD, false);
+    tmSetHour(hours[hours.length - 1], false);
+  }
+}
+
+function tmNextHour() {
+  if (window.timeMachineState.playing) tmPause();
+  const tmData = window.timeMachineState.data;
+  if (!tmData) return;
+  const hours = tmData.hours || [];
+  const curIdx = hours.indexOf(window.timeMachineState.hour);
+  if (curIdx < hours.length - 1) {
+    tmSetHour(hours[curIdx + 1], false);
+  } else {
+    const days = tmData.days || [];
+    const dIdx = days.indexOf(window.timeMachineState.day);
+    const nextD = (dIdx < days.length - 1) ? days[dIdx + 1] : days[0];
+    tmSetDay(nextD, false);
+    tmSetHour(hours[0], false);
+  }
+}
+
+function tmTogglePlay() {
+  if (window.timeMachineState.playing) {
+    tmPause();
+  } else {
+    tmPlay();
+  }
+}
+
+function tmPlay() {
+  window.timeMachineState.playing = true;
+  const tmData = window.timeMachineState.data;
+  if (!tmData) return;
+  const hours = tmData.hours || [];
+  const days = tmData.days || [];
+  const delay = window.timeMachineState.speed === 2 ? 1100 : 2200;
+
+  renderTimeMachineView();
+
+  if (window.timeMachineState.timer) clearInterval(window.timeMachineState.timer);
+  window.timeMachineState.timer = setInterval(() => {
+    if (!window.timeMachineState.playing) {
+      clearInterval(window.timeMachineState.timer);
+      return;
+    }
+    const curH = window.timeMachineState.hour;
+    const curD = window.timeMachineState.day;
+    const hIdx = hours.indexOf(curH);
+
+    if (hIdx < hours.length - 1) {
+      window.timeMachineState.hour = hours[hIdx + 1];
+      renderTimeMachineView();
+    } else {
+      const dIdx = days.indexOf(curD);
+      const nextD = (dIdx < days.length - 1) ? days[dIdx + 1] : days[0];
+      window.timeMachineState.day = nextD;
+      window.timeMachineState.hour = hours[0];
+      renderTimeMachineView();
+    }
+  }, delay);
+}
+
+function tmPause() {
+  window.timeMachineState.playing = false;
+  if (window.timeMachineState.timer) {
+    clearInterval(window.timeMachineState.timer);
+    window.timeMachineState.timer = null;
+  }
+  renderTimeMachineView();
+}
+
+function tmToggleSpeed() {
+  window.timeMachineState.speed = (window.timeMachineState.speed === 1 ? 2 : 1);
+  if (window.timeMachineState.playing) {
+    tmPlay();
+  } else {
+    renderTimeMachineView();
+  }
+}
+
+function tmSetMode(mode) {
+  window.timeMachineState.mode = mode;
+  renderTimeMachineView();
+}
+
+function tmSetSubTab(tab) {
+  window.timeMachineState.activeSubTab = tab;
+  renderTimeMachineView();
+}
+
+function tmSearchMetro(q) {
+  window.timeMachineState.searchQuery = q;
+  renderTimeMachineView();
+}
+
+function tmJumpTo(day, hour) {
+  window.timeMachineState.mode = 'campus';
+  window.timeMachineState.day = day;
+  window.timeMachineState.hour = hour;
+  if (window.timeMachineState.playing) tmPause();
+  renderTimeMachineView();
+}
+
+// Navigazione rapida da tastiera (Frecce ◀ ▶) in Orario Risolto, Indisponibilità e TimeMachine
 window.addEventListener('keydown', (e) => {
   const tag = (document.activeElement?.tagName || '').toLowerCase();
   if (tag === 'input' || tag === 'textarea' || tag === 'select' || document.activeElement?.isContentEditable) return;

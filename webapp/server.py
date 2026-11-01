@@ -97,7 +97,7 @@ def fetch_google_doc_docx_bytes(url):
     except Exception as e:
         raise ValueError(f"Impossibile scaricare il Google Doc: {e}")
 
-APP_VERSION = "1.9.32"
+APP_VERSION = "1.9.33"
 FET_VERSION = "7.12.0"
 APP_AUTHOR = "Carlo Rigoni"
 APP_MENTOR = "Federico Rettore"
@@ -987,6 +987,9 @@ class EurarioHandler(BaseHTTPRequestHandler):
 
         elif path == "/api/timetable/views":
             self._json(200, db.get_timetable_views())
+
+        elif path == "/api/timetable/timemachine":
+            self._json(200, db.get_timemachine_data())
 
         elif path == "/api/solve/status":
             target_sid = get_current_school_id()
