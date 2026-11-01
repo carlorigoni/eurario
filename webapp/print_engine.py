@@ -1954,121 +1954,60 @@ def generate_transfers_print_html(data, tm_data, options=None):
     }}
     html, body {{
       width: 100%;
-      height: auto;
       margin: 0;
       padding: 0;
-      background: #f8fafc;
+      background: #ffffff;
       color: #0f172a;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       font-size: 11px;
       line-height: 1.35;
     }}
     .board-container {{
-      max-width: 1440px;
+      width: 100%;
       margin: 0 auto;
-      padding: 14px 18px 24px;
+      padding: 12px 14px 20px;
       background: #ffffff;
-      box-shadow: 0 4px 14px rgba(0,0,0,0.06);
     }}
 
-    /* Toolbar a schermo (nascosta in stampa) */
-    .screen-toolbar {{
+    /* Barra comandi a schermo */
+    .no-print {{
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 10px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       position: sticky;
       top: 0;
       z-index: 1000;
-      background: #0f172a;
-      color: #f8fafc;
-      padding: 10px 16px;
-      margin-bottom: 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }}
-    .screen-toolbar button, .screen-toolbar select {{
-      font-size: 12px;
-      font-weight: 600;
-      padding: 6px 12px;
-      border-radius: 6px;
-      border: 1px solid #334155;
-      cursor: pointer;
+    .btn-toolbar {{
       background: #1e293b;
       color: #f8fafc;
+      border: 1px solid #334155;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
       transition: all 0.15s ease;
     }}
-    .screen-toolbar button:hover {{
+    .btn-toolbar:hover {{
       background: #2563eb;
       border-color: #2563eb;
     }}
-    .screen-toolbar button.btn-print {{
+    .btn-toolbar-sec {{
+      background: #334155;
+    }}
+    .btn-toolbar-print {{
       background: #10b981;
       border-color: #059669;
       color: #ffffff;
       font-weight: 700;
     }}
-    .screen-toolbar button.btn-print:hover {{
+    .btn-toolbar-print:hover {{
       background: #059669;
-    }}
-
-    /* Stili di Stampa Ufficiali & Risoluzione Pagine Bianche */
-    @media print {{
-      @page {{
-        size: landscape;
-        size: {paper_size} landscape;
-        margin: 8mm 8mm 8mm 8mm;
-      }}
-      html, body {{
-        width: 100% !important;
-        height: auto !important;
-        min-height: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        background: #ffffff !important;
-        overflow: visible !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }}
-      .screen-toolbar, .no-print {{
-        display: none !important;
-      }}
-      .board-container {{
-        max-width: none !important;
-        width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        background: #ffffff !important;
-        box-shadow: none !important;
-        border: none !important;
-      }}
-      .page-break {{
-        page-break-before: always !important;
-        break-before: page !important;
-      }}
-      .days-columns {{
-        display: block !important;
-        width: 100% !important;
-      }}
-      .day-block {{
-        display: inline-block !important;
-        vertical-align: top !important;
-        width: 48.5% !important;
-        margin-right: 2% !important;
-        margin-bottom: 12px !important;
-        box-sizing: border-box !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }}
-      .day-block:nth-child(2n) {{
-        margin-right: 0 !important;
-      }}
-      table.data-table thead, table.matrix-table thead {{
-        display: table-header-group !important;
-      }}
-      table.data-table tr, table.matrix-table tr {{
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-      }}
     }}
 
     /* Testata Documento Ufficiale */
@@ -2079,8 +2018,6 @@ def generate_transfers_print_html(data, tm_data, options=None):
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
-      page-break-inside: avoid;
-      break-inside: avoid;
     }}
     .board-title {{
       font-size: 18px;
@@ -2125,8 +2062,6 @@ def generate_transfers_print_html(data, tm_data, options=None):
       border-radius: 6px;
       padding: 10px 14px;
       margin-bottom: 14px;
-      page-break-inside: avoid;
-      break-inside: avoid;
     }}
     .alert-header {{
       display: flex;
@@ -2178,14 +2113,12 @@ def generate_transfers_print_html(data, tm_data, options=None):
       color: #0f172a;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      margin: 14px 0 6px 0;
+      margin: 14px 0 8px 0;
       display: flex;
       align-items: center;
       gap: 6px;
       border-bottom: 1.5px solid #0f172a;
       padding-bottom: 4px;
-      page-break-inside: avoid;
-      break-inside: avoid;
     }}
 
     /* Badge Comfort */
@@ -2209,20 +2142,10 @@ def generate_transfers_print_html(data, tm_data, options=None):
       font-weight: 800;
     }}
 
-    /* Colonne per Giorni */
-    .days-columns {{
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      justify-content: space-between;
-    }}
     .day-block {{
-      flex: 0 0 calc(50% - 6px);
-      width: calc(50% - 6px);
-      box-sizing: border-box;
-      break-inside: avoid;
-      page-break-inside: avoid;
-      margin-bottom: 12px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 0;
     }}
     .day-header {{
       background: #0f172a;
@@ -2230,7 +2153,6 @@ def generate_transfers_print_html(data, tm_data, options=None):
       padding: 5px 10px;
       font-size: 12px;
       font-weight: 800;
-      border-radius: 4px 4px 0 0;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -2290,8 +2212,49 @@ def generate_transfers_print_html(data, tm_data, options=None):
       display: flex;
       justify-content: space-between;
       align-items: center;
-      page-break-inside: avoid;
-      break-inside: avoid;
+    }}
+
+    /* Stili di Stampa Ufficiali Cross-Browser (Safari, Chrome, Firefox) */
+    @media print {{
+      html, body {{
+        width: 100% !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        color: #0f172a !important;
+        overflow: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }}
+      .no-print {{
+        display: none !important;
+      }}
+      .board-container {{
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+      }}
+      .page-break {{
+        page-break-before: always !important;
+        break-before: page !important;
+      }}
+      table.chrono-table-layout {{
+        width: 100% !important;
+        table-layout: fixed !important;
+      }}
+      table.chrono-table-layout tr {{
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }}
+      table.data-table thead, table.matrix-table thead {{
+        display: table-header-group !important;
+      }}
+      table.data-table tr, table.matrix-table tr {{
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }}
     }}
   </style>
   <script>
@@ -2302,10 +2265,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
       if (val === 'all') {{
         if (secAlert) secAlert.style.display = 'block';
         if (secChrono) secChrono.style.display = 'block';
-        if (secMatrix) {{
-          secMatrix.style.display = 'block';
-          secMatrix.classList.add('page-break');
-        }}
+        if (secMatrix) secMatrix.style.display = 'block';
       }} else if (val === 'chronology') {{
         if (secAlert) secAlert.style.display = 'block';
         if (secChrono) secChrono.style.display = 'block';
@@ -2339,21 +2299,23 @@ def generate_transfers_print_html(data, tm_data, options=None):
 <body>
 
   <!-- Barra comandi a schermo -->
-  <div class="screen-toolbar no-print">
+  <div class="no-print">
     <div style="display:flex;align-items:center;gap:12px;">
-      <button type="button" class="btn-print" onclick="window.print()">🖨️ {('Stampa / Salva in PDF' if not is_en else 'Print / Save PDF')}</button>
-      <label style="font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;">
+      <h2 style="margin:0;font-size:15px;font-weight:700;color:#f8fafc;">
+        🚗 {('Quadro Spostamenti Plessi & Docenti Itineranti' if not is_en else 'Campus Transfers & Itinerant Faculty Board')} &mdash; {paper_size} Landscape
+      </h2>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <label style="font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;color:#f8fafc;">
         {('Vista:' if not is_en else 'View:')}
-        <select onchange="updateLayout(this.value)" style="padding:4px 8px;">
+        <select onchange="updateLayout(this.value)" class="btn-toolbar" style="padding:4px 8px;">
           <option value="all" {('selected' if layout == 'all' else '')}>{('Tutto Unificato (Consigliato)' if not is_en else 'All Unified (Recommended)')}</option>
           <option value="chronology" {('selected' if layout == 'chronology' else '')}>{('Solo Cronologico Varchi / Portineria' if not is_en else 'Gate & Chronology Only')}</option>
           <option value="teachers" {('selected' if layout == 'teachers' else '')}>{('Solo Matrice Docenti Itineranti (Sala Prof)' if not is_en else 'Faculty Travel Matrix Only')}</option>
         </select>
       </label>
-      <span style="font-size:11px;color:#94a3b8;">Format: <b>{paper_size} Landscape</b></span>
-    </div>
-    <div>
-      <button type="button" onclick="closePrintView()">{('Chiudi' if not is_en else 'Close')}</button>
+      <button class="btn-toolbar btn-toolbar-sec" onclick="closePrintView()">{('✕ Chiudi' if not is_en else '✕ Close')}</button>
+      <button class="btn-toolbar btn-toolbar-print" onclick="window.print()">🖨️ {('Stampa / Salva in PDF' if not is_en else 'Print / Save as PDF')}</button>
     </div>
   </div>
 
@@ -2371,7 +2333,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
       </div>
       <div class="board-meta">
         <div><b>{('Orario Ufficiale in vigore dal:' if not is_en else 'Schedule Valid From:')}</b> {escape(validity_date)}</div>
-        <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.36</div>
+        <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.37</div>
       </div>
     </div>
 """)
@@ -2427,87 +2389,97 @@ def generate_transfers_print_html(data, tm_data, options=None):
 
     # 2. SEZIONE CRONOPROGRAMMA SPOSTAMENTI GIORNALIERI (PER I COLLABORATORI / VARCHI)
     chrono_disp = "none" if layout == "teachers" else "block"
-    html_parts.append(f"""
-  <div id="secChrono" style="display:{chrono_disp};">
-    <div class="section-title">
-      <span>🚗</span>
-      <span>{('Cronoprogramma Spostamenti Giornalieri (Per la Portineria & Collaboratori Scolastici)' if not is_en else 'Daily Transfer Chronology (For Front Desk & Security Staff)')}</span>
-    </div>
-    <div class="days-columns">
-""")
 
-    for d in days:
+    def _render_day_card(d):
         d_name = get_day_name(d, lang=lang, full=True)
-        # Raccogli tutti i trasferimenti della giornata ordinati per ora
         day_transfers = []
         for h in hours:
             h_transfers = timeline.get(d, {}).get(h, {}).get("transfers", [])
             for tr in h_transfers:
                 day_transfers.append((h, tr))
 
-        html_parts.append(f"""
-      <div class="day-block">
-        <div class="day-header">
-          <span>📅 {escape(d_name)}</span>
-          <span style="font-size:10px;background:rgba(255,255,255,0.2);padding:2px 6px;border-radius:10px;">{len(day_transfers)} {('trasferimenti' if not is_en else 'transfers')}</span>
-        </div>
+        card_html = []
+        card_html.append(f"""
+          <div class="day-block">
+            <div class="day-header">
+              <span>📅 {escape(d_name)}</span>
+              <span style="font-size:10px;background:rgba(255,255,255,0.25);padding:2px 6px;border-radius:10px;">{len(day_transfers)} {('trasferimenti' if not is_en else 'transfers')}</span>
+            </div>
 """)
         if not day_transfers:
-            html_parts.append(f"""
-        <div style="padding:10px;border:1px solid #cbd5e1;border-top:none;background:#f8fafc;color:#64748b;font-style:italic;">
-          {('Nessun docente in trasferimento tra le sedi in questa giornata.' if not is_en else 'No itinerant faculty transfers scheduled for this day.')}
-        </div>
-      </div>
+            card_html.append(f"""
+            <div style="padding:10px 12px;border:1px solid #cbd5e1;border-top:none;background:#f8fafc;color:#64748b;font-style:italic;font-size:10.5px;">
+              {('Nessun docente in trasferimento tra le sedi in questa giornata.' if not is_en else 'No itinerant faculty transfers scheduled for this day.')}
+            </div>
+          </div>
 """)
-            continue
+            return "".join(card_html)
 
-        html_parts.append(f"""
-        <table class="data-table" style="border-top:none;">
-          <thead>
-            <tr>
-              <th>{('Orario / Fascia' if not is_en else 'Time / Period')}</th>
-              <th>{('Docente' if not is_en else 'Faculty')}</th>
-              <th>{('Tragitto' if not is_en else 'Route')}</th>
-              <th>{('Destinazione' if not is_en else 'Destination')}</th>
-              <th>{('Note' if not is_en else 'Notes')}</th>
-            </tr>
-          </thead>
-          <tbody>
+        card_html.append(f"""
+            <table class="data-table" style="border-top:none;margin-bottom:0;">
+              <thead>
+                <tr>
+                  <th style="width:28%;">{('Orario / Fascia' if not is_en else 'Time / Period')}</th>
+                  <th style="width:24%;">{('Docente' if not is_en else 'Faculty')}</th>
+                  <th style="width:24%;">{('Tragitto' if not is_en else 'Route')}</th>
+                  <th style="width:24%;">{('Destinazione' if not is_en else 'Destination')}</th>
+                </tr>
+              </thead>
+              <tbody>
 """)
         for h, tr in day_transfers:
             timing_str = _fmt_timing(tr)
             to_succ = "succ" in tr.get("to_building", "").lower()
-            comfort_cls = "is-consec" if tr.get("comfort") == "consecutivo" else "is-comfort"
             dest_room = tr.get("to_room") or tr.get("to_building", "")
             dest_class = tr.get("to_class") or ""
-            dest_subj = tr.get("to_subject") or ""
 
-            html_parts.append(f"""
-            <tr>
-              <td style="font-weight:700;white-space:nowrap;">{escape(timing_str)}</td>
-              <td><b>Prof. {escape(tr.get("teacher", ""))}</b></td>
-              <td>
-                <span class="node-highlight">{escape(tr.get("from_building", ""))}</span>
-                <span class="route-arrow">➔</span>
-                <span class="node-highlight" style="color:{('#7c3aed' if to_succ else '#2563eb')};font-weight:800;">{escape(tr.get("to_building", ""))}</span>
-              </td>
-              <td>
-                <b>{escape(dest_room)}</b>
-                {f'<small style="color:#475569;">({escape(dest_class)} - {escape(dest_subj)})</small>' if dest_class else ''}
-              </td>
-              <td>
-                <span class="badge-comfort {comfort_cls}">{escape(tr.get("comfort_label", ""))}</span>
-              </td>
-            </tr>
+            card_html.append(f"""
+                <tr>
+                  <td style="font-weight:700;white-space:nowrap;">{escape(timing_str)}</td>
+                  <td><b>Prof. {escape(tr.get("teacher", ""))}</b></td>
+                  <td>
+                    <span class="node-highlight">{escape(tr.get("from_building", ""))}</span>
+                    <span class="route-arrow">➔</span>
+                    <span class="node-highlight" style="color:{('#7c3aed' if to_succ else '#2563eb')};font-weight:800;">{escape(tr.get("to_building", ""))}</span>
+                  </td>
+                  <td>
+                    <b>{escape(dest_room)}</b>
+                    {f'<small style="color:#475569;">({escape(dest_class)})</small>' if dest_class else ''}
+                  </td>
+                </tr>
 """)
-        html_parts.append("""
-          </tbody>
-        </table>
-      </div>
+        card_html.append("""
+              </tbody>
+            </table>
+          </div>
 """)
+        return "".join(card_html)
 
-    html_parts.append("""
+    html_parts.append(f"""
+  <div id="secChrono" style="display:{chrono_disp};margin-bottom:14px;">
+    <div class="section-title">
+      <span>🚗</span>
+      <span>{('Cronoprogramma Spostamenti Giornalieri (Per la Portineria & Collaboratori Scolastici)' if not is_en else 'Daily Transfer Chronology (For Front Desk & Security Staff)')}</span>
     </div>
+    <table class="chrono-table-layout" style="width:100%;border-collapse:collapse;table-layout:fixed;margin:0;border:none;">
+""")
+
+    for i in range(0, len(days), 2):
+        d1 = days[i]
+        d2 = days[i + 1] if i + 1 < len(days) else None
+
+        html_parts.append("      <tr>\n")
+        html_parts.append('        <td style="width:49%;vertical-align:top;padding:0 8px 14px 0;border:none;">\n')
+        html_parts.append(_render_day_card(d1))
+        html_parts.append("        </td>\n")
+        html_parts.append('        <td style="width:2%;border:none;"></td>\n')
+        html_parts.append('        <td style="width:49%;vertical-align:top;padding:0 0 14px 8px;border:none;">\n')
+        if d2:
+            html_parts.append(_render_day_card(d2))
+        html_parts.append("        </td>\n")
+        html_parts.append("      </tr>\n")
+
+    html_parts.append("""    </table>
   </div>
 """)
 
@@ -2616,7 +2588,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
     # Note a piè di pagina
     html_parts.append(f"""
     <div class="footer-note">
-      <div><b>Eurario FET Suite v1.9.36</b> &mdash; {('Documento Ufficiale d\'Istituto per la gestione degli accessi e dei varchi' if not is_en else 'Official Institutional Schedule for Access & Gate Management')}</div>
+      <div><b>Eurario FET Suite v1.9.37</b> &mdash; {('Documento Ufficiale d\'Istituto per la gestione degli accessi e dei varchi' if not is_en else 'Official Institutional Schedule for Access & Gate Management')}</div>
       <div>{('Stampato il:' if not is_en else 'Printed on:')} {datetime.now().strftime('%d/%m/%Y %H:%M')}</div>
     </div>
   </div>
