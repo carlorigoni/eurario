@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.28';
+let APP_VERSION = '1.9.29';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -7944,6 +7944,12 @@ async function renderClasses() {
           </button>
           <input type="text" id="newClassName" class="search-input" placeholder="${isEn ? 'New class (e.g. 4A)' : 'Nuova classe (es. 4A)'}" style="width:140px;">
           <input type="number" id="newClassStudents" class="search-input" placeholder="${isEn ? 'Students' : 'Alunni'}" value="25" style="width:75px;">
+          <select id="newClassPercorso" class="search-input" style="width:130px;" title="${isEn ? 'Study Track (leave Auto to inherit from section)' : 'Indirizzo di studio (lascia Auto per ereditare dalla sezione)'}">
+            <option value="">${isEn ? 'Track: Auto' : 'Indirizzo: Auto'}</option>
+            <option value="liceo">${isEn ? 'High School' : 'Liceo'}</option>
+            <option value="tecnico">${isEn ? 'Technical' : 'Tecnico'}</option>
+            <option value="professionale">${isEn ? 'Vocational' : 'Professionale'}</option>
+          </select>
           <select id="newClassBuilding" class="search-input" style="width:125px;">
             <option value="Centrale">${isEn ? 'Main Campus' : 'Sede Centrale'}</option>
             <option value="Succursale">${isEn ? 'Branch Campus' : 'Sede Succursale'}</option>
@@ -7978,7 +7984,9 @@ async function renderClasses() {
             ${resClasses.map((c, idx) => {
               const m = c.name.match(/^(\d+)([A-Za-z]+)/);
               const secLetter = m ? m[2].toUpperCase()[0] : '';
-              const percorso = (sectionsData.section_percorsi || {})[secLetter] || 'tecnico';
+              const defaultPercorso = (sectionsData.section_percorsi || {})[secLetter] || 'tecnico';
+              const percorso = c.percorso || defaultPercorso;
+              const isOverridden = !!c.percorso && c.percorso !== defaultPercorso;
               const yearNum = m ? parseInt(m[1], 10) : 1;
               const period = isEn ? (yearNum <= 2 ? 'Lower' : 'Upper') : (yearNum <= 2 ? 'Biennio' : 'Triennio');
               const percDisplay = isEn ? (percorso === 'liceo' ? 'HIGH SCHOOL' : (percorso === 'tecnico' ? 'TECHNICAL' : 'VOCATIONAL')) : percorso.toUpperCase();
@@ -7989,8 +7997,8 @@ async function renderClasses() {
                   <td style="color:var(--text-sub);">${idx + 1}</td>
                   <td>
                     <b style="font-size:14.5px;color:var(--primary);">🎓 ${escapeHtml(c.name)}</b>
-                    <span class="badge ${percorso === 'liceo' ? 'badge-liceo' : (percorso === 'tecnico' ? 'badge-tecnico' : 'badge-professionale')}" style="font-size:10px;margin-left:4px;" title="${isEn ? 'Track determined by Section ' + secLetter + ' (' + period + ')' : 'Indirizzo determinato dalla Sezione ' + secLetter + ' (' + period + ')'}">
-                      ${percDisplay} (${period})
+                    <span class="badge ${percorso === 'liceo' ? 'badge-liceo' : (percorso === 'tecnico' ? 'badge-tecnico' : 'badge-professionale')}" style="font-size:10px;margin-left:4px;" title="${isOverridden ? (isEn ? 'Custom track override for this class' : 'Indirizzo personalizzato per questa classe') : (isEn ? 'Track determined by Section ' + secLetter + ' (' + period + ')' : 'Indirizzo determinato dalla Sezione ' + secLetter + ' (' + period + ')')}">
+                      ${percDisplay} (${period})${isOverridden ? ' ⚙️' : ''}
                     </span>
                   </td>
                   <td style="text-align:center;">
@@ -8019,7 +8027,10 @@ async function renderClasses() {
                     </div>
                   </td>
                   <td style="text-align:center;">
-                    <span class="badge badge-info">${c.total_hours || 0} h</span>
+                    <span class="badge badge-info" title="${c.group_hours > 0 ? (isEn ? `Common curriculum: ${c.common_hours}h + Groups: ${c.group_hours}h` : `Ore comuni: ${c.common_hours}h + Gruppi articolati: ${c.group_hours}h`) : (isEn ? 'Weekly timetable hours' : 'Monte ore settimanale')}">
+                      ${c.total_hours || 0} h
+                    </span>
+                    ${c.group_hours > 0 ? `<div style="font-size:10.5px;color:var(--text-sub);font-weight:600;margin-top:2px;" title="${isEn ? 'Common + Max Subgroup Hours' : 'Ore comuni + Ore max gruppo'}">${c.common_hours}+${c.group_hours}h</div>` : ''}
                   </td>
                   <td style="text-align:right;white-space:nowrap;">
                     <button class="btn btn-sm btn-primary" onclick="openNewCattedraModal({ className: '${escapeJs(c.name)}' })" title="${isEn ? 'Assign new teaching assignment to ' + escapeJs(c.name) : 'Assegna nuova cattedra a ' + escapeJs(c.name)}">
@@ -8100,11 +8111,13 @@ async function addClass() {
   const name = document.getElementById('newClassName').value.trim();
   const stud = document.getElementById('newClassStudents').value.trim();
   const bld = document.getElementById('newClassBuilding').value.trim();
+  const percSel = document.getElementById('newClassPercorso');
+  const perc = percSel ? percSel.value.trim() : '';
   if (!name) return;
   const res = await fetch('/api/classes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: name, students: parseInt(stud) || 25, building: bld, base_room: `Aula ${name}` })
+    body: JSON.stringify({ name: name, students: parseInt(stud) || 25, building: bld, base_room: `Aula ${name}`, percorso: perc })
   });
   if (res.ok) {
     document.getElementById('newClassName').value = '';
@@ -8135,9 +8148,11 @@ async function quickEditClassStudents(className, currentStudents) {
 }
 
 function openEditClassModal(className) {
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
   const cls = (stateData.classes || []).find(c => c.name === className);
   if (!cls) return;
 
+  const currentPerc = (cls.percorso || '').toLowerCase();
   const roomsList = stateData.rooms || [];
   const bldOptions = (stateData.buildings || ['Centrale', 'Succursale']).map(b => `
     <option value="${escapeHtml(b)}" ${cls.building === b ? 'selected' : ''}>${escapeHtml(b)}</option>
@@ -8160,6 +8175,16 @@ function openEditClassModal(className) {
         <div class="form-group">
           <label class="form-label">Nome Classe</label>
           <input type="text" class="form-input" value="${escapeHtml(cls.name)}" disabled>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Indirizzo di Studio</label>
+          <select id="editClassPercorso" class="form-select">
+            <option value="" ${!currentPerc ? 'selected' : ''}>${isEn ? 'Default from Section (Auto)' : 'Predefinito da Sezione (Auto)'}</option>
+            <option value="liceo" ${currentPerc === 'liceo' ? 'selected' : ''}>${isEn ? 'High School (Liceo)' : 'Liceo'}</option>
+            <option value="tecnico" ${currentPerc === 'tecnico' ? 'selected' : ''}>${isEn ? 'Technical (Tecnico)' : 'Tecnico'}</option>
+            <option value="professionale" ${currentPerc === 'professionale' ? 'selected' : ''}>${isEn ? 'Vocational (Professionale)' : 'Professionale'}</option>
+          </select>
+          <span class="form-hint">${isEn ? 'Overrides the general section track if set specifically for this class.' : 'Se impostato, definisce o sovrascrive l\'indirizzo della sezione per questa singola classe.'}</span>
         </div>
         <div class="form-group">
           <label class="form-label">Numero Alunni (Studenti nella classe)</label>
@@ -8196,11 +8221,12 @@ async function saveClassDetails(className) {
   const building = document.getElementById('editClassBuilding').value;
   const base_room = document.getElementById('editClassBaseRoom').value;
   const comments = document.getElementById('editClassComments').value;
+  const percorso = document.getElementById('editClassPercorso') ? document.getElementById('editClassPercorso').value : '';
 
   const res = await fetch('/api/classes/update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: className, students, building, base_room, comments })
+    body: JSON.stringify({ name: className, students, building, base_room, comments, percorso })
   });
   if (res.ok) {
     closeModal();
@@ -11826,7 +11852,7 @@ async function openEditCattedraModal(idxOrId) {
             <div style="display:flex;gap:6px;">
               <input type="text" id="editModalBlocks" class="form-input" value="${escapeHtml(g.blocks || '2+1')}" style="font-weight:700;font-family:var(--font-mono);">
               ${g.default_blocks ? `
-                <button type="button" class="btn btn-sm btn-sec" onclick="document.getElementById('editModalBlocks').value='${escapeJs(g.default_blocks)}';selectEditBlockPreset('${escapeJs(g.default_blocks)}');" title="${isEn ? 'Reset to default formula' : 'Reimposta la formula di default'}" style="white-space:nowrap;">
+                <button type="button" class="btn btn-sm btn-sec" onclick="document.getElementById('editModalBlocks').value='${escapeJs(g.default_blocks)}';selectEditCattedraBlockPreset('${escapeJs(g.default_blocks)}');" title="${isEn ? 'Reset to default formula' : 'Reimposta la formula di default'}" style="white-space:nowrap;">
                   ↩️ Default
                 </button>
               ` : ''}
@@ -11966,15 +11992,18 @@ function renderEditBlockPresets(hours, currentBlock = null) {
   }
 
   cont.innerHTML = presets.map(p => `
-    <button type="button" class="preset-pill ${input && input.value === p ? 'active' : ''}" onclick="selectEditBlockPreset('${p}')">
+    <button type="button" class="preset-pill ${input && input.value === p ? 'active' : ''}" onclick="selectEditCattedraBlockPreset('${p}')">
       ${p}
     </button>
   `).join('');
 }
 
-function selectEditBlockPreset(p) {
+function selectEditCattedraBlockPreset(p) {
   const input = document.getElementById('editModalBlocks');
-  if (input) input.value = p;
+  if (input) {
+    input.value = p;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
   document.querySelectorAll('#editModalPresetsContainer .preset-pill').forEach(el => {
     el.classList.toggle('active', el.innerText.trim() === p);
   });
@@ -12430,13 +12459,16 @@ function openEditBlocksModal(subIdsStr, currentBlocks, totalHours, desc, default
 }
 
 function selectEditBlockPreset(p, defaultBlocks = '') {
-  const inp = document.getElementById('editBlocksInput');
+  const inp = document.getElementById('editBlocksInput') || document.getElementById('editModalBlocks');
   if (inp) {
     inp.value = p;
-    onEditBlocksInputChange(defaultBlocks);
+    inp.dispatchEvent(new Event('input', { bubbles: true }));
+    if (document.getElementById('editBlocksInput')) {
+      onEditBlocksInputChange(defaultBlocks);
+    }
   }
   document.querySelectorAll('.preset-pill').forEach(el => {
-    el.classList.toggle('active', el.innerText.trim().startsWith(p));
+    el.classList.toggle('active', el.innerText.trim().startsWith(p) || el.innerText.trim() === p);
   });
 }
 

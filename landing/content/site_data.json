@@ -67,7 +67,7 @@
     },
     "announcements": [
       {
-        "badge": "Novità v1.9.12",
+        "badge": "Novità Recenti",
         "date": "Ottobre 2026",
         "text": "Perfezionamento contrasto Dark Theme per flyout di configurazione e sincronizzazione anagrafica dinamica del selettore istituti (Scuola di Atene)."
       }
@@ -565,7 +565,7 @@
     },
     "announcements": [
       {
-        "badge": "What's New in v1.9.12",
+        "badge": "Latest Updates",
         "date": "October 2026",
         "text": "Dark theme contrast refinement for configuration flyouts and dynamic metadata synchronization across multi-school switcher."
       }

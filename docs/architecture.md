@@ -165,15 +165,15 @@ sequenceDiagram
     participant Hub as Docker Hub Registry
     participant Prod as Server di Produzione
 
-    Dev->>Git: git push origin v1.9.5
+    Dev->>Git: git push origin vX.Y.Z
     Note over Git,Hub: Automated Multi-Arch Build Trigger
     Git->>Hub: Compilazione container per linux/amd64 e linux/arm64
-    Hub->>Hub: Pubblicazione carlorigoni/eurario:v1.9.5
-    Hub->>Hub: Aggiornamento tag carlorigoni/eurario:latest
+    Hub->>Hub: Pubblicazione carlorigoni/eurario:latest
+    Hub->>Hub: Aggiornamento tag carlorigoni/eurario:latest e release tag
 
     loop Controllo Periodico (Client o Server)
         Prod->>Hub: GET /v2/repositories/carlorigoni/eurario/tags
-        Hub-->>Prod: Elenco ultimi tag pubblicati (latest: v1.9.5)
+        Hub-->>Prod: Elenco ultimi tag pubblicati (latest)
     end
 
     alt Versione Locale < Ultimo Tag

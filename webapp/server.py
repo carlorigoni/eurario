@@ -97,7 +97,7 @@ def fetch_google_doc_docx_bytes(url):
     except Exception as e:
         raise ValueError(f"Impossibile scaricare il Google Doc: {e}")
 
-APP_VERSION = "1.9.28"
+APP_VERSION = "1.9.29"
 FET_VERSION = "7.12.0"
 APP_AUTHOR = "Carlo Rigoni"
 APP_MENTOR = "Federico Rettore"
@@ -1718,7 +1718,14 @@ class EurarioHandler(BaseHTTPRequestHandler):
             if not body or not body.get("name"):
                 self._json(400, {"error": "Nome classe mancante"})
                 return
-            ok = db.add_class(body["name"], body.get("students", 25), body.get("comments", ""))
+            ok = db.add_class(
+                name=body["name"],
+                students=body.get("students", 25),
+                comments=body.get("comments", ""),
+                base_room=body.get("base_room", ""),
+                building=body.get("building", ""),
+                percorso=body.get("percorso", "")
+            )
             self._json(200 if ok else 400, {"success": ok})
 
         elif path == "/api/groups":
@@ -1858,7 +1865,10 @@ Questo messaggio è stato inviato dalla piattaforma Eurario.
             if not body:
                 self._json(400, {"error": "Dati mancanti"})
                 return
-            mapping = body.get("section_percorsi") or body
+            if "section" in body and "percorso" in body:
+                mapping = {str(body["section"]).strip().upper(): str(body["percorso"]).strip().lower()}
+            else:
+                mapping = body.get("section_percorsi") or body
             updated = db.set_section_percorsi(mapping)
             self._json(200, {"success": True, "data": updated})
 

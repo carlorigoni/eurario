@@ -1325,33 +1325,67 @@ class Database:
                     c_stats[s]["hours"] += dur
                     c_stats[s]["cattedre"].add(gid)
 
+            # Mappa classi -> gruppi articolati associati
+            all_groups = self.data.get("groups", [])
+            class_to_groups = defaultdict(list)
+            for g in all_groups:
+                c_name = (g.get("class_name") or "").strip()
+                g_name = (g.get("name") or "").strip()
+                if c_name and g_name:
+                    class_to_groups[c_name].append(g_name)
+
             result = []
             for c in sorted(self.data.get("classes", []), key=lambda x: natural_class_sort_key(x["name"])):
                 c_copy = copy.deepcopy(c)
-                st = c_stats.get(c["name"], {"hours": 0, "cattedre": set()})
-                c_copy["total_hours"] = st["hours"]
-                c_copy["cattedre_count"] = len(st["cattedre"])
+                c_name = c["name"]
+                st = c_stats.get(c_name, {"hours": 0, "cattedre": set()})
+                common_hours = st["hours"]
+                all_cattedre = set(st["cattedre"])
+
+                # Recupera gruppi associati per questa classe
+                child_groups = class_to_groups.get(c_name, [])
+                if not child_groups:
+                    child_groups = [g.get("name") for g in all_groups if g.get("name") and g.get("name").startswith(c_name) and g.get("name") != c_name]
+
+                # Calcola ore dei sottogruppi / articolazioni
+                group_hours = 0
+                if child_groups:
+                    grp_h_map = {}
+                    for gname in child_groups:
+                        gst = c_stats.get(gname, {"hours": 0, "cattedre": set()})
+                        grp_h_map[gname] = gst["hours"]
+                        all_cattedre.update(gst["cattedre"])
+                    group_hours = max(grp_h_map.values()) if grp_h_map else 0
+
+                c_copy["common_hours"] = common_hours
+                c_copy["group_hours"] = group_hours
+                c_copy["total_hours"] = common_hours + group_hours
+                c_copy["cattedre_count"] = len(all_cattedre)
                 if "base_room" not in c_copy:
-                    c_copy["base_room"] = f"Aula {c['name']}"
+                    c_copy["base_room"] = f"Aula {c_name}"
                 if "building" not in c_copy:
                     matching_room = next((r for r in self.data.get("rooms", []) if r["name"] == c_copy["base_room"]), None)
-                    c_copy["building"] = matching_room["building"] if matching_room else ("Succursale" if c["name"].endswith(("A", "B")) else "Centrale")
+                    c_copy["building"] = matching_room["building"] if matching_room else ("Succursale" if c_name.endswith(("A", "B")) else "Centrale")
                 result.append(c_copy)
             return result
 
-    def add_class(self, name, students=25, comments="", base_room="", building=""):
+    def add_class(self, name, students=25, comments="", base_room="", building="", percorso=""):
         with self.lock:
             name = name.strip()
             if not any(c["name"].lower() == name.lower() for c in self.data["classes"]):
                 bld = building.strip() or ("Succursale" if name.endswith(("A", "B")) else "Centrale")
                 broom = base_room.strip() or f"Aula {name}"
-                self.data["classes"].append({
+                new_cls = {
                     "name": name,
                     "students": int(students or 25),
                     "building": bld,
                     "base_room": broom,
                     "comments": comments
-                })
+                }
+                perc = str(percorso or "").strip().lower()
+                if perc in ("liceo", "tecnico", "professionale"):
+                    new_cls["percorso"] = perc
+                self.data["classes"].append(new_cls)
                 self.data["classes"].sort(key=lambda c: natural_class_sort_key(c["name"]))
                 self.data["class_availability"][name] = []
                 self._save_to_disk(self.data)
@@ -1370,6 +1404,12 @@ class Database:
                         c["base_room"] = class_data["base_room"].strip()
                     if "comments" in class_data:
                         c["comments"] = class_data["comments"]
+                    if "percorso" in class_data:
+                        perc = str(class_data["percorso"] or "").strip().lower()
+                        if perc in ("liceo", "tecnico", "professionale"):
+                            c["percorso"] = perc
+                        elif not perc or perc == "default":
+                            c.pop("percorso", None)
                     if "new_name" in class_data and class_data["new_name"].strip():
                         new_name = class_data["new_name"].strip()
                         if new_name != c["name"]:
@@ -2085,19 +2125,27 @@ class Database:
 
     def get_class_percorso_and_period(self, class_or_group_name):
         name = (class_or_group_name or "").strip()
+        # Se il nome corrisponde esattamente a una classe con percorso esplicito
+        target_cls = next((c for c in self.data.get("classes", []) if c.get("name") == name), None)
+        explicit_perc = target_cls.get("percorso") if target_cls else None
+
         m = re.match(r"^([0-9]+)([A-Za-z]+)", name)
         if m:
             y = int(m.group(1))
             sec_letter = m.group(2).upper()[0]
             percorso_map = self.data.get("section_percorsi", DEFAULT_SECTION_PERCORSI)
-            perc = percorso_map.get(sec_letter, "tecnico")
+            perc = explicit_perc or percorso_map.get(sec_letter, "tecnico")
             period = "biennio" if y <= 2 else "triennio"
             return sec_letter, perc, period
-        return "", "tecnico", "biennio"
+        return "", (explicit_perc or "tecnico"), "biennio"
 
     def get_section_percorsi(self):
         with self.lock:
-            mapping = dict(self.data.get("section_percorsi", DEFAULT_SECTION_PERCORSI))
+            raw_map = dict(self.data.get("section_percorsi", DEFAULT_SECTION_PERCORSI))
+            raw_map.pop("section", None)
+            raw_map.pop("percorso", None)
+            mapping = {str(k).strip().upper(): str(v).strip().lower() for k, v in raw_map.items() if str(v).strip().lower() in ("liceo", "tecnico", "professionale")}
+
             all_classes = self.data.get("classes", [])
             sec_classes = defaultdict(list)
             for c in all_classes:
@@ -2124,8 +2172,26 @@ class Database:
 
     def set_section_percorsi(self, new_mapping):
         with self.lock:
-            cur = self.data.get("section_percorsi", {})
-            cur.update(new_mapping)
+            raw_cur = dict(self.data.get("section_percorsi", DEFAULT_SECTION_PERCORSI))
+            raw_cur.pop("section", None)
+            raw_cur.pop("percorso", None)
+            cur = {str(k).strip().upper(): str(v).strip().lower() for k, v in raw_cur.items() if str(v).strip().lower() in ("liceo", "tecnico", "professionale")}
+
+            if isinstance(new_mapping, dict):
+                # Gestione ricezione singola coppia { section: "A", percorso: "liceo" }
+                if "section" in new_mapping and "percorso" in new_mapping:
+                    sec = str(new_mapping["section"]).strip().upper()
+                    perc = str(new_mapping["percorso"]).strip().lower()
+                    if sec and perc in ("liceo", "tecnico", "professionale"):
+                        cur[sec] = perc
+                else:
+                    for k, v in new_mapping.items():
+                        if k not in ("section", "percorso"):
+                            sec = str(k).strip().upper()
+                            perc = str(v).strip().lower()
+                            if sec and perc in ("liceo", "tecnico", "professionale"):
+                                cur[sec] = perc
+
             self.data["section_percorsi"] = cur
             self._save_to_disk(self.data)
             return self.get_section_percorsi()
