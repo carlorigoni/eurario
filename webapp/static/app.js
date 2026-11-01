@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.31';
+let APP_VERSION = '1.9.32';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -4713,7 +4713,8 @@ function renderTimetableGridHtml(views, mode, entity) {
       const lessons = (matrix[d] && matrix[d][h]) ? matrix[d][h] : [];
       let cellInner = '';
       if (lessons.length > 0) {
-        for (const l of lessons) {
+        for (let lIdx = 0; lIdx < lessons.length; lIdx++) {
+          const l = lessons[lIdx];
           const isSucc = (l.building || '').toLowerCase().includes('succ');
           const isDisp = (l.subject || '').toLowerCase().startsWith('disposiz') || !!l.is_disposizione;
           const cardClass = isDisp ? 'disposizione' : (isSucc ? 'succursale' : 'centrale');
@@ -4725,6 +4726,13 @@ function renderTimetableGridHtml(views, mode, entity) {
           const dispMetaFallback = isEn ? 'On-duty hour' : 'A disposizione';
           const dispMeta = customDesc ? `${dispMetaFallback} (${escapeHtml(customDesc)})` : dispMetaFallback;
 
+          // Indicatore disposizioni d'istituto: affiancato alle azioni in alto a destra, mai sovrapposto al lucchetto
+          const dispBadgeHtml = (mode === 'teacher' && lIdx === 0) ? `
+            <span class="tt-slot-disp-indicator ${dispLvlClass}" title="${dispTooltip}" data-disp-count="${count}">
+              👥 <b>${count}</b> D
+            </span>
+          ` : '';
+
           cellInner += `
             <div class="lesson-card ${cardClass} ${isLocked ? 'is-locked' : ''}" 
                  id="tt_act_${l.activity_id}"
@@ -4734,11 +4742,12 @@ function renderTimetableGridHtml(views, mode, entity) {
                    ondragend="onDragEndDisposizione(event)"
                    title="${isEn ? 'Drag this on-duty hour to another slot, or click ✏️ to customize note' : 'Trascina quest\'ora a disposizione in un altro slot vuoto, oppure clicca ✏️ per rinominarla (es. Lab, Biblioteca)'}"
                  ` : ''}>
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px;">
+              <div class="lesson-top-row" style="display:flex;justify-content:space-between;align-items:center;gap:4px;">
                 <div class="lesson-subj" style="${isDisp ? 'font-weight:700;color:#92400e;' : ''}">
                   ${displaySubj}
                 </div>
-                <div style="display:flex;align-items:center;gap:2px;">
+                <div class="lesson-top-actions" style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+                  ${dispBadgeHtml}
                   ${isDisp ? `
                     <button type="button" class="btn-lock" style="font-size:9.5px;padding:1px 4px;color:#92400e;background:rgba(217,119,6,0.15);border:none;border-radius:3px;cursor:pointer;" onclick="openEditDispModal('${l.activity_id}', '${escapeJs(customDesc)}')" title="${isEn ? 'Edit custom label' : 'Personalizza descrizione da stampare (es. Lab, Sportello, Ricevimento)'}">✏️</button>
                   ` : `
@@ -4754,18 +4763,11 @@ function renderTimetableGridHtml(views, mode, entity) {
           `;
         }
 
-        const dispBadgeCorner = mode === 'teacher' ? `
-          <div class="tt-slot-disp-indicator tt-slot-disp-corner ${dispLvlClass}" title="${dispTooltip}" data-disp-count="${count}">
-            👥 <b>${count}</b> D
-          </div>
-        ` : '';
-
         rowsHtml += `
           <div class="tt-cell" data-day="${d}" data-hour="${h}" data-disp-count="${count}"
                ondragover="onDragOverTimetableSlot(event)" 
                ondragleave="onDragLeaveTimetableSlot(event)" 
                ondrop="onDropTimetableSlot(event, '${d}', '${h}')">
-            ${dispBadgeCorner}
             ${cellInner}
           </div>
         `;

@@ -2833,20 +2833,38 @@ textarea:focus:not(:focus-visible) {
   box-shadow: inset 0 0 0 1.5px #2563eb;
 }
 
+.lesson-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+}
+
+.lesson-top-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .btn-lock {
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 0 2px;
-  font-size: 11px;
+  padding: 0 1px;
+  font-size: 11.5px;
   line-height: 1;
-  opacity: 0.3;
+  opacity: 0.35;
   transition: opacity 0.15s, transform 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
 .btn-lock:hover {
   opacity: 1;
-  transform: scale(1.2);
+  transform: scale(1.18);
 }
 
 .btn-lock.locked {
@@ -2857,6 +2875,11 @@ textarea:focus:not(:focus-visible) {
 .lesson-subj {
   font-weight: 600;
   color: #202124;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .lesson-meta {
@@ -6853,18 +6876,19 @@ input:checked + .slider:before {
   cursor: default;
 }
 
-/* Quando la cella ha lezioni, l'indicatore sta in alto a destra o in coda */
-.tt-cell .lesson-card + .tt-slot-disp-indicator,
-.tt-cell .tt-slot-disp-corner {
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  opacity: 0.85;
-  z-index: 2;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+/* Quando la cella ha lezioni, l'indicatore sta dentro la barra azioni in alto a destra, affiancato al lucchetto */
+.lesson-card .tt-slot-disp-indicator {
+  position: static;
+  margin: 0;
+  box-shadow: none;
+  font-size: 9.5px;
+  padding: 1px 5px;
+  border-radius: 8px;
+  opacity: 0.9;
+  flex-shrink: 0;
 }
 
-.tt-cell:hover .tt-slot-disp-corner {
+.lesson-card:hover .tt-slot-disp-indicator {
   opacity: 1;
 }
 
