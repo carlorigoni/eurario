@@ -1567,6 +1567,9 @@
     if (codeEl) codeEl.innerText = currentLanguage === 'en' ? 'ENG' : 'ITA';
     if (checkIt) checkIt.style.display = currentLanguage === 'it' ? 'inline-block' : 'none';
     if (checkEn) checkEn.style.display = currentLanguage === 'en' ? 'inline-block' : 'none';
+
+    document.querySelectorAll('.lang-opt-it').forEach(el => el.classList.toggle('active', currentLanguage === 'it'));
+    document.querySelectorAll('.lang-opt-en').forEach(el => el.classList.toggle('active', currentLanguage === 'en'));
   }
 
   function applyStaticTranslations(root = document) {
@@ -1655,6 +1658,7 @@
       if (chk) {
         chk.style.display = (themeChoice === th) ? 'inline-block' : 'none';
       }
+      document.querySelectorAll('.theme-opt-' + th).forEach(el => el.classList.toggle('active', themeChoice === th));
     });
   }
 
