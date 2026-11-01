@@ -1279,6 +1279,65 @@ textarea:focus:not(:focus-visible) {
   transform: scale(0.95);
 }
 
+/* Eurario Brand SVG & Micro-Animazione delle barrette "E" */
+.eurario-mark-svg {
+  display: block;
+  overflow: visible;
+}
+
+.eurario-mark-svg .eurario-spine {
+  transition: fill 0.25s ease;
+}
+
+[data-theme="dark"] .eurario-mark-svg .eurario-spine {
+  fill: #cbd5e1;
+}
+
+.eurario-mark-svg .eurario-bar {
+  transform-box: fill-box;
+  transform-origin: left center;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* All'hover del pulsante: la barretta centrale si allinea morbidamente alle altre due (E -> ☰) */
+.sidebar-brand-btn:hover .eurario-bar-mid,
+.topbar-brand-btn:hover .eurario-bar-mid {
+  transform: scaleX(1.385);
+  animation: eurarioBarMidPulse 1.6s ease-in-out infinite alternate;
+}
+
+.sidebar-brand-btn:hover .eurario-bar-top,
+.topbar-brand-btn:hover .eurario-bar-top {
+  transform: translateX(1.5px);
+  transition-delay: 0.04s;
+}
+
+.sidebar-brand-btn:hover .eurario-bar-bot,
+.topbar-brand-btn:hover .eurario-bar-bot {
+  transform: translateX(1.5px);
+  transition-delay: 0.08s;
+}
+
+/* Pulsazione delicata ed elegante della barretta centrale all'hover */
+@keyframes eurarioBarMidPulse {
+  0% {
+    transform: scaleX(1.385);
+  }
+  50% {
+    transform: scaleX(1.24);
+  }
+  100% {
+    transform: scaleX(1.385);
+  }
+}
+
+/* Effetto di pressione elastica al click */
+.sidebar-brand-btn:active .eurario-mark-svg .eurario-bar,
+.topbar-brand-btn:active .eurario-mark-svg .eurario-bar {
+  transform: scale(0.92);
+  transition-duration: 0.1s;
+}
+
 .topbar-brand-btn {
   width: 38px;
   height: 38px;
@@ -5219,7 +5278,11 @@ input:checked + .slider:before {
   border: 1px solid #bbf7d0;
 }
 
-/* Desktop: Topbar brand/hamburger è nascosto perché c'è già il menu laterale */
+/* Desktop: Topbar brand/hamburger e close mobile sono nascosti perché c'è già il menu laterale */
+.mobile-sidebar-close-btn {
+  display: none !important;
+}
+
 @media (min-width: 769px) {
   .topbar-hamburger-btn,
   .topbar-brand-btn {
@@ -5233,7 +5296,41 @@ input:checked + .slider:before {
   .topbar-hamburger-btn,
   .topbar-brand-btn {
     display: inline-flex !important;
-    margin-right: 8px;
+    margin-right: 6px !important;
+    flex-shrink: 0 !important;
+    min-width: 38px !important;
+    width: 38px !important;
+    height: 38px !important;
+  }
+
+  /* Nascondi etichette testuali lunghe nei pulsanti della topbar per non spiazzare il menu */
+  .contact-btn-label,
+  .pending-btn-label {
+    display: none !important;
+  }
+
+  /* Pulsante di chiusura dedicato nel drawer mobile */
+  .mobile-sidebar-close-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .mobile-sidebar-close-btn:hover,
+  .mobile-sidebar-close-btn:active {
+    background: rgba(60, 64, 67, 0.12);
+    color: var(--text-main);
   }
 
   /* Backdrop: overlay scuro pulito senza filtri blur per evitare bug su GPU mobile (iOS/Android) */
@@ -5324,12 +5421,18 @@ input:checked + .slider:before {
     border-bottom: 1px solid var(--border) !important;
   }
 
+  .sidebar.mobile-open .sidebar-brand-btn,
+  .sidebar-wrapper .sidebar.mobile-open .sidebar-brand-btn,
+  .sidebar-wrapper.collapsed .sidebar.mobile-open .sidebar-brand-btn,
   .sidebar.mobile-open .sidebar-brand,
   .sidebar-wrapper .sidebar.mobile-open .sidebar-brand,
   .sidebar-wrapper.collapsed .sidebar.mobile-open .sidebar-brand {
     display: flex !important;
     align-items: center !important;
     gap: 10px !important;
+    width: auto !important;
+    padding: 4px 6px !important;
+    justify-content: flex-start !important;
   }
 
   .sidebar.mobile-open .sidebar-titles,
@@ -5457,11 +5560,29 @@ input:checked + .slider:before {
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-    max-width: 140px !important;
+    max-width: 120px !important;
+  }
+
+  .school-pill-btn {
+    max-width: 135px !important;
+    padding: 3px 6px !important;
+  }
+
+  .school-pill-name {
+    max-width: 85px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
   }
 
   #instBadge {
     display: none !important;
+  }
+
+  @media (max-width: 480px) {
+    .topbar-title {
+      display: none !important;
+    }
   }
 
   .topbar-right {

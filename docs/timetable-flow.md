@@ -144,9 +144,12 @@ Eurario include un algoritmo euristico proprietario (`place_disposizioni_in_time
 </div>
 
 ### Strumenti Operativi Avanzati:
-* **Drag-and-Drop Reattivo**: Ogni ora di disposizione o lezione può essere trascinata manualmente sulla griglia orario. Il sistema valida istantaneamente che il nuovo slot sia libero da sovrapposizioni.
+* **Indicatori di Densità Disposizioni (`👥 X D`)**: In ogni slot vuoto della griglia oraria è visibile in tempo reale il conteggio dei docenti a disposizione presenti nella scuola (`0 D` grigio per finestre scoperte, `1-2 D` verde per copertura ottimale, `3+ D` viola per alta copertura), con tooltip nominativo.
+* **Quadro Distribuzione Disposizioni (Matrice Settimanale)**: Maschera analitica accessibile dal pulsante `⚖️ Distribuzione Disposizioni`, con matrice giorni × ore, pillole nominative cliccabili con navigazione istantanea all'orario del singolo docente e riepilogo delle ore critiche a copertura zero.
+* **Drag-and-Drop Reattivo Guidato**: Ogni ora di disposizione o lezione può essere trascinata manualmente sulla griglia orario. Durante il drag delle disposizioni, gli slot vuoti evidenziano la densità di copertura, guidando la saturazione delle ore scoperte.
 * **Descrizione Personalizzata (`custom_desc`)**: È possibile assegnare una specifica funzione all'ora a disposizione (es. *Biblioteca*, *Coordinamento*, *Supporto Disabili*).
-* **Blocco Slot (`toggle_activity_lock`)**: Permette di bloccare un'attività in una determinata ora e giorno, impedendo che ricalcoli successivi o riallineamenti automatici la spostino.
+* **Blocco Slot (`toggle_activity_lock`)**: Permette di bloccare un'attività in una determinata ora e giorno con vincolo FET al 100%. Le attività bloccate sono contrassegnate dall'icona lucchetto `🔒` e da un'evidenziazione con cornice blu più spessa (`.lesson-card.is-locked`).
+* **Filtro Globale Multi-Materia in Testata**: Selettore a discesa persistente per filtrare cattedre, attività e orario su una o più materie contemporaneamente.
 * **Gestione Snapshot**: Creazione di checkpoint orari nominati (es. *"Orario Definitivo Ottobre"*, *"Bozza 2 Rientri"*). Possibilità di ripristino istantaneo o download del file sorgente `.fet`.
 * **Esportazione Word (.docx) Tabellone Docenti A3 Orizzontale**:
   * Strutturato secondo la Procedura 12 ministeriale per affissione in sala professori.

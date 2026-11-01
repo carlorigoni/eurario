@@ -19,7 +19,7 @@ The following diagram illustrates the interactions between local components, rem
 flowchart TD
     subgraph LocalDev["💻 Local Development Environment"]
         DevFiles["Eurario Sources\n(Python, HTML5, Vanilla JS, CSS)"]
-        LocalFET["Compiler & Solver\nNative FET 7.12 (C++)"]
+        LocalFET["Compiler & Solver\nNative FET (C++)"]
         LocalTest["Integration Tests\n& Constraints Validation"]
         DevFiles --> LocalFET
         LocalFET --> LocalTest
@@ -97,7 +97,7 @@ graph LR
     end
 
     subgraph NativeBinary["High-Performance Solver Engine"]
-        SolverManager --> FET["bin/fet-cl\n(Native C++ Qt-Free FET 7.12.0)"]
+        SolverManager --> FET["bin/fet-cl\n(Native C++ Qt-Free FET Engine)"]
     end
 
     subgraph DataStorage["Atomic File System Storage (instance/)"]
@@ -120,7 +120,7 @@ graph LR
    - Enterprise security: password hashing via **PBKDF2-HMAC-SHA256 with 600,000 iterations**, cryptographic salt (16 bytes), progressive exponential tarpit delays, and automated IP lockout against brute-force attacks.
 
 3. **Heuristic Solver Engine (`bin/fet-cl`)**:
-   - Native C++ compiled binary from FET 7.12.0 sources (created by Liviu Lalescu and Volker Dirr).
+   - Native C++ compiled binary from upstream FET sources (created by Liviu Lalescu and Volker Dirr).
    - Invoked by the Python server as an isolated subprocess with optimized argument passing. It operates headlessly without the Qt GUI, providing maximum calculation speed and stability on server hardware.
 
 4. **Atomic Disk Storage (`instance/` & `data/`)**:

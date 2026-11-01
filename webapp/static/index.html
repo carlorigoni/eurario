@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Eurario - Gestione Orario Scolastico & Solver FET 7.12.0</title>
+  <title>Eurario - Gestione Orario Scolastico & Solver FET</title>
   <!-- Prevenzione Flash Bianco (FOUC) & Rilevamento Istantaneo Tema e Lingua -->
   <script>
     (function() {
@@ -33,8 +33,8 @@
   <!-- Open Graph / WhatsApp / Facebook / Telegram / LinkedIn -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://app.eurario.it/">
-  <meta property="og:title" content="Eurario — Gestione Orario Scolastico & Solver FET 7.12">
-  <meta property="og:description" content="Applicazione web per la generazione e gestione dell'orario scolastico italiano con motore solutore FET 7.12.">
+  <meta property="og:title" content="Eurario — Gestione Orario Scolastico & Solver FET">
+  <meta property="og:description" content="Applicazione web per la generazione e gestione dell'orario scolastico italiano con motore solutore FET.">
   <meta property="og:image" content="https://app.eurario.it/og-image.png">
   <meta property="og:image:secure_url" content="https://app.eurario.it/og-image.png">
   <meta property="og:image:type" content="image/png">
@@ -45,10 +45,10 @@
 
   <!-- Twitter / X -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Eurario — Gestione Orario Scolastico & Solver FET 7.12">
-  <meta name="twitter:description" content="Applicazione web per la generazione e gestione dell'orario scolastico italiano con motore solutore FET 7.12.">
+  <meta name="twitter:title" content="Eurario — Gestione Orario Scolastico & Solver FET">
+  <meta name="twitter:description" content="Applicazione web per la generazione e gestione dell'orario scolastico italiano con motore solutore FET.">
   <meta name="twitter:image" content="https://app.eurario.it/og-image.png">
-  <link rel="stylesheet" href="styles.css?v=1.9.27">
+  <link rel="stylesheet" href="styles.css?v=1.9.28">
   <!-- Google Identity Services OAuth -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -63,11 +63,16 @@
         <div class="sidebar-header">
           <button id="sidebarHamburgerBtn" class="sidebar-brand-btn" title="Menu principale (☰) - Comprimi o espandi" onclick="toggleSidebarPin()" aria-label="Menu principale">
             <div class="eurario-brand-mark-wrap" title="Menu principale (☰)">
-              <img src="/eurario-mark.svg" alt="Eurario" class="sidebar-logo-img" width="28" height="28">
+              <svg class="eurario-mark-svg" viewBox="0 0 64 64" width="28" height="28" role="img" aria-label="Eurario">
+                <rect class="eurario-spine" x="6.00" y="6.00" width="12.00" height="52.00" rx="3.00" fill="#1B2A4A"/>
+                <rect class="eurario-bar eurario-bar-top" x="22.00" y="6.00" width="36.00" height="12.00" rx="3.00" fill="#E4572E"/>
+                <rect class="eurario-bar eurario-bar-mid" x="22.00" y="26.00" width="26.00" height="12.00" rx="3.00" fill="#F2B134"/>
+                <rect class="eurario-bar eurario-bar-bot" x="22.00" y="46.00" width="36.00" height="12.00" rx="3.00" fill="#2F7F86"/>
+              </svg>
             </div>
             <div class="sidebar-titles">
               <div class="sidebar-title">Eurario</div>
-              <div class="sidebar-subtitle">FET 7.12.0 Suite</div>
+              <div class="sidebar-subtitle">FET Timetable Suite</div>
             </div>
           </button>
           <button id="sidebarPinBtn" class="sidebar-pin-btn" title="Fissa aperto / Sblocca menu" onclick="toggleSidebarPin()" aria-label="Fissa menu">
@@ -75,6 +80,7 @@
               <path d="M16 9V4l1 0V2H7v2l1 0v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z"/>
             </svg>
           </button>
+          <button id="mobileSidebarCloseBtn" class="mobile-sidebar-close-btn" title="Chiudi menu" onclick="closeMobileSidebar()" aria-label="Chiudi menu">✕</button>
         </div>
 
       <nav class="sidebar-nav">
@@ -87,7 +93,7 @@
           <span class="nav-icon">🗓️</span>
           <span class="nav-label" data-i18n="nav.timetable">Orario Risolto</span>
         </a>
-        <a class="nav-item" onclick="navigate('solver')" data-tooltip="Compilatore FET" title="Compilatore FET 7.12.0 in tempo reale">
+        <a class="nav-item" onclick="navigate('solver')" data-tooltip="Compilatore FET" title="Compilatore FET in tempo reale">
           <span class="nav-icon">⚡</span>
           <span class="nav-label" data-i18n="nav.solver">Compilatore FET</span>
         </a>
@@ -271,7 +277,7 @@
         <div class="sidebar-status-row">
           <span id="sidebarStatusBadge" class="sidebar-status-badge" onclick="handleFooterBadgeClick()" title="Verifica aggiornamenti applicazione & FET">
             <span id="statusIndicatorDot" class="status-indicator-dot dot-green"></span>
-            <span id="statusIndicatorText" class="status-indicator-text">FET 7.12</span>
+            <span id="statusIndicatorText" class="status-indicator-text">FET Engine</span>
           </span>
           <span id="sidebarVerTag" class="footer-ver-tag" title="Versione Eurario">v1.9.12</span>
           <button class="footer-info-btn" onclick="openAboutModal()" title="Crediti, Mentore e Info Legali" aria-label="Informazioni e crediti">
@@ -307,8 +313,13 @@
   <div class="main-wrapper">
     <header class="topbar">
       <div class="topbar-left">
-        <button id="topbarHamburgerBtn" class="topbar-brand-btn" onclick="toggleSidebarPin()" title="Menu principale (☰)" aria-label="Menu principale">
-          <img src="/eurario-mark.svg" alt="Eurario" width="24" height="24">
+        <button id="topbarHamburgerBtn" class="topbar-brand-btn topbar-hamburger-btn" onclick="toggleSidebarPin()" title="Menu principale (☰)" aria-label="Menu principale">
+          <svg class="eurario-mark-svg" viewBox="0 0 64 64" width="24" height="24" role="img" aria-label="Eurario">
+            <rect class="eurario-spine" x="6.00" y="6.00" width="12.00" height="52.00" rx="3.00" fill="#1B2A4A"/>
+            <rect class="eurario-bar eurario-bar-top" x="22.00" y="6.00" width="36.00" height="12.00" rx="3.00" fill="#E4572E"/>
+            <rect class="eurario-bar eurario-bar-mid" x="22.00" y="26.00" width="26.00" height="12.00" rx="3.00" fill="#F2B134"/>
+            <rect class="eurario-bar eurario-bar-bot" x="22.00" y="46.00" width="36.00" height="12.00" rx="3.00" fill="#2F7F86"/>
+          </svg>
         </button>
         <button id="navBackBtn" class="nav-back-btn" onclick="navigateBack()" title="Torna alla schermata precedente" style="display:none;">
           <span>◀</span> <span id="navBackText">Indietro</span>
@@ -468,7 +479,7 @@
 
     <footer class="app-page-footer">
       <div>
-        <b>Eurario FET Suite</b> &mdash; <span data-i18n="footer.version">Versione</span> <span id="pageFooterVer" class="badge-ver">v1.9.12</span> &bull; <span data-i18n="footer.author">Autore</span>: <b>Carlo Rigoni</b> &bull; <span data-i18n="footer.engine">Motore</span>: <b>FET 7.12.0</b> &bull; <a href="javascript:void(0)" onclick="openAboutModal()" style="color:var(--primary);text-decoration:none;font-weight:600;" data-i18n="footer.credits">Crediti & Note Legali</a> &bull; <a href="javascript:void(0)" onclick="openContactAdminModal()" style="color:var(--primary);text-decoration:none;font-weight:600;" data-i18n="footer.contact_admin">Contatta Amministratore</a>
+        <b>Eurario FET Suite</b> &mdash; <span data-i18n="footer.version">Versione</span> <span id="pageFooterVer" class="badge-ver">v1.9.12</span> &bull; <span data-i18n="footer.author">Autore</span>: <b>Carlo Rigoni</b> &bull; <span data-i18n="footer.engine">Motore</span>: <b>FET Engine Nativo</b> &bull; <a href="javascript:void(0)" onclick="openAboutModal()" style="color:var(--primary);text-decoration:none;font-weight:600;" data-i18n="footer.credits">Crediti & Note Legali</a> &bull; <a href="javascript:void(0)" onclick="openContactAdminModal()" style="color:var(--primary);text-decoration:none;font-weight:600;" data-i18n="footer.contact_admin">Contatta Amministratore</a>
       </div>
       <div style="font-size:11.5px;color:var(--text-muted);">
         <span data-i18n="footer.heuristic">Algoritmo euristico</span>: <a href="https://lalescu.ro/liviu/fet/" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:none;font-weight:600;">FET Free Timetabling Software</a> &bull; <span data-i18n="footer.ai_credit">AI Pair Programming</span>: Google DeepMind Antigravity
@@ -483,7 +494,7 @@
       <div class="auth-card-header">
         <img src="/eurario-mark.svg" alt="Eurario" class="auth-card-logo-img" width="48" height="48" style="margin-bottom:8px;border-radius:10px;">
         <h2>Eurario</h2>
-        <p class="auth-card-subtitle">Gestione Orario Scolastico &bull; Suite FET 7.12.0</p>
+        <p class="auth-card-subtitle">Gestione Orario Scolastico &bull; Suite FET</p>
       </div>
 
       <!-- Auth State 1: Form Login / Richiesta Accesso -->
@@ -943,7 +954,7 @@
           <img src="/eurario-mark.svg" alt="Eurario" width="32" height="32" style="border-radius:6px;">
           <div>
             <div style="font-size:16px;font-weight:700;color:var(--text-main);" data-i18n="modals.about.title">Eurario FET Suite</div>
-            <div style="font-size:11.5px;color:var(--text-muted);" data-i18n="modals.about.subtitle">Configurazione, Vincoli & Compilatore Orario FET 7.12.0</div>
+            <div style="font-size:11.5px;color:var(--text-muted);" data-i18n="modals.about.subtitle">Configurazione, Vincoli & Compilatore Orario FET</div>
           </div>
         </div>
         <button class="modal-close" onclick="closeAboutModal()" title="Chiudi">✕</button>
@@ -960,7 +971,7 @@
               <span>🚀</span> <span data-i18n="modals.about.check_updates">Verifica Aggiornamenti</span>
             </button>
             <div style="font-size:11.5px;color:var(--text-sub);" data-i18n="modals.about.engine">
-              Engine: <b>FET 7.12.0 Nativo</b>
+              Engine: <b>FET Engine Nativo</b>
             </div>
           </div>
         </div>
@@ -1252,7 +1263,7 @@
         <p data-i18n="schools.trial_modal_desc">Eurario consente a qualsiasi istituto scolastico di verificare immediatamente la velocità e l'efficacia del motore di calcolo FET senza alcuna limitazione funzionale:</p>
         <ul style="padding-left:20px;margin:6px 0;">
           <li data-i18n-html="schools.trial_modal_li1"><b>Nessun limite</b> sul numero di docenti, classi, materie o vincoli complessi.</li>
-          <li data-i18n-html="schools.trial_modal_li2"><b>Motore FET 7.12.0 completo:</b> generazione rapida, swapper euristico, rilevamento colli di bottiglia e report Advisor attivi.</li>
+          <li data-i18n-html="schools.trial_modal_li2"><b>Motore FET completo:</b> generazione rapida, swapper euristico, rilevamento colli di bottiglia e report Advisor attivi.</li>
           <li data-i18n-html="schools.trial_modal_li3"><b>Griglia orario interattiva:</b> visualizzazione tabellone docenti, classi e aule navigabile a schermo.</li>
         </ul>
         <div class="modal-notice" style="margin-top:6px;" data-i18n-html="schools.trial_modal_unlock_desc">
@@ -1266,7 +1277,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=1.9.27"></script>
-  <script src="app.js?v=1.9.27"></script>
+  <script src="i18n.js?v=1.9.28"></script>
+  <script src="app.js?v=1.9.28"></script>
 </body>
 </html>

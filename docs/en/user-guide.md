@@ -106,19 +106,35 @@ If the timetable is mathematically over-constrained:
 
 ---
 
-### Step 9: Smart On-Duty Placement Algorithm ("D")
-Once all curricular lessons are successfully scheduled:
-1. Teachers with fewer than 18 teaching hours have reserve hours for substitutions and relief duty.
+### Step 9: Smart On-Duty Placement & Monitoring ("D")
+Once all curricular lessons are successfully scheduled by the solver:
+1. Teachers with fewer than 18 teaching hours have reserve hours designated for substitution duty and support.
 2. Click **Place On-Duty Automatically**:
    * The proprietary algorithm finds schedule gaps ("holes") in the teacher's day and plugs them first, eliminating dead time.
-   * It balances the total substitute teacher presence across all periods of the week.
+   * It balances the overall presence of on-duty teachers across all periods of the week.
+
+#### Period Density Badges in Timetable Cells
+In the teacher timetable grid, every empty cell displays a real-time badge (`👥 X D`) indicating how many staff members are on reserve duty during that period:
+* **`0 D` (Gray / Alert)**: Zero teachers on duty during this period. Indicates an unstaffed slot for substitution coverage.
+* **`1-2 D` (Emerald Green)**: Balanced and optimal staffing for substitution coverage.
+* **`3+ D` (Purple / Blue)**: High density of on-duty staff.
+* **Interactive Tooltip**: Hovering over the badge lists the names of colleagues assigned to reserve duty in that hour.
+
+#### Interactive Matrix: On-Duty Reserve Distribution Board
+Accessible via the **`⚖️ Disposizioni Matrix`** button on the Solved Timetable toolbar:
+* **Full Weekly Matrix**: Displays a two-dimensional grid (Days × Periods) with the exact headcount and roster of teachers on duty.
+* **One-Click Navigation**: Clicking on any teacher chip instantly opens that teacher's weekly schedule for fine-tuned adjustments.
+* **Statistical Summary**: Tracks total on-duty hours scheduled, unstaffed periods, and high-density slots.
 
 ---
 
 ### Step 10: Interactive Drag & Drop Refinement & Snapshots
 1. On the master timetable grid, drag and drop any period to fine-tune placement:
+   * **Visual Drag & Drop Guidance**: When dragging an on-duty period ("D"), target empty slots highlight their current staffing levels, steering the operator to place hours into underserved slots (`0 D`).
    * If an adjustment causes a collision (e.g., room double-booking), Eurario alerts you instantly.
-2. Pin final activities with the lock icon (`locked`).
+2. **Permanent Activity Pinning (`locked`)**:
+   * Clicking the lock icon (`🔒`) on any lesson card pins it permanently.
+   * Locked activities are styled with a **thicker solid blue border** (`.lesson-card.is-locked`), making them immediately identifiable and preserving them across solver re-runs.
 3. Save a **Named Snapshot** (e.g., *"Fall Baseline - Approved"*).
 
 ---
@@ -131,6 +147,25 @@ Once all curricular lessons are successfully scheduled:
    * Highlighted amber styling for on-duty reserve hours ("D").
 3. Export **Class Timetables (PDF)**:
    * Rendered with high-contrast pastel subject palettes or monochrome *Toner-Save* format for student noticeboards.
+
+---
+
+### Cross-Functional Productivity & Support Tools
+
+#### 1. Global Multi-Subject Filter in Topbar
+Located in the main application topbar, this dropdown lets you filter the entire workspace by one or more disciplines:
+* **Multi-Selection with Instant Search**: Check off multiple subjects simultaneously (e.g., *Mathematics* and *Physics*, or all foreign languages).
+* **Persistent Workspace Filter**: Remains active across the *Chairs*, *Activities*, and *Solved Timetable* views, isolating relevant teachers and classes.
+* **Quick Actions**: One-click *Select All* and *Deselect All* with live selection counters on the topbar chip.
+
+#### 2. Co-Teaching & Labs with Independent Subjects
+In vocational and technical schools featuring shared laboratory sessions:
+* **Independent Subjects for Each Teacher**: The theoretical instructor and the technical lab teacher (ITP) can be assigned to the same activity with distinct subject names (e.g., *Computer Science* and *Computer Science Lab*).
+* **Uncompromised Contract Accounting**: Each teacher's official curriculum assignment is preserved accurately in timetables and statutory exports.
+
+#### 3. "Contact Administrator" Support Channel
+Accessible directly from the topbar, footer, and login screen:
+* **Integrated Inquiries & Feedback**: Enables teachers, timetablers, and coordinators to submit schedule change requests, bug reports, or suggestions directly to the school timetable administrator.
 
 ---
 

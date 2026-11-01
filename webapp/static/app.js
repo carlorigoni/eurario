@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.27';
+let APP_VERSION = '1.9.28';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -1371,7 +1371,7 @@ function renderOnboardingSchoolWelcome() {
       </p>
       <div style="display: inline-flex; flex-direction: column; gap: 12px; text-align: left; background: var(--bg-hover); padding: 16px 20px; border-radius: 12px; margin-bottom: 26px; width: 100%; max-width: 480px; font-size: 13px; color: var(--text-main);">
         <div>✨ <b>${isEn ? 'No restrictions:' : 'Nessun limite:'}</b> ${isEn ? 'unlimited teachers, classes, and complex rules.' : 'docenti, classi, materie e vincoli illimitati.'}</div>
-        <div>⚡ <b>${isEn ? 'FET 7.12 Engine:' : 'Motore FET 7.12:'}</b> ${isEn ? 'high-speed heuristic timetable calculation and smart advisor.' : 'calcolo orario euristico veloce e diagnostica advisor.'}</div>
+        <div>⚡ <b>${isEn ? 'FET Engine:' : 'Motore FET:'}</b> ${isEn ? 'high-speed heuristic timetable calculation and smart advisor.' : 'calcolo orario euristico veloce e diagnostica advisor.'}</div>
         <div>🔒 <b>${isEn ? 'Complete tenant isolation:' : 'Isolamento totale:'}</b> ${isEn ? 'your data and snapshots reside in an isolated workspace.' : 'i tuoi dati risiedono in uno spazio isolato e riservato.'}</div>
       </div>
       <div style="display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 8px;">
@@ -3174,7 +3174,7 @@ const FLYOUT_GROUP_ITEMS = {
       icon: 'ℹ️',
       title: 'Info & Crediti',
       key: 'about',
-      desc: 'Versione FET 7.12, crediti e conformità GDPR',
+      desc: 'Versione motore FET, crediti e conformità GDPR',
       action: 'openAboutModal()'
     }
   ]
@@ -3578,7 +3578,7 @@ function renderUpdateStatus(data) {
       dot.className = 'status-indicator-dot dot-green';
     }
     if (text) {
-      text.innerText = 'FET 7.12';
+      text.innerText = 'FET Engine';
     }
     if (badge) {
       badge.classList.remove('status-update-available');
@@ -3890,7 +3890,7 @@ let navigationHistory = [];
 const VIEW_TITLES = {
   dashboard: 'Dashboard Generale',
   timetable: 'Orario Risolto (Visual Explorer)',
-  solver: 'Compilatore FET CLI 7.12.0',
+  solver: 'Compilatore FET',
   diagnostics: 'Pre-Validatore & Advisor Intelligente dei Vincoli',
   teachers: 'Gestione Docenti',
   classes: 'Gestione Classi & Gruppi',
@@ -4948,7 +4948,7 @@ function renderSolver() {
   container.innerHTML = `
     <div class="card">
       <div class="card-title">
-        <span>${escapeHtml(stateData.summary?.fet_title || (isEn ? 'FET Heuristic Compiler 7.12.0' : 'Solver FET CLI 7.12.0'))}</span>
+        <span>${escapeHtml(stateData.summary?.fet_title || (isEn ? 'FET Heuristic Compiler' : 'Solver FET'))}</span>
         <div style="display:flex;gap:6px;align-items:center;">
           <span id="solverStatusBadge" class="badge badge-ok">● ${isEn ? 'Solver Ready' : 'Solver Pronto'}</span>
           ${(stateData.summary?.locked_activities_count > 0) ? `<span class="badge badge-info" title="${isEn ? 'Locked lessons that will not be moved' : 'Ore fissate che non verranno spostate dal calcolo'}">🔒 <b>${stateData.summary.locked_activities_count}</b> ${stateData.summary.locked_activities_count === 1 ? (isEn ? 'locked lesson' : 'ora fissata') : (isEn ? 'locked lessons' : 'ore fissate')}</span>` : ''}
@@ -5464,7 +5464,7 @@ async function loadPreflightSolverBanner() {
           <span style="font-size:20px;">✅</span>
           <div>
             <b>${isEn ? `Pre-Flight Passed Successfully (Health: ${r.health_score}%)` : `Pre-Validazione Superata con Successo (Salute: ${r.health_score}%)`}</b>
-            <div style="font-size:12px;margin-top:2px;">${isEn ? 'No static or mathematical conflicts detected. Model is ready for FET compilation.' : 'Nessun conflitto statico o matematico rilevato. Il progetto è pronto per la compilazione FET 7.12.0.'}</div>
+            <div style="font-size:12px;margin-top:2px;">${isEn ? 'No static or mathematical conflicts detected. Model is ready for FET compilation.' : 'Nessun conflitto statico o matematico rilevato. Il progetto è pronto per la compilazione FET.'}</div>
           </div>
         </div>
         <button class="btn btn-sm btn-sec" onclick="navigate('diagnostics')" style="white-space:nowrap;">${isEn ? 'Full Report' : 'Report Completo'}</button>

@@ -19,7 +19,7 @@ Il diagramma seguente illustra l'intero flusso di interazione tra i componenti l
 flowchart TD
     subgraph LocalDev["💻 Ambiente di Sviluppo Locale"]
         DevFiles["Sorgenti Eurario\n(Python, HTML5, Vanilla JS, CSS)"]
-        LocalFET["Compilatore & Solutore\nFET 7.12 Nativo (C++)"]
+        LocalFET["Compilatore & Solutore\nFET Nativo (C++)"]
         LocalTest["Test di Integrazione\n& Validazione Vincoli"]
         DevFiles --> LocalFET
         LocalFET --> LocalTest
@@ -97,7 +97,7 @@ graph LR
     end
 
     subgraph NativeBinary["Solutore ad Alte Prestazioni"]
-        SolverManager --> FET["bin/fet-cl\n(C++ Nativo Qt-Free FET 7.12.0)"]
+        SolverManager --> FET["bin/fet-cl\n(C++ Nativo Qt-Free FET Engine)"]
     end
 
     subgraph DataStorage["Persistenza Dati Atomica (instance/)"]
@@ -120,7 +120,7 @@ graph LR
    - Sicurezza enterprise: password con hash crittografico **PBKDF2-HMAC-SHA256 a 600.000 iterazioni**, salting casuale crittografico (16 byte), delay esponenziale (tarpit) e blocco IP automatico temporizzato contro attacchi brute-force.
 
 3. **Motore Solutore Euristico (`bin/fet-cl`)**:
-   - Binario compilato nativo in C++ dal codice sorgente di FET 7.12.0 (ideato da Liviu Lalescu e Volker Dirr).
+   - Binario compilato nativo in C++ dal codice sorgente del motore FET (ideato da Liviu Lalescu e Volker Dirr).
    - Viene invocato dal server Python come subprocess indipendente con passaggio argomenti ottimizzato. Non carica l'interfaccia grafica Qt, operando in modalità pura a riga di comando per la massima velocità di calcolo e stabilità su server headless.
 
 4. **Storage Atomico su File System (`instance/` e `data/`)**:

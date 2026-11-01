@@ -116,7 +116,9 @@ Eurario was engineered around real-world logistical, contractual, and educationa
 
 ### 4. Dynamic On-Duty & Substitute Balancing ("D")
 * **Smart Greedy Placement Algorithm**: Automatically fills teacher schedule gaps with on-duty reserve hours ("D") to maximize cover during peak absence periods.
-* **Interactive Drag & Drop**: Freely reposition on-duty hours directly inside the master grid with real-time conflict checking.
+* **Period Density Badges (`👥 X D`)**: Live indicators on empty grid cells highlighting unstaffed periods (`0 D`) and guiding optimal coverage.
+* **On-Duty Distribution Matrix**: Comprehensive weekly board with instant teacher schedule jump links and staffing analytics.
+* **Interactive Drag & Drop**: Freely reposition on-duty hours directly inside the master grid with visual balance guidance and real-time conflict checking.
 * **Custom Duty Labels**: Assign dedicated roles such as *Library Duty*, *Lab Support*, or *Administration*.
 
 ### 5. Typographic Exports & Collaboration

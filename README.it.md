@@ -1,13 +1,13 @@
-# 🎓 Eurario - Suite Completa per l'Orario Scolastico con FET 7.12.0
+# 🎓 Eurario - Suite Completa per l'Orario Scolastico con Motore FET
 
 [![Version](https://img.shields.io/badge/version-1.9.3-blue.svg)](https://github.com/carlorigoni/eurario)
 [![Docker Hub](https://img.shields.io/badge/docker%20hub-carlorigoni%2Feurario%3Alatest-blue?logo=docker)](https://hub.docker.com/r/carlorigoni/eurario)
-[![FET Solver](https://img.shields.io/badge/FET%20engine-7.12.0-orange.svg)](https://lalescu.ro/liviu/fet/)
+[![FET Solver](https://img.shields.io/badge/FET%20engine-native-orange.svg)](https://lalescu.ro/liviu/fet/)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-green.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 > 🌐 **Lingua / Language:** [English](README.md) | **Italiano**
 
-Applicazione web moderna, performante e intuitiva per la progettazione, ottimizzazione e pubblicazione dell'orario scolastico negli Istituti Superiori italiani, integrata con il solutore open source ad alte prestazioni **FET (Free Timetabling Software) 7.12.0**.
+Applicazione web moderna, performante e intuitiva per la progettazione, ottimizzazione e pubblicazione dell'orario scolastico negli Istituti Superiori italiani, integrata con il solutore open source ad alte prestazioni **FET (Free Timetabling Software)**.
 
 Zero dipendenze esterne Python, interfaccia reattiva in stile Google Classroom / Material 3 e immagine container multi-architettura pronta all'uso su Docker Hub.
 
@@ -15,7 +15,7 @@ Zero dipendenze esterne Python, interfaccia reattiva in stile Google Classroom /
 
 ## 🌟 Caratteristiche Principali
 
-- **Solutore FET 7.12.0 Integrato**:
+- **Solutore FET Integrato**:
   - Compilazione orario automatica in tempo reale con visualizzazione live dello stream del solutore e rilevamento colli di bottiglia (*bottleneck activities*).
   - Supporto al salvataggio e ripristino istantaneo dello stadio più avanzato (*highest stage*) in caso di arresto manuale o timeout.
 - **Sistema di Blocco Orario (Locking)**:
@@ -39,7 +39,7 @@ Zero dipendenze esterne Python, interfaccia reattiva in stile Google Classroom /
 
 ## 🐳 Immagine Ufficiale Docker Hub
 
-L'applicazione è pubblicata come container pre-compilato con Linux Ubuntu, Python 3 e il solutore nativo C++ FET 7.12.0 su **Docker Hub**:
+L'applicazione è pubblicata come container pre-compilato con Linux Ubuntu, Python 3 e il solutore nativo C++ FET su **Docker Hub**:
 
 👉 **Docker Hub Repository:** [`carlorigoni/eurario`](https://hub.docker.com/r/carlorigoni/eurario)
 
@@ -363,7 +363,7 @@ Il progetto Eurario nasce dalla sinergia tra competenze didattiche e organizzati
 ## 📁 Struttura del Repository
 
 ```text
-├── Dockerfile                   # Build multi-stage Linux (FET 7.12.0 + Python 3.12)
+├── Dockerfile                   # Build multi-stage Linux (FET Engine + Python 3.12)
 ├── docker-compose.yml           # Configurazione Docker Compose per server/Synology/Watchtower
 ├── .dockerignore                # Esclusioni per build Docker
 ├── .gitignore                   # Esclusioni repository Git
@@ -397,4 +397,4 @@ Il progetto Eurario nasce dalla sinergia tra competenze didattiche e organizzati
 ## 📄 Licenza
 
 Distribuito sotto licenza **GNU Affero General Public License v3 (GNU AGPLv3)** in piena conformità con la licenza del motore solutore FET.  
-Autore: **Carlo Rigoni** &bull; Motore: **FET 7.12.0** &bull; AI Pair Programming: **Google DeepMind Antigravity**.
+Autore: **Carlo Rigoni** &bull; Motore: **FET Native Engine** &bull; AI Pair Programming: **Google DeepMind Antigravity**.

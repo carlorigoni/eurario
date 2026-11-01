@@ -14,7 +14,7 @@
       },
       app: {
         title: "Eurario",
-        subtitle: "FET 7.12.0 Suite",
+        subtitle: "FET Timetable Suite",
         loading: "Caricamento in corso...",
         error: "Si è verificato un errore",
         network_error: "Errore di connessione al server"
@@ -92,14 +92,11 @@
         docs_desc: "Guida utente, casi d'uso e manuale vincoli FET (docs.eurario.it)",
         about: "Info & Crediti",
         about_title: "Info & Crediti",
-        about_desc: "Versione FET 7.12, crediti e conformità GDPR",
+        about_desc: "Versione motore FET, crediti e conformità GDPR",
         contact_admin: "Contatta Amministratore",
         contact_admin_desc: "Invia una richiesta o un messaggio all'amministratore del sistema o referente dell'orario",
         back: "Indietro",
         back_to: "Torna a"
-      },
-      footer: {
-        contact_admin: "Contatta Amministratore"
       },
       filter: {
         all_subjects: "Tutte le Materie",
@@ -246,10 +243,10 @@
         },
         about: {
           title: "Eurario FET Suite",
-          subtitle: "Configurazione, Vincoli & Compilatore Orario FET 7.12.0",
+          subtitle: "Configurazione, Vincoli & Compilatore Orario FET",
           stable_release: "Release Stabile",
           check_updates: "🚀 Verifica Aggiornamenti",
-          engine: "Engine: FET 7.12.0 Nativo",
+          engine: "Engine: FET Engine Nativo",
           author_section: "Ideazione & Architettura",
           author_role: "Autore, Architetto del Software e Maintainer del progetto Eurario.",
           author_sub: "Progettazione funzionale, adattamento alla scuola italiana, modello vincoli cattedre/disposizioni e integrazione procedurale.",
@@ -376,7 +373,7 @@
         trial_modal_subtitle: "Come funziona la valutazione tecnica per i nuovi istituti",
         trial_modal_desc: "Eurario consente a qualsiasi istituto scolastico di verificare immediatamente la velocità e l'efficacia del motore di calcolo FET senza alcuna limitazione funzionale:",
         trial_modal_li1: "<b>Nessun limite</b> sul numero di docenti, classi, materie o vincoli complessi.",
-        trial_modal_li2: "<b>Motore FET 7.12.0 completo:</b> generazione rapida, swapper euristico, rilevamento colli di bottiglia e report Advisor attivi.",
+        trial_modal_li2: "<b>Motore FET completo:</b> generazione rapida, swapper euristico, rilevamento colli di bottiglia e report Advisor attivi.",
         trial_modal_li3: "<b>Griglia orario interattiva:</b> visualizzazione tabellone docenti, classi e aule navigabile a schermo.",
         trial_modal_unlock_desc: "<b>Sblocco Stampe Ufficiali:</b> Nella versione in prova, le stampe PDF A3/A4 e i documenti Word (.docx) presentano una filigrana identificativa <i>\"Eurario - Versione Dimostrativa\"</i>. Per sbloccare le stampe ufficiali senza filigrana, contatta l'amministratore di sistema o attendi l'approvazione tecnica.",
         understood: "Ho Capito"
@@ -414,6 +411,7 @@
         author: "Autore",
         engine: "Motore",
         credits: "Crediti & Note Legali",
+        contact_admin: "Contatta Amministratore",
         heuristic: "Algoritmo euristico",
         ai_credit: "AI Pair Programming"
       },
@@ -759,7 +757,7 @@
       },
       app: {
         title: "Eurario",
-        subtitle: "FET 7.12.0 Suite",
+        subtitle: "FET Timetable Suite",
         loading: "Loading, please wait...",
         error: "An error occurred",
         network_error: "Connection error with server"
@@ -837,14 +835,11 @@
         docs_desc: "User guide, use cases and FET constraints manual (docs.eurario.it)",
         about: "Info & Credits",
         about_title: "Info & Credits",
-        about_desc: "FET 7.12 version, authors, credits and GDPR compliance",
+        about_desc: "FET engine, authors, credits and GDPR compliance",
         contact_admin: "Contact Administrator",
         contact_admin_desc: "Send an inquiry or request to the timetable coordinator or administrator",
         back: "Back",
         back_to: "Back to"
-      },
-      footer: {
-        contact_admin: "Contact Administrator"
       },
       filter: {
         all_subjects: "All Subjects",
@@ -991,10 +986,10 @@
         },
         about: {
           title: "Eurario FET Suite",
-          subtitle: "Configuration, Constraints & Timetable Compiler FET 7.12.0",
+          subtitle: "Configuration, Constraints & Timetable Compiler FET",
           stable_release: "Stable Release",
           check_updates: "🚀 Check for Updates",
-          engine: "Engine: Native FET 7.12.0",
+          engine: "Engine: Native FET Engine",
           author_section: "Design & Architecture",
           author_role: "Author, Software Architect and Maintainer of Eurario.",
           author_sub: "Functional design, Italian school adaptation, teaching chair/on-duty constraint model and procedural integration.",
@@ -1121,7 +1116,7 @@
         trial_modal_subtitle: "How technical evaluation works for new schools",
         trial_modal_desc: "Eurario allows any school or institution to immediately verify the speed and power of the FET timetable engine without functional limitations:",
         trial_modal_li1: "<b>No limits</b> on the number of teachers, classes, subjects, or complex constraints.",
-        trial_modal_li2: "<b>Full FET 7.12.0 Engine:</b> rapid heuristic generation, genetic timetable swapper, bottleneck detection, and Advisor reports.",
+        trial_modal_li2: "<b>Full FET Engine:</b> rapid heuristic generation, genetic timetable swapper, bottleneck detection, and Advisor reports.",
         trial_modal_li3: "<b>Interactive timetable grid:</b> full screen inspection of teacher boards, classes, and rooms.",
         trial_modal_unlock_desc: "<b>Unlocking Official Prints:</b> In trial mode, high-resolution A3/A4 PDF prints and Word documents (.docx) include an evaluation watermark <i>\"Eurario - Evaluation Version\"</i>. To unlock official watermark-free prints, contact your system administrator or await technical approval.",
         understood: "Understood"
@@ -1159,6 +1154,7 @@
         author: "Author",
         engine: "Engine",
         credits: "Credits & Legal Notices",
+        contact_admin: "Contact Administrator",
         heuristic: "Heuristic algorithm",
         ai_credit: "AI Pair Programming"
       },

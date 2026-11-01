@@ -1,13 +1,13 @@
-# 🎓 Eurario — Complete School Timetabling Suite with FET 7.12.0
+# 🎓 Eurario — Complete School Timetabling Suite with FET Engine
 
 [![Version](https://img.shields.io/badge/version-1.9.3-blue.svg)](https://github.com/carlorigoni/eurario)
 [![Docker Hub](https://img.shields.io/badge/docker%20hub-carlorigoni%2Feurario%3Alatest-blue?logo=docker)](https://hub.docker.com/r/carlorigoni/eurario)
-[![FET Solver](https://img.shields.io/badge/FET%20engine-7.12.0-orange.svg)](https://lalescu.ro/liviu/fet/)
+[![FET Solver](https://img.shields.io/badge/FET%20engine-native-orange.svg)](https://lalescu.ro/liviu/fet/)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPLv3-green.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 > 🌐 **Language / Lingua:** **English** | [Italiano](README.it.md)
 
-Eurario is a modern, responsive, and high-performance web application designed for creating, optimizing, and publishing master school timetables in secondary schools. It seamlessly integrates the renowned open-source **FET (Free Timetabling Software) 7.12.0** heuristic engine.
+Eurario is a modern, responsive, and high-performance web application designed for creating, optimizing, and publishing master school timetables in secondary schools. It seamlessly integrates the renowned open-source **FET (Free Timetabling Software)** heuristic engine.
 
 Zero external Python dependencies, clean Google Classroom / Material 3 reactive interface, and ready-to-run multi-arch container image on Docker Hub.
 
@@ -15,7 +15,7 @@ Zero external Python dependencies, clean Google Classroom / Material 3 reactive 
 
 ## 🌟 Key Features
 
-- **Embedded FET 7.12.0 Solver**:
+- **Embedded FET Solver**:
   - Real-time generation streaming with live progress metrics and bottleneck activity diagnostics.
   - Highest-stage snapshot recovery: instantly inspect and restore the best timetable state if interrupted or stopped early.
 - **Timetable Locking System**:
@@ -39,7 +39,7 @@ Zero external Python dependencies, clean Google Classroom / Material 3 reactive 
 
 ## 🐳 Official Docker Hub Image
 
-The application is published as a pre-compiled multi-architecture container (Linux Ubuntu, Python 3, and native C++ FET 7.12.0 solver) on **Docker Hub**:
+The application is published as a pre-compiled multi-architecture container (Linux Ubuntu, Python 3, and native C++ FET solver) on **Docker Hub**:
 
 👉 **Docker Hub Repository:** [`carlorigoni/eurario`](https://hub.docker.com/r/carlorigoni/eurario)
 
@@ -276,7 +276,7 @@ The Eurario project is the result of collaboration between pedagogical timetabli
 ## 📁 Repository Structure
 
 ```text
-├── Dockerfile                   # Multi-stage Linux build (FET 7.12.0 + Python 3.12)
+├── Dockerfile                   # Multi-stage Linux build (FET Engine + Python 3.12)
 ├── docker-compose.yml           # Docker Compose configuration (Eurario + Watchtower)
 ├── .dockerignore                # Docker build exclusions
 ├── .gitignore                   # Git repository exclusions
@@ -310,4 +310,4 @@ The Eurario project is the result of collaboration between pedagogical timetabli
 ## 📄 License
 
 Released under the **GNU Affero General Public License v3 (GNU AGPLv3)** in full alignment with the FET solver engine license.  
-Author: **Carlo Rigoni** &bull; Solver Engine: **FET 7.12.0** &bull; AI Pair Programming: **Google DeepMind Antigravity**.
+Author: **Carlo Rigoni** &bull; Solver Engine: **FET Native Engine** &bull; AI Pair Programming: **Google DeepMind Antigravity**.

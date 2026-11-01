@@ -116,7 +116,9 @@ Eurario è stato ingegnerizzato attorno alle reali complessità organizzative, d
 
 ### 4. Gestione Disposizioni & Supplenze ("D")
 * **Algoritmo di Bilanciamento Dinamico**: Collocazione automatica delle ore a disposizione per coprire i buchi orari dei docenti e massimizzare la presenza di personale per supplenze nelle fasce orarie critiche.
-* **Griglia Interattiva Drag & Drop**: Spostamento manuale delle ore "D" con verifica immediata di sovrapposizioni e vincoli contrattuali.
+* **Indicatori di Densità Oraria (`👥 X D`)**: Monitoraggio in tempo reale nelle celle del tabellone per individuare ore scoperte (`0 D`) e bilanciare la presenza di docenti per le supplenze.
+* **Quadro Distribuzione Disposizioni**: Matrice settimanale d'istituto con navigazione immediata all'orario di ciascun docente e reportistica analitica di copertura.
+* **Griglia Interattiva Drag & Drop**: Spostamento manuale delle ore "D" con guida visiva al bilanciamento e verifica immediata dei vincoli.
 * **Personalizzazione Funzioni**: Assegnazione di note specifiche (es. *Biblioteca*, *Supporto Laboratorio*, *Coordinamento*).
 
 ### 5. Esportazioni Tipografiche e Condivisione

@@ -144,9 +144,12 @@ Eurario provides an automated greedy placement algorithm (`place_disposizioni_in
 </div>
 
 ### Professional Operational Tools:
-* **Interactive Drag & Drop**: Any lesson or on-duty slot can be manually dragged to a new position on the grid with immediate collision checking.
+* **Period Density Badges (`👥 X D`)**: Real-time badges on empty timetable cells showing institute-wide substitute teacher staffing (`0 D` gray for unstaffed slots, `1-2 D` emerald green for optimal coverage, `3+ D` purple for high coverage) with detailed teacher rosters on hover.
+* **On-Duty Distribution Matrix**: Interactive dashboard opened via `⚖️ Disposizioni Matrix`, displaying the weekly grid of reserve periods, one-click teacher schedule navigation, and unstaffed period alerts.
+* **Interactive Drag & Drop with Guidance**: Any lesson or on-duty slot can be manually dragged to a new position on the grid with immediate collision checking and visual staffing balance guidance.
 * **Custom Duty Labeling (`custom_desc`)**: Assign dedicated roles to reserve hours (e.g., *Library Duty*, *Lab Supervision*, *Special Needs Assistance*).
-* **Activity Pinning (`toggle_activity_lock`)**: Lock an activity to a specific day and period to protect it from subsequent rebalancing or auto-generation cycles.
+* **Activity Pinning (`toggle_activity_lock`)**: Lock an activity to a specific day and period with a 100% hard FET constraint, marked by a padlock icon `🔒` and a prominent thicker blue perimeter border (`.lesson-card.is-locked`).
+* **Global Multi-Subject Header Filter**: Filter teacher allocations, activities, and timetable boards by one or multiple subjects simultaneously.
 * **Named Snapshots**: Save milestone versions (e.g., *"Official Fall Schedule"*, *"Draft 2 - Afternoon Returns"*) with one-click rollback or raw `.fet` file download.
 * **Word (.docx) Master Teacher Board (A3 Landscape)**:
   * Full institutional compliance with repeated table headers across pages (`tblHeader`).

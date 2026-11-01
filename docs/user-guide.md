@@ -106,19 +106,35 @@ Se l'orario risulta matematicamente sovra-vincolato (*Over-constrained Timetable
 
 ---
 
-### Fase 9: Collocazione Intelligente delle Disposizioni ("D")
-Una volta calcolate tutte le lezioni:
-1. I docenti con monte ore curricolare inferiore a 18h hanno ore a disposizione per supplenze.
+### Fase 9: Collocazione Intelligente e Monitoraggio delle Disposizioni ("D")
+Una volta calcolate tutte le lezioni curricolari con il solutore:
+1. I docenti con monte ore curricolare inferiore a 18h hanno ore a disposizione per supplenze e potenziamento.
 2. Cliccare su **Colloca Disposizioni Automatiche**:
-   * L'algoritmo proprietario individua i buchi orari dei docenti e li riempie prioritariamente con le ore "D", eliminando i tempi morti.
+   * L'algoritmo proprietario individua i buchi orari dei docenti e li riempie prioritariamente con le ore "D", eliminando i tempi morti e ottimizzando la permanenza a scuola.
    * Bilancia la presenza complessiva di supplenti su ogni ora della settimana.
+
+#### Indicatori di Densità Disposizioni nelle Celle dell'Orario
+Nella griglia oraria dei docenti, ogni cella libera riporta un badge indicatore in tempo reale (`👥 X D`) che mostra quanti docenti dell'istituto sono già a disposizione in quella stessa fascia oraria:
+* **`0 D` (Grigio / Allerta)**: Nessun docente a disposizione in quell'ora. Costituisce una finestra scoperta critica per la gestione delle supplenze.
+* **`1-2 D` (Verde Smeraldo)**: Presenza bilanciata e ottimale per la sorveglianza e la copertura ordinaria.
+* **`3+ D` (Viola / Blu)**: Alta densità di personale a disposizione.
+* **Tooltip Dettagliato**: Passando con il mouse sull'indicatore viene mostrato l'elenco nominativo dei colleghi in servizio di disposizione in quell'ora.
+
+#### Maschera Interattiva: Quadro Distribuzione Disposizioni
+Accessibile tramite il pulsante **`⚖️ Distribuzione Disposizioni`** nella toolbar della vista Orario Risolto:
+* **Matrice Settimanale Completa**: Mostra il tabellone bidimensionale (Giorni × Ore) con il conteggio e l'elenco visivo dei docenti a disposizione.
+* **Navigazione con un Clic**: Cliccando sulla pillola di un docente, la modale si chiude e il sistema apre istantaneamente l'orario settimanale del docente selezionato per consentire spostamenti mirati.
+* **Riepilogo Statistico**: Segnala il numero totale di ore a disposizione collocate, le ore con copertura zero da riequilibrare e i periodi ad alta densità.
 
 ---
 
 ### Fase 10: Revisione Fine Interattiva e Salvataggio Snapshot
 1. Nel tabellone orario, la commissione può trascinare manualmente qualsiasi ora con **Drag & Drop**:
+   * **Assistenza al riposizionamento delle Disposizioni**: Durante il trascinamento di un'ora "D", le celle libere di destinazione evidenziano il rispettivo livello di copertura, guidando l'operatore a rilasciare l'ora negli slot con copertura insufficiente (`0 D`).
    * Se lo spostamento causa un conflitto (es. sovrapposizione docente o aula occupata), Eurario segnala immediatamente l'errore.
-2. È possibile bloccare le attività definitive cliccando sull'icona del lucchetto (`locked`).
+2. **Blocco Attività Definitive (`locked`)**:
+   * Cliccando sull'icona del lucchetto (`🔒`) presente su ciascuna card di lezione, l'attività viene bloccata in modo permanente.
+   * Una lezione bloccata è contraddistinta da un'evidenziazione con **cornice blu più spessa** (`.lesson-card.is-locked`), che la rende immediatamente riconoscibile e ne garantisce la stabilità assoluta durante i ricalcoli del solutore FET.
 3. Salvare uno **Snapshot Nominato** (es. *"Bozza 1 Approvata"*).
 
 ---
@@ -131,6 +147,25 @@ Una volta calcolate tutte le lezioni:
    * Evidenziazione cromatica ambra per le ore a disposizione ("D").
 3. Selezionare **Orari Classi PDF**:
    * Layout settimanale con colori pastello per materia o versione *Toner-Save* per la bacheca studenti.
+
+---
+
+### Strumenti Trasversali di Produttività & Supporto
+
+#### 1. Filtro Globale Multi-Materia in Testata
+Posizionato nella barra superiore dell'applicazione (`topbar`), consente di filtrare l'intero ambiente di lavoro in base a una o più discipline:
+* **Selezione Multipla con Ricerca Rapida**: Permette di spuntare contemporaneamente più materie (es. *Matematica* e *Fisica*, oppure tutte le lingue straniere).
+* **Filtro Persistente e Trasversale**: L'impostazione rimane attiva navigando tra le varie maschere del programma (*Cattedre*, *Attività*, *Orario Risolto*), isolando automaticamente docenti, classi e cattedre pertinenti.
+* **Azioni Rapide**: Pulsanti dedicati *Seleziona Tutte* e *Deseleziona Tutte / Azzera Filtro* con conteggio attivo visibile sul chip in testata.
+
+#### 2. Copresenze Didattiche con Materie Indipendenti
+Nei corsi tecnici e professionali con ore di laboratorio in compresenza:
+* **Materie Autonome per Ciascun Docente**: Il docente di teoria e l'insegnante tecnico-pratico (ITP) possono essere associati alla stessa attività con materie distinte (es. *Informatica* per il teorico e *Laboratorio di Informatica* per l'ITP).
+* **Nessuna Forzatura**: Eurario rispetta la denominazione ufficiale di cattedra di ciascun docente, garantendo la corretta attribuzione oraria nei conteggi contrattuali e nelle stampe ufficiali.
+
+#### 3. Canale di Assistenza "Contatta Amministratore"
+Accessibile dalla barra superiore (`topbar`), dal footer di pagina e dalla schermata iniziale:
+* **Ticket e Feedback Integrati**: Consente a docenti, oristi o collaboratori del dirigente di inoltrare rapidamente richieste di variazione orario, segnalazioni tecniche o suggerimenti direttamente all'amministratore del sistema.
 
 ---
 

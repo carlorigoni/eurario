@@ -8,7 +8,7 @@
     "docker_hub": "https://hub.docker.com/r/carlorigoni/eurario",
     "contact_email": "carlo.rigoni@gmail.com",
     "current_version": "v1.9.12",
-    "fet_version": "7.12.0",
+    "fet_version": "Nativo",
     "author": "Carlo Rigoni",
     "mentor": "Federico Rettore"
   },
@@ -34,7 +34,7 @@
       "showcase": "Maschere & Demo"
     },
     "hero": {
-      "badge": "🎓 Suite Libera per la Scuola &bull; Motore FET 7.12",
+      "badge": "🎓 Suite Libera per la Scuola &bull; Motore FET",
       "title_main": "L'Orario Scolastico Perfetto,",
       "title_highlight": "Senza Stress e Senza Compromessi.",
       "subtitle": "La piattaforma moderna concepita per le scuole: gestisce con precisione chirurgica cattedre esterne (COE), spezzoni, part-time e vincoli complessi, elaborata dall'infallibile solutore matematico FET.",
@@ -85,7 +85,7 @@
       },
       {
         "icon": "⚡",
-        "title": "Motore Matematico FET 7.12",
+        "title": "Motore Matematico FET",
         "desc": "Sfrutta l'algoritmo euristico ad altissime prestazioni FET: genera orari completi per istituti complessi da oltre 150 docenti e 60 classi in pochi secondi."
       },
       {
@@ -360,8 +360,8 @@
         ]
       },
       "solver": {
-        "title": "app.eurario.it — Compilatore FET 7.12 in Tempo Reale",
-        "badge": "FET Engine 7.12.0",
+        "title": "app.eurario.it — Compilatore FET in Tempo Reale",
+        "badge": "FET Engine Nativo",
         "school": "Liceo Classico e Scientifico «Scuola di Atene» • Atene",
         "description": "Algoritmo euristico multithread integrato: elabora la matrice spazio-temporale di vincoli e chiude orari al 100% in pochi secondi.",
         "stats": [
@@ -387,11 +387,11 @@
           }
         ],
         "console_output": [
-          "[FET 7.12] Inizializzazione matrice attività: 8 docenti, 5 classi, 3 plessi...",
-          "[FET 7.12] Applicazione vincolo COE: Aristotele vincolato su Lun/Mer/Ven...",
-          "[FET 7.12] Applicazione vincolo Part-Time: Milone di Crotone bloccato OFF il Giovedì...",
-          "[FET 7.12] Collocazione 120 attività didattiche in corso...",
-          "[FET 7.12] SUCCESSO! Soluzione ottimale trovata alla generazione #184 (1.34s). Orario completo al 100%!"
+          "[FET Engine] Inizializzazione matrice attività: 8 docenti, 5 classi, 3 plessi...",
+          "[FET Engine] Applicazione vincolo COE: Aristotele vincolato su Lun/Mer/Ven...",
+          "[FET Engine] Applicazione vincolo Part-Time: Milone di Crotone bloccato OFF il Giovedì...",
+          "[FET Engine] Collocazione 120 attività didattiche in corso...",
+          "[FET Engine] SUCCESSO! Soluzione ottimale trovata alla generazione #184 (1.34s). Orario completo al 100%!"
         ]
       },
       "diagnostics": {
@@ -532,7 +532,7 @@
       "showcase": "Screens & Demo"
     },
     "hero": {
-      "badge": "🎓 Free Timetabling Suite for Schools &bull; Powered by FET 7.12",
+      "badge": "🎓 Free Timetabling Suite for Schools &bull; Powered by FET",
       "title_main": "The Flawless School Timetable,",
       "title_highlight": "Zero Stress, Zero Compromises.",
       "subtitle": "The modern timetabling platform designed for complex schools: handles shared allocations, part-time staff, multi-campus teachers, and intricate constraints with surgical precision via the battle-tested FET solver.",
@@ -583,7 +583,7 @@
       },
       {
         "icon": "⚡",
-        "title": "FET 7.12 Mathematical Engine",
+        "title": "FET Mathematical Engine",
         "desc": "Leverages the ultra-high performance FET heuristic algorithm: computes complete, conflict-free schedules for complex campuses with 150+ teachers and 60+ classes in seconds."
       },
       {
@@ -858,8 +858,8 @@
         ]
       },
       "solver": {
-        "title": "app.eurario.it — Real-Time FET 7.12 Compiler Console",
-        "badge": "FET Engine 7.12.0",
+        "title": "app.eurario.it — Real-Time FET Compiler Console",
+        "badge": "Native FET Engine",
         "school": "School of Athens Classical & Scientific High School • Athens",
         "description": "Embedded multithreaded heuristic solver: navigates complex space-time constraint matrices and delivers a 100% solved roster in seconds.",
         "stats": [
@@ -885,11 +885,11 @@
           }
         ],
         "console_output": [
-          "[FET 7.12] Initializing activity matrix: 8 teachers, 5 classes, 3 buildings...",
-          "[FET 7.12] Applying COE constraint: Aristotle locked to Mon/Wed/Fri...",
-          "[FET 7.12] Applying Part-Time rule: Milo of Croton locked OFF on Thursdays...",
-          "[FET 7.12] Allocating 120 timetable slots...",
-          "[FET 7.12] SUCCESS! Optimal solution achieved at generation #184 (1.34s). 100% timetable solved!"
+          "[FET Engine] Initializing activity matrix: 8 teachers, 5 classes, 3 buildings...",
+          "[FET Engine] Applying COE constraint: Aristotle locked to Mon/Wed/Fri...",
+          "[FET Engine] Applying Part-Time rule: Milo of Croton locked OFF on Thursdays...",
+          "[FET Engine] Allocating 120 timetable slots...",
+          "[FET Engine] SUCCESS! Optimal solution achieved at generation #184 (1.34s). 100% timetable solved!"
         ]
       },
       "diagnostics": {
