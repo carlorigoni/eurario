@@ -1887,9 +1887,9 @@ def generate_transfers_print_html(data, tm_data, options=None):
     """
     Genera il documento tipografico per la bacheca d'istituto (A4 o A3 Landscape)
     degli spostamenti tra plessi e dei docenti itineranti:
-    1. Avviso Classi con Inizio Fuori Sede (1ª ora)
-    2. Cronoprogramma Spostamenti Giornalieri (per Portineria & Collaboratori Scolastici)
-    3. Matrice Settimanale Docenti Itineranti (per Sala Professori)
+    - Foglio 1: Cronoprogramma Spostamenti Giornalieri & Accessi Varchi (per Portineria & Collaboratori Scolastici)
+    - Foglio 2: Matrice Settimanale Docenti Itineranti (per Sala Professori)
+    Architettura a fogli fisici (.booklet e .sheet-page) per compatibilita perfetta WebKit/Safari su macOS.
     """
     options = options or {}
     validity_date = options.get("validity_date") or get_default_validity_date()
@@ -1902,7 +1902,12 @@ def generate_transfers_print_html(data, tm_data, options=None):
     lang = "en" if is_en else "it"
     is_trial = bool(options.get("is_trial", False))
 
-    institution = data.get("institution", 'Istituto Scolastico')
+    is_a3 = (paper_size == "A3")
+    css_page_size = "A3 landscape" if is_a3 else "A4 landscape"
+    page_w = "395mm" if is_a3 else "277mm"
+    page_min_h = "268mm" if is_a3 else "184mm"
+
+    institution = data.get("institution", "Istituto Scolastico")
     days = tm_data.get("days", ["Lun", "Mar", "Mer", "Gio", "Ven"])
     hours = tm_data.get("hours", ["1", "2", "3", "4", "5", "6"])
     timeline = tm_data.get("timeline", {})
@@ -1932,20 +1937,23 @@ def generate_transfers_print_html(data, tm_data, options=None):
             gap_str = ", ".join([f"{g}ª" for g in gap_hours])
             return f"Tra {from_h}ª e {to_h}ª ora (buca alla {gap_str})" if not is_en else f"Between Periods {from_h} and {to_h} (gap: {gap_str})"
 
-    # Costruisci HTML
     doc_title = "Quadro Spostamenti Plessi & Docenti Itineranti" if not is_en else "Campus Transfers & Itinerant Faculty Board"
+
+    include_chrono = (layout in ("all", "chronology"))
+    include_teachers = (layout in ("all", "teachers"))
 
     html_parts = []
     html_parts.append(f"""<!DOCTYPE html>
 <html lang="{lang}">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{escape(institution)} — {escape(doc_title)}</title>
   <style>
     @page {{
       size: landscape;
-      size: {paper_size} landscape;
-      margin: 8mm 8mm 8mm 8mm;
+      size: {css_page_size};
+      margin: 8mm 10mm 12mm 10mm;
     }}
     * {{
       box-sizing: border-box;
@@ -1953,34 +1961,25 @@ def generate_transfers_print_html(data, tm_data, options=None):
       print-color-adjust: exact !important;
     }}
     html, body {{
-      width: 100%;
       margin: 0;
       padding: 0;
-      background: #ffffff;
-      color: #0f172a;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #0f172a;
+      background-color: #f1f5f9;
       font-size: 11px;
       line-height: 1.35;
     }}
-    .board-container {{
-      width: 100%;
-      margin: 0 auto;
-      padding: 12px 14px 20px;
-      background: #ffffff;
-    }}
-
-    /* Barra comandi a schermo */
     .no-print {{
       background: #0f172a;
       color: #f8fafc;
-      padding: 10px 18px;
+      padding: 8px 18px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       position: sticky;
       top: 0;
       z-index: 1000;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
     }}
     .btn-toolbar {{
       background: #1e293b;
@@ -2010,47 +2009,71 @@ def generate_transfers_print_html(data, tm_data, options=None):
       background: #059669;
     }}
 
-    /* Testata Documento Ufficiale */
-    .board-header {{
+    .booklet {{
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px 0;
+      gap: 20px;
+    }}
+
+    .sheet-page {{
+      width: {page_w};
+      min-height: {page_min_h};
+      background: #ffffff;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.06);
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 8mm 10mm 10mm 10mm;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }}
+
+    /* Testata Istituzionale Sheet */
+    .sheet-header {{
       border-bottom: 2px solid #0f172a;
-      padding-bottom: 8px;
-      margin-bottom: 12px;
+      padding-bottom: 6px;
+      margin-bottom: 8px;
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
     }}
-    .board-title {{
-      font-size: 18px;
+    .header-left h1 {{
+      margin: 0;
+      font-size: 17px;
       font-weight: 800;
       letter-spacing: -0.02em;
       text-transform: uppercase;
       color: #0f172a;
     }}
-    .board-sub {{
-      font-size: 12px;
+    .header-left .sub-title {{
+      font-size: 11.5px;
       font-weight: 600;
       color: #475569;
       margin-top: 2px;
     }}
-    .board-meta {{
+    .header-right {{
       text-align: right;
-      font-size: 11px;
+      font-size: 10.5px;
       color: #334155;
     }}
-    .board-kpis {{
+    .kpis-bar {{
       display: flex;
-      gap: 12px;
-      margin-top: 6px;
+      gap: 10px;
+      margin-top: 5px;
     }}
     .kpi-pill {{
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
       background: #f1f5f9;
       border: 1px solid #cbd5e1;
-      border-radius: 6px;
-      padding: 3px 8px;
-      font-size: 11px;
+      border-radius: 4px;
+      padding: 2px 7px;
+      font-size: 10.5px;
       font-weight: 700;
       color: #1e293b;
     }}
@@ -2059,46 +2082,45 @@ def generate_transfers_print_html(data, tm_data, options=None):
     .alert-box {{
       border: 2px solid #b91c1c;
       background: #fef2f2;
-      border-radius: 6px;
-      padding: 10px 14px;
-      margin-bottom: 14px;
+      border-radius: 4px;
+      padding: 8px 12px;
+      margin-bottom: 8px;
     }}
     .alert-header {{
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 13px;
+      gap: 6px;
+      font-size: 12px;
       font-weight: 800;
       color: #991b1b;
-      margin-bottom: 6px;
+      margin-bottom: 4px;
       text-transform: uppercase;
-      letter-spacing: 0.03em;
     }}
     .alert-desc {{
-      font-size: 11px;
+      font-size: 10.5px;
       color: #7f1d1d;
-      margin-bottom: 8px;
-      line-height: 1.4;
+      margin-bottom: 6px;
+      line-height: 1.35;
     }}
 
     /* Tabelle Dati */
     table.data-table {{
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 14px;
-      font-size: 10.5px;
+      font-size: 10px;
+      margin: 0;
     }}
     table.data-table th {{
       background: #f1f5f9;
       color: #0f172a;
       font-weight: 700;
       text-align: left;
-      padding: 6px 8px;
+      padding: 5px 6px;
       border: 1px solid #94a3b8;
       white-space: nowrap;
     }}
     table.data-table td {{
-      padding: 5px 8px;
+      padding: 4px 6px;
       border: 1px solid #cbd5e1;
       vertical-align: middle;
     }}
@@ -2106,58 +2128,36 @@ def generate_transfers_print_html(data, tm_data, options=None):
       background: #f8fafc;
     }}
 
-    /* Sezioni */
-    .section-title {{
-      font-size: 13px;
-      font-weight: 800;
-      color: #0f172a;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin: 14px 0 8px 0;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      border-bottom: 1.5px solid #0f172a;
-      padding-bottom: 4px;
+    /* Cronoprogramma giorni */
+    .days-grid {{
+      width: 100%;
+      margin-top: 4px;
     }}
-
-    /* Badge Comfort */
-    .badge-comfort {{
+    .day-card {{
       display: inline-block;
-      padding: 1px 6px;
+      vertical-align: top;
+      width: 49%;
+      margin-right: 1.5%;
+      margin-bottom: 8px;
+      border: 1px solid #cbd5e1;
       border-radius: 4px;
-      font-size: 9.5px;
-      font-weight: 700;
-      white-space: nowrap;
-    }}
-    .badge-comfort.is-comfort {{
-      background: #dcfce7;
-      color: #166534;
-      border: 1px solid #86efac;
-    }}
-    .badge-comfort.is-consec {{
-      background: #fee2e2;
-      color: #991b1b;
-      border: 1.5px solid #ef4444;
-      font-weight: 800;
-    }}
-
-    .day-block {{
-      border-radius: 4px;
+      background: #ffffff;
       overflow: hidden;
-      margin-bottom: 0;
+      box-sizing: border-box;
+    }}
+    .day-card:nth-child(2n) {{
+      margin-right: 0;
     }}
     .day-header {{
       background: #0f172a;
       color: #ffffff;
-      padding: 5px 10px;
-      font-size: 12px;
+      padding: 5px 8px;
+      font-size: 11px;
       font-weight: 800;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }}
-
     .route-arrow {{
       font-weight: 800;
       color: #2563eb;
@@ -2172,13 +2172,14 @@ def generate_transfers_print_html(data, tm_data, options=None):
       width: 100%;
       border-collapse: collapse;
       font-size: 10px;
+      margin-top: 6px;
     }}
     table.matrix-table th {{
       background: #0f172a;
       color: #ffffff;
       font-weight: 800;
       text-align: center;
-      padding: 6px 6px;
+      padding: 5px 6px;
       border: 1px solid #334155;
     }}
     table.matrix-table th.col-name {{
@@ -2198,16 +2199,16 @@ def generate_transfers_print_html(data, tm_data, options=None):
       padding: 2px 4px;
       background: #e2e8f0;
       border-radius: 3px;
-      font-size: 9.5px;
+      font-size: 9px;
       font-weight: 600;
       border-left: 3px solid #2563eb;
     }}
 
-    .footer-note {{
-      margin-top: 14px;
-      padding-top: 6px;
+    .sheet-footer {{
       border-top: 1px solid #cbd5e1;
-      font-size: 9.5px;
+      padding-top: 4px;
+      margin-top: 8px;
+      font-size: 9px;
       color: #64748b;
       display: flex;
       justify-content: space-between;
@@ -2216,6 +2217,11 @@ def generate_transfers_print_html(data, tm_data, options=None):
 
     /* Stili di Stampa Ufficiali Cross-Browser (Safari, Chrome, Firefox) */
     @media print {{
+      @page {{
+        size: landscape;
+        size: {css_page_size};
+        margin: 8mm 10mm 10mm 10mm;
+      }}
       html, body {{
         width: 100% !important;
         height: auto !important;
@@ -2223,28 +2229,40 @@ def generate_transfers_print_html(data, tm_data, options=None):
         padding: 0 !important;
         background: #ffffff !important;
         color: #0f172a !important;
-        overflow: visible !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }}
       .no-print {{
         display: none !important;
       }}
-      .board-container {{
-        width: 100% !important;
-        margin: 0 !important;
+      .booklet {{
+        display: block !important;
         padding: 0 !important;
-        background: #ffffff !important;
+        margin: 0 !important;
+        gap: 0 !important;
       }}
-      .page-break {{
-        page-break-before: always !important;
-        break-before: page !important;
-      }}
-      table.chrono-table-layout {{
+      .sheet-page {{
         width: 100% !important;
-        table-layout: fixed !important;
+        height: auto !important;
+        min-height: unset !important;
+        max-height: none !important;
+        box-shadow: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        overflow: visible !important;
+        display: block !important;
       }}
-      table.chrono-table-layout tr {{
+      .sheet-page:last-child {{
+        page-break-after: auto !important;
+        break-after: auto !important;
+      }}
+      .day-card {{
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }}
@@ -2259,25 +2277,9 @@ def generate_transfers_print_html(data, tm_data, options=None):
   </style>
   <script>
     function updateLayout(val) {{
-      const secAlert = document.getElementById('secAlert');
-      const secChrono = document.getElementById('secChrono');
-      const secMatrix = document.getElementById('secMatrix');
-      if (val === 'all') {{
-        if (secAlert) secAlert.style.display = 'block';
-        if (secChrono) secChrono.style.display = 'block';
-        if (secMatrix) secMatrix.style.display = 'block';
-      }} else if (val === 'chronology') {{
-        if (secAlert) secAlert.style.display = 'block';
-        if (secChrono) secChrono.style.display = 'block';
-        if (secMatrix) secMatrix.style.display = 'none';
-      }} else if (val === 'teachers') {{
-        if (secAlert) secAlert.style.display = 'none';
-        if (secChrono) secChrono.style.display = 'none';
-        if (secMatrix) {{
-          secMatrix.style.display = 'block';
-          secMatrix.classList.remove('page-break');
-        }}
-      }}
+      const url = new URL(window.location.href);
+      url.searchParams.set('layout', val);
+      window.location.href = url.toString();
     }}
 
     function closePrintView() {{
@@ -2301,7 +2303,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
   <!-- Barra comandi a schermo -->
   <div class="no-print">
     <div style="display:flex;align-items:center;gap:12px;">
-      <h2 style="margin:0;font-size:15px;font-weight:700;color:#f8fafc;">
+      <h2 style="margin:0;font-size:14px;font-weight:700;color:#f8fafc;">
         🚗 {('Quadro Spostamenti Plessi & Docenti Itineranti' if not is_en else 'Campus Transfers & Itinerant Faculty Board')} &mdash; {paper_size} Landscape
       </h2>
     </div>
@@ -2309,7 +2311,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
       <label style="font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;color:#f8fafc;">
         {('Vista:' if not is_en else 'View:')}
         <select onchange="updateLayout(this.value)" class="btn-toolbar" style="padding:4px 8px;">
-          <option value="all" {('selected' if layout == 'all' else '')}>{('Tutto Unificato (Consigliato)' if not is_en else 'All Unified (Recommended)')}</option>
+          <option value="all" {('selected' if layout == 'all' else '')}>{('Tutto Unificato (2 Pagine)' if not is_en else 'All Unified (2 Pages)')}</option>
           <option value="chronology" {('selected' if layout == 'chronology' else '')}>{('Solo Cronologico Varchi / Portineria' if not is_en else 'Gate & Chronology Only')}</option>
           <option value="teachers" {('selected' if layout == 'teachers' else '')}>{('Solo Matrice Docenti Itineranti (Sala Prof)' if not is_en else 'Faculty Travel Matrix Only')}</option>
         </select>
@@ -2319,104 +2321,107 @@ def generate_transfers_print_html(data, tm_data, options=None):
     </div>
   </div>
 
-  <div class="board-container">
-    <!-- Testata Istituzionale -->
-    <div class="board-header">
-      <div>
-        <div class="board-title">{escape(institution)}</div>
-        <div class="board-sub">{escape(doc_title)} &mdash; {('Destinazione: Portineria, Collaboratori Scolastici e Sala Docenti' if not is_en else 'Target: Front Desk, Security Staff and Faculty Room')}</div>
-        <div class="board-kpis">
-          <span class="kpi-pill">🚗 {('Docenti Itineranti:' if not is_en else 'Itinerant Faculty:')} <b>{total_itinerant}</b></span>
-          <span class="kpi-pill">🔄 {('Trasferimenti Settimanali:' if not is_en else 'Weekly Transfers:')} <b>{total_transfers}</b></span>
-          <span class="kpi-pill">🌅 {('Classi Inizio Fuori Sede:' if not is_en else 'Off-Site Start Cohorts:')} <b>{anomalous_count}</b></span>
-        </div>
-      </div>
-      <div class="board-meta">
-        <div><b>{('Orario Ufficiale in vigore dal:' if not is_en else 'Schedule Valid From:')}</b> {escape(validity_date)}</div>
-        <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.37</div>
-      </div>
-    </div>
+  <div class="booklet">
 """)
 
-    # 1. SEZIONE CLASSI CON INIZIO FUORI SEDE
-    if all_anomalous_events:
-        alert_disp = "none" if layout == "teachers" else "block"
+    # =========================================================================
+    # FOGLIO 1: CRONOPROGRAMMA SPOSTAMENTI & ACCESSI VARCHI
+    # =========================================================================
+    if include_chrono:
         html_parts.append(f"""
-  <div id="secAlert" class="alert-box" style="display:{alert_disp};">
-    <div class="alert-header">
-      <span>🌅</span>
-      <span>{('AVVISO: CLASSI CON INIZIO GIORNATA FUORI DALLA SEDE ORDINARIA (1ª ORA)' if not is_en else 'ALERT: COHORTS COMMENCING DAY AT OFF-SITE CAMPUS (PERIOD 1)')}</span>
-    </div>
-    <div class="alert-desc">
-      {('I collaboratori scolastici ai varchi di accesso e i docenti sono informati che le seguenti classi <b>entrano direttamente nel plesso indicato alle 07:55</b> (es. per attività in palestra o laboratori dedicati), anziché nella propria sede ordinaria di residenza:' if not is_en else 'Security gate staff and faculty are advised that the following student cohorts <b>enter directly at the designated campus at 07:55</b> rather than their regular base building:')}
-    </div>
-    <table class="data-table" style="margin-bottom:0;">
-      <thead>
-        <tr>
-          <th>{('Giorno' if not is_en else 'Day')}</th>
-          <th>{('Classe' if not is_en else 'Cohort')}</th>
-          <th>{('Sede Ordinaria' if not is_en else 'Regular Base')}</th>
-          <th style="background:#fee2e2;color:#991b1b;">➔ {('SI PRESENTA IN' if not is_en else 'ARRIVES AT')}</th>
-          <th>{('Aula / Palestra / Spazio' if not is_en else 'Room / Gym / Lab')}</th>
-          <th>{('Materia' if not is_en else 'Subject')}</th>
-          <th>{('Docente' if not is_en else 'Faculty Member')}</th>
-        </tr>
-      </thead>
-      <tbody>
+    <div class="sheet-page">
+      <div>
+        <div class="sheet-header">
+          <div class="header-left">
+            <h1>{escape(institution)}</h1>
+            <div class="sub-title">🚗 {('Quadro Spostamenti Plessi & Cronoprogramma Varchi — Per la Portineria & Collaboratori Scolastici' if not is_en else 'Campus Transfers & Gate Chronology — For Front Desk & Security Staff')}</div>
+            <div class="kpis-bar">
+              <span class="kpi-pill">🚗 {('Docenti Itineranti:' if not is_en else 'Traveling Faculty:')} <b>{total_itinerant}</b></span>
+              <span class="kpi-pill">🔄 {('Trasferimenti Settimanali:' if not is_en else 'Weekly Transfers:')} <b>{total_transfers}</b></span>
+              <span class="kpi-pill">🌅 {('Classi Inizio Fuori Sede:' if not is_en else 'Off-Site Start Cohorts:')} <b>{anomalous_count}</b></span>
+            </div>
+          </div>
+          <div class="header-right">
+            <div><b>{('Orario Ufficiale in vigore dal:' if not is_en else 'Schedule Valid From:')}</b> {escape(validity_date)}</div>
+            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.38</div>
+          </div>
+        </div>
 """)
-        # Raggruppa e ordina per giorno
-        day_order = {d: i for i, d in enumerate(days)}
-        sorted_anom = sorted(all_anomalous_events, key=lambda x: (day_order.get(x.get("day", ""), 99), x.get("class_name", "")))
-        for ev in sorted_anom:
-            d_name = get_day_name(ev.get("day", ""), lang=lang, full=True)
-            teachers_str = ", ".join(ev.get("teachers", [])) or "—"
+
+        if all_anomalous_events:
             html_parts.append(f"""
-        <tr>
-          <td><b>{escape(d_name)}</b> (1ª ora)</td>
-          <td><b style="font-size:11.5px;color:#0f172a;">{escape(ev.get("class_name", ""))}</b></td>
-          <td>{escape(ev.get("base_building", ""))}</td>
-          <td style="background:#fee2e2;color:#991b1b;font-weight:800;">➔ {escape(ev.get("actual_building", ""))}</td>
-          <td><b>{escape(ev.get("room", ""))}</b></td>
-          <td>{escape(ev.get("subject", ""))}</td>
-          <td>{escape(teachers_str)}</td>
-        </tr>
+        <div class="alert-box">
+          <div class="alert-header">
+            <span>🌅</span>
+            <span>{('AVVISO: CLASSI CON INIZIO GIORNATA FUORI DALLA SEDE ORDINARIA (1ª ORA)' if not is_en else 'ALERT: COHORTS COMMENCING DAY AT OFF-SITE CAMPUS (PERIOD 1)')}</span>
+          </div>
+          <div class="alert-desc">
+            {('I collaboratori scolastici ai varchi di accesso e i docenti sono informati che le seguenti classi <b>entrano direttamente nel plesso indicato alle 07:55</b>:' if not is_en else 'Security gate staff and faculty are advised that the following student cohorts <b>enter directly at the designated campus at 07:55</b>:')}
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>{('Giorno' if not is_en else 'Day')}</th>
+                <th>{('Classe' if not is_en else 'Cohort')}</th>
+                <th>{('Sede Ordinaria' if not is_en else 'Regular Base')}</th>
+                <th style="background:#fee2e2;color:#991b1b;">➔ {('SI PRESENTA IN' if not is_en else 'ARRIVES AT')}</th>
+                <th>{('Aula / Palestra / Spazio' if not is_en else 'Room / Gym / Lab')}</th>
+                <th>{('Materia' if not is_en else 'Subject')}</th>
+                <th>{('Docente' if not is_en else 'Faculty Member')}</th>
+              </tr>
+            </thead>
+            <tbody>
 """)
+            day_order = {d: i for i, d in enumerate(days)}
+            sorted_anom = sorted(all_anomalous_events, key=lambda x: (day_order.get(x.get("day", ""), 99), x.get("class_name", "")))
+            for ev in sorted_anom:
+                d_name = get_day_name(ev.get("day", ""), lang=lang, full=True)
+                teachers_str = ", ".join(ev.get("teachers", [])) or "—"
+                html_parts.append(f"""
+              <tr>
+                <td><b>{escape(d_name)}</b> (1ª ora)</td>
+                <td><b style="font-size:11px;color:#0f172a;">{escape(ev.get("class_name", ""))}</b></td>
+                <td>{escape(ev.get("base_building", ""))}</td>
+                <td style="background:#fee2e2;color:#991b1b;font-weight:800;">➔ {escape(ev.get("actual_building", ""))}</td>
+                <td><b>{escape(ev.get("room", ""))}</b></td>
+                <td>{escape(ev.get("subject", ""))}</td>
+                <td>{escape(teachers_str)}</td>
+              </tr>
+""")
+            html_parts.append("""
+            </tbody>
+          </table>
+        </div>
+""")
+
         html_parts.append("""
-      </tbody>
-    </table>
-  </div>
+        <div class="days-grid">
 """)
+        for d in days:
+            d_name = get_day_name(d, lang=lang, full=True)
+            day_transfers = []
+            for h in hours:
+                h_transfers = timeline.get(d, {}).get(h, {}).get("transfers", [])
+                for tr in h_transfers:
+                    day_transfers.append((h, tr))
 
-    # 2. SEZIONE CRONOPROGRAMMA SPOSTAMENTI GIORNALIERI (PER I COLLABORATORI / VARCHI)
-    chrono_disp = "none" if layout == "teachers" else "block"
-
-    def _render_day_card(d):
-        d_name = get_day_name(d, lang=lang, full=True)
-        day_transfers = []
-        for h in hours:
-            h_transfers = timeline.get(d, {}).get(h, {}).get("transfers", [])
-            for tr in h_transfers:
-                day_transfers.append((h, tr))
-
-        card_html = []
-        card_html.append(f"""
-          <div class="day-block">
+            html_parts.append(f"""
+          <div class="day-card">
             <div class="day-header">
               <span>📅 {escape(d_name)}</span>
-              <span style="font-size:10px;background:rgba(255,255,255,0.25);padding:2px 6px;border-radius:10px;">{len(day_transfers)} {('trasferimenti' if not is_en else 'transfers')}</span>
+              <span style="font-size:10px;background:rgba(255,255,255,0.25);padding:1px 6px;border-radius:10px;">{len(day_transfers)} {('trasferimenti' if not is_en else 'transfers')}</span>
             </div>
 """)
-        if not day_transfers:
-            card_html.append(f"""
-            <div style="padding:10px 12px;border:1px solid #cbd5e1;border-top:none;background:#f8fafc;color:#64748b;font-style:italic;font-size:10.5px;">
+            if not day_transfers:
+                html_parts.append(f"""
+            <div style="padding:8px 10px;background:#f8fafc;color:#64748b;font-style:italic;font-size:10px;">
               {('Nessun docente in trasferimento tra le sedi in questa giornata.' if not is_en else 'No itinerant faculty transfers scheduled for this day.')}
             </div>
           </div>
 """)
-            return "".join(card_html)
-
-        card_html.append(f"""
-            <table class="data-table" style="border-top:none;margin-bottom:0;">
+            else:
+                html_parts.append(f"""
+            <table class="data-table">
               <thead>
                 <tr>
                   <th style="width:28%;">{('Orario / Fascia' if not is_en else 'Time / Period')}</th>
@@ -2427,13 +2432,12 @@ def generate_transfers_print_html(data, tm_data, options=None):
               </thead>
               <tbody>
 """)
-        for h, tr in day_transfers:
-            timing_str = _fmt_timing(tr)
-            to_succ = "succ" in tr.get("to_building", "").lower()
-            dest_room = tr.get("to_room") or tr.get("to_building", "")
-            dest_class = tr.get("to_class") or ""
-
-            card_html.append(f"""
+                for h, tr in day_transfers:
+                    timing_str = _fmt_timing(tr)
+                    to_succ = "succ" in tr.get("to_building", "").lower()
+                    dest_room = tr.get("to_room") or tr.get("to_building", "")
+                    dest_class = tr.get("to_class") or ""
+                    html_parts.append(f"""
                 <tr>
                   <td style="font-weight:700;white-space:nowrap;">{escape(timing_str)}</td>
                   <td><b>Prof. {escape(tr.get("teacher", ""))}</b></td>
@@ -2448,151 +2452,140 @@ def generate_transfers_print_html(data, tm_data, options=None):
                   </td>
                 </tr>
 """)
-        card_html.append("""
+                html_parts.append("""
               </tbody>
             </table>
           </div>
 """)
-        return "".join(card_html)
 
-    html_parts.append(f"""
-  <div id="secChrono" style="display:{chrono_disp};margin-bottom:14px;">
-    <div class="section-title">
-      <span>🚗</span>
-      <span>{('Cronoprogramma Spostamenti Giornalieri (Per la Portineria & Collaboratori Scolastici)' if not is_en else 'Daily Transfer Chronology (For Front Desk & Security Staff)')}</span>
-    </div>
-    <table class="chrono-table-layout" style="width:100%;border-collapse:collapse;table-layout:fixed;margin:0;border:none;">
-""")
-
-    for i in range(0, len(days), 2):
-        d1 = days[i]
-        d2 = days[i + 1] if i + 1 < len(days) else None
-
-        html_parts.append("      <tr>\n")
-        html_parts.append('        <td style="width:49%;vertical-align:top;padding:0 8px 14px 0;border:none;">\n')
-        html_parts.append(_render_day_card(d1))
-        html_parts.append("        </td>\n")
-        html_parts.append('        <td style="width:2%;border:none;"></td>\n')
-        html_parts.append('        <td style="width:49%;vertical-align:top;padding:0 0 14px 8px;border:none;">\n')
-        if d2:
-            html_parts.append(_render_day_card(d2))
-        html_parts.append("        </td>\n")
-        html_parts.append("      </tr>\n")
-
-    html_parts.append("""    </table>
-  </div>
-""")
-
-    # 3. SEZIONE MATRICE SETTIMANALE DEI DOCENTI ITINERANTI (PER LA SALA PROFESSORI)
-    matrix_disp = "none" if layout == "chronology" else "block"
-    has_prior_sections = bool(all_anomalous_events or any(timeline.get(d, {}).get(h, {}).get("transfers") for d in days for h in hours))
-    matrix_class = "page-break" if (layout != "teachers" and has_prior_sections) else ""
-    html_parts.append(f"""
-  <div id="secMatrix" class="{matrix_class}" style="margin-top:16px;display:{matrix_disp};">
-    <div class="section-title">
-      <span>📋</span>
-      <span>{('Matrice Settimanale Docenti Itineranti (Per la Sala Professori)' if not is_en else 'Weekly Faculty Travel Matrix (For Staff Room Noticeboard)')}</span>
-    </div>
-    <div style="font-size:10.5px;color:#475569;margin-bottom:8px;">
-      {('Elenco dei soli docenti con cambi plesso programmati, con l\'indicazione sintetica della sede di servizio per fascia oraria e dell\'orario di tragitto:' if not is_en else 'Roster of traveling faculty detailing hourly building assignments and transfer transit windows:')}
-    </div>
-""")
-
-    if not itinerant_teachers:
-        html_parts.append(f"""
-    <div style="padding:16px;border:1px solid #cbd5e1;background:#f8fafc;color:#64748b;font-style:italic;">
-      {('Nessun docente itinerante rilevato nell\'orario scolastico corrente.' if not is_en else 'No traveling faculty detected in current timetable.')}
-    </div>
-""")
-    else:
-        html_parts.append(f"""
-    <table class="matrix-table">
-      <thead>
-        <tr>
-          <th class="col-name">{('Docente' if not is_en else 'Faculty Member')}</th>
-          <th style="width:50px;">{('Viaggi' if not is_en else 'Trips')}</th>
-""")
-        for d in days:
-            html_parts.append(f"<th>{escape(get_day_name(d, lang=lang, full=True))}</th>")
         html_parts.append("""
-        </tr>
-      </thead>
-      <tbody>
+        </div>
+      </div>
 """)
 
-        # Ordina alfabeticamente per cognome docente per facilitare la ricerca a colpo d'occhio
-        sorted_teachers = sorted(itinerant_teachers, key=lambda x: x.get("name", "").lower())
-        for t in sorted_teachers:
-            tname = t.get("name", "")
-            tot_trips = t.get("total_transfers", 0)
-            daily_sched = t.get("daily_schedule", {})
+        # Footer Foglio 1
+        html_parts.append(f"""
+      <div class="sheet-footer">
+        <div><b>Eurario FET Suite v1.9.38</b> &mdash; {("Documento Ufficiale dell'Istituto per la gestione degli accessi e dei varchi" if not is_en else "Official Institutional Schedule for Access & Gate Management")}</div>
+        <div>{('Stampato il:' if not is_en else 'Printed on:')} {datetime.now().strftime('%d/%m/%Y %H:%M')}</div>
+      </div>
+    </div>
+""")
 
+    # =========================================================================
+    # FOGLIO 2: MATRICE SETTIMANALE DOCENTI ITINERANTI (SALA PROFESSORI)
+    # =========================================================================
+    if include_teachers:
+        html_parts.append(f"""
+    <div class="sheet-page">
+      <div>
+        <div class="sheet-header">
+          <div class="header-left">
+            <h1>{escape(institution)}</h1>
+            <div class="sub-title">📋 {('Matrice Settimanale Docenti Itineranti — Per la Sala Professori' if not is_en else 'Weekly Faculty Travel Matrix — For Staff Room Noticeboard')}</div>
+          </div>
+          <div class="header-right">
+            <div><b>{('Orario Ufficiale in vigore dal:' if not is_en else 'Schedule Valid From:')}</b> {escape(validity_date)}</div>
+            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.38</div>
+          </div>
+        </div>
+
+        <div style="font-size:10.5px;color:#475569;margin-bottom:6px;">
+          {("Elenco dei soli docenti con cambi plesso programmati, con l'indicazione sintetica della sede di servizio per fascia oraria e dell'orario di tragitto:" if not is_en else "Roster of traveling faculty detailing hourly building assignments and transfer transit windows:")}
+        </div>
+""")
+
+        if not itinerant_teachers:
             html_parts.append(f"""
-        <tr>
-          <td class="col-name"><b>{escape(tname)}</b></td>
-          <td style="text-align:center;font-weight:800;color:#2563eb;">🚗 {tot_trips}</td>
+        <div style="padding:16px;border:1px solid #cbd5e1;background:#f8fafc;color:#64748b;font-style:italic;">
+          {("Nessun docente itinerante rilevato nell'orario scolastico corrente." if not is_en else "No traveling faculty detected in current timetable.")}
+        </div>
+""")
+        else:
+            html_parts.append(f"""
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th class="col-name">{('Docente' if not is_en else 'Faculty Member')}</th>
+              <th style="width:50px;">{('Viaggi' if not is_en else 'Trips')}</th>
 """)
             for d in days:
-                slots = daily_sched.get(d, [])
-                # Controlla se in questo giorno ci sono trasferimenti per questo docente
-                day_trs = [tr for h in hours for tr in timeline.get(d, {}).get(h, {}).get("transfers", []) if tr.get("teacher") == tname]
+                html_parts.append(f"<th>{escape(get_day_name(d, lang=lang, full=True))}</th>")
+            html_parts.append("""
+            </tr>
+          </thead>
+          <tbody>
+""")
+            sorted_teachers = sorted(itinerant_teachers, key=lambda x: x.get("name", "").lower())
+            for t in sorted_teachers:
+                tname = t.get("name", "")
+                tot_trips = t.get("total_transfers", 0)
+                daily_sched = t.get("daily_schedule", {})
 
-                if not any(not s.get("is_free") for s in slots):
-                    # Giorno libero o nessuna ora
-                    html_parts.append('<td style="text-align:center;color:#94a3b8;font-style:italic;">Libero</td>')
-                elif not day_trs:
-                    # In servizio ma sempre nello stesso plesso
-                    blds = list(set([s.get("building") for s in slots if not s.get("is_free") and s.get("building")]))
-                    b_str = ", ".join(blds) if blds else "—"
-                    html_parts.append(f'<td style="font-size:9px;color:#475569;">Stabile in <b>{escape(b_str)}</b></td>')
-                else:
-                    # Ci sono trasferimenti: elenchiamo i blocchi
-                    cell_html = []
-                    # Troviamo i blocchi continui di plesso
-                    current_bld = None
-                    start_h = None
-                    last_h = None
-                    for s in slots:
-                        if s.get("is_free"):
-                            continue
-                        h_num = s.get("hour")
-                        bld = s.get("building") or "Centrale"
-                        if bld != current_bld:
-                            if current_bld is not None:
-                                cell_html.append(f"<b>{start_h}ª-{last_h}ª:</b> {current_bld[:4]}.")
-                            current_bld = bld
-                            start_h = h_num
-                        last_h = h_num
-                    if current_bld is not None:
-                        cell_html.append(f"<b>{start_h}ª-{last_h}ª:</b> {current_bld[:4]}.")
+                html_parts.append(f"""
+            <tr>
+              <td class="col-name"><b>{escape(tname)}</b></td>
+              <td style="text-align:center;font-weight:800;color:#2563eb;">🚗 {tot_trips}</td>
+""")
+                for d in days:
+                    slots = daily_sched.get(d, [])
+                    day_trs = [tr for h in hours for tr in timeline.get(d, {}).get(h, {}).get("transfers", []) if tr.get("teacher") == tname]
 
-                    # Aggiungiamo i dettagli dei trasferimenti
-                    tr_details = []
-                    for tr in day_trs:
-                        tr_details.append(f"➔ {tr.get('to_building', '')[:4]}. ({tr.get('to_hour', '')}ª in {tr.get('to_room', '')})")
+                    if not any(not s.get("is_free") for s in slots):
+                        html_parts.append('<td style="text-align:center;color:#94a3b8;font-style:italic;">Libero</td>')
+                    elif not day_trs:
+                        blds = list(set([s.get("building") for s in slots if not s.get("is_free") and s.get("building")]))
+                        b_str = ", ".join(blds) if blds else "—"
+                        html_parts.append(f'<td style="font-size:9px;color:#475569;">Stabile in <b>{escape(b_str)}</b></td>')
+                    else:
+                        cell_html = []
+                        current_bld = None
+                        start_h = None
+                        last_h = None
+                        for s in slots:
+                            if s.get("is_free"):
+                                continue
+                            h_num = s.get("hour")
+                            bld = s.get("building") or "Centrale"
+                            if bld != current_bld:
+                                if current_bld is not None:
+                                    cell_html.append(f"<b>{start_h}ª-{last_h}ª:</b> {current_bld[:4]}.")
+                                current_bld = bld
+                                start_h = h_num
+                            last_h = h_num
+                        if current_bld is not None:
+                            cell_html.append(f"<b>{start_h}ª-{last_h}ª:</b> {current_bld[:4]}.")
 
-                    html_parts.append(f"""
-          <td>
-            <div style="font-size:9.5px;color:#0f172a;">{' | '.join(cell_html)}</div>
-            <div class="matrix-transfer-line">🚗 {'; '.join(tr_details)}</div>
-          </td>
+                        tr_details = []
+                        for tr in day_trs:
+                            tr_details.append(f"➔ {tr.get('to_building', '')[:4]}. ({tr.get('to_hour', '')}ª in {tr.get('to_room', '')})")
+
+                        html_parts.append(f"""
+              <td>
+                <div style="font-size:9.5px;color:#0f172a;">{' | '.join(cell_html)}</div>
+                <div class="matrix-transfer-line">🚗 {'; '.join(tr_details)}</div>
+              </td>
+""")
+                html_parts.append("""
+            </tr>
 """)
             html_parts.append("""
-        </tr>
-""")
-        html_parts.append("""
-      </tbody>
-    </table>
+          </tbody>
+        </table>
 """)
 
-    # Note a piè di pagina
-    html_parts.append(f"""
-    <div class="footer-note">
-      <div><b>Eurario FET Suite v1.9.37</b> &mdash; {('Documento Ufficiale d\'Istituto per la gestione degli accessi e dei varchi' if not is_en else 'Official Institutional Schedule for Access & Gate Management')}</div>
-      <div>{('Stampato il:' if not is_en else 'Printed on:')} {datetime.now().strftime('%d/%m/%Y %H:%M')}</div>
+        # Footer Foglio 2
+        html_parts.append(f"""
+      </div>
+      <div class="sheet-footer">
+        <div><b>Eurario FET Suite v1.9.38</b> &mdash; {("Documento Ufficiale dell'Istituto per la consultazione del corpo docente" if not is_en else "Official Institutional Schedule for Faculty Noticeboard")}</div>
+        <div>{('Stampato il:' if not is_en else 'Printed on:')} {datetime.now().strftime('%d/%m/%Y %H:%M')}</div>
+      </div>
     </div>
-  </div>
-  </div> <!-- end board-container -->
+""")
+
+    html_parts.append("""
+  </div> <!-- end booklet -->
 
 </body>
 </html>""")
