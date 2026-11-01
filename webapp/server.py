@@ -98,7 +98,7 @@ def fetch_google_doc_docx_bytes(url):
     except Exception as e:
         raise ValueError(f"Impossibile scaricare il Google Doc: {e}")
 
-APP_VERSION = "1.9.34"
+APP_VERSION = "1.9.35"
 FET_VERSION = "7.12.0"
 APP_AUTHOR = "Carlo Rigoni"
 APP_MENTOR = "Federico Rettore"
@@ -1898,6 +1898,16 @@ Questo messaggio è stato inviato dalla piattaforma Eurario.
                 mapping = body.get("section_percorsi") or body
             updated = db.set_section_percorsi(mapping)
             self._json(200, {"success": True, "data": updated})
+
+        elif path == "/api/sections/delete":
+            if not body or "section" not in body:
+                self._json(400, {"error": "Lettera sezione mancante"})
+                return
+            ok, msg = db.delete_section(body.get("section"))
+            if not ok:
+                self._json(400, {"error": msg})
+                return
+            self._json(200, {"success": True, "message": msg, "data": db.get_section_percorsi()})
 
         elif path == "/api/blocks/rules":
             if not body:

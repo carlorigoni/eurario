@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.34';
+let APP_VERSION = '1.9.35';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -8544,6 +8544,54 @@ async function updateSectionPercorso(section, percorso) {
   }
 }
 
+async function addNewSection() {
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+  const input = document.getElementById('newSectionLetter');
+  const sel = document.getElementById('newSectionTrack');
+  const letter = (input ? input.value : '').trim().toUpperCase();
+  const track = (sel ? sel.value : 'tecnico').trim().toLowerCase();
+  if (!letter || !letter.match(/^[A-Z]$/)) {
+    alert(isEn ? 'Please enter a single section letter (e.g. A, B, C, M, N...)' : 'Inserisci una singola lettera di sezione valida (es. A, B, C, M, N...)');
+    return;
+  }
+  await updateSectionPercorso(letter, track);
+  if (input) input.value = '';
+}
+
+async function deleteSection(section) {
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+  if (!confirm(isEn ? `Are you sure you want to remove section ${section}?` : `Sei sicuro di voler rimuovere la sezione ${section}?`)) {
+    return;
+  }
+  try {
+    const res = await fetch('/api/sections/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ section: section })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast(isEn ? `Section ${section} removed.` : `Sezione ${section} rimossa.`, 'info');
+      renderClasses();
+    } else {
+      alert(data.error || (isEn ? 'Failed to delete section' : 'Errore durante l\'eliminazione della sezione'));
+    }
+  } catch (e) {
+    alert('Errore: ' + e.message);
+  }
+}
+
+function filterClassesBySection(secLetter) {
+  activeClassSubView = 'classes';
+  renderClasses().then(() => {
+    const input = document.getElementById('classSearchInput');
+    if (input) {
+      input.value = secLetter;
+      applyClassFilters();
+    }
+  });
+}
+
 async function renderClasses() {
   let [resClasses, resGroups, sectionsData] = await Promise.all([
     fetch('/api/classes').then(r => r.json()).catch(() => []),
@@ -8567,248 +8615,342 @@ async function renderClasses() {
   });
 
   const isClassesView = activeClassSubView === 'classes';
+  const isSectionsView = activeClassSubView === 'sections';
+  const isGroupsView = activeClassSubView === 'groups';
   const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
   const container = document.getElementById('mainContent');
 
   const centraleClasses = resClasses.filter(c => !(c.building || '').toLowerCase().includes('succ'));
   const succursaleClasses = resClasses.filter(c => (c.building || '').toLowerCase().includes('succ'));
 
+  const secList = sectionsData.sections || [];
+  const totalSections = secList.length;
+  const liceoCount = secList.filter(s => s.percorso === 'liceo').length;
+  const tecnicoCount = secList.filter(s => s.percorso === 'tecnico').length;
+  const profCount = secList.filter(s => s.percorso === 'professionale').length;
+
   container.innerHTML = `
     ${getNavReturnBarHtml(isEn ? 'Management of classes, sections, and students per class.' : 'Gestione classi, sezioni e studenti per classe.')}
-    <div class="info-banner-blue">
-      ${isEn
-        ? '🎓 <b>Didactic Architecture - Classes & Students:</b> <b>Classes</b> represent cohorts of students for the academic year (e.g. <b>2L</b> with <b>26 students</b>). Each class has a resident <b>Homeroom</b> (e.g. <i>Room 53 - Main Campus</i>) for regular lessons. For subjects like <i>Physical Education</i> or <i>Computer Science</i>, the class relocates to the <b>Gym</b> or <b>Lab</b>; if these are located in another campus, the FET engine automatically schedules the <b>campus transfer</b> and travel allowances.'
-        : '🎓 <b>Architettura Didattica - Classi & Studenti:</b> Le <b>Classi</b> rappresentano i gruppi di studenti dell\'anno scolastico (es. <b>2L</b> con <b>26 alunni</b>). Ogni classe ha un\'<b>Aula Base</b> (es. <i>Aula 53 - Sede Centrale</i>) in cui risiede per le lezioni ordinarie. Per materie come <i>Scienze Motorie</i> o <i>Informatica</i>, la classe si sposta in <b>Palestra</b> o in <b>Laboratorio</b>; se questi si trovano in un altro plesso, il motore FET pianifica il <b>cambio di plesso</b> e i tempi di trasferimento.'}
+    
+    <div class="segmented-control" style="font-weight:600;margin-bottom:14px;">
+      <button class="segmented-btn ${isClassesView ? 'active' : ''}" onclick="switchClassSubView('classes')">
+        🎓 ${isEn ? 'Regular Classes' : 'Classi Ordinarie'} (${resClasses.length})
+      </button>
+      <button class="segmented-btn ${isSectionsView ? 'active' : ''}" onclick="switchClassSubView('sections')">
+        🏷️ ${isEn ? 'Sections & Tracks' : 'Sezioni & Indirizzi'} (${totalSections})
+      </button>
+      <button class="segmented-btn ${isGroupsView ? 'active' : ''}" onclick="switchClassSubView('groups')">
+        👥 ${isEn ? 'Groups & Subdivisions' : 'Gruppi & Articolazioni'} (${resGroups.length}) ${isEn ? '(Excel Groups Tab)' : '(Tab Gruppi Excel)'}
+      </button>
     </div>
 
-    <!-- SELETTORE INDIRIZZO PER SEZIONE (LICEO / TECNICO / PROFESSIONALE) -->
-    <div class="card" style="margin-bottom:16px;padding:14px 18px;border-left:4px solid var(--primary);box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
-        <div>
-          <div style="font-size:14px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:8px;">
-            ${isEn ? '🏷️ Study Track by Section (High School / Technical / Vocational)' : '🏷️ Indirizzo di Studio per Sezione (Liceo / Tecnico / Professionale)'}
-          </div>
-          <div style="font-size:12px;color:var(--text-muted);margin-top:3px;max-width:850px;line-height:1.4;">
-            ${isEn
-              ? 'The study track is determined <b>strictly by section</b> (A, B, C, D, E, F, G, H, L) for all classes 1-5. The system automatically detects whether the class is in <b>Lower</b> (1-2) or <b>Upper</b> (3-5) years and applies the default timetable block formula (exceptions are set at individual assignment level).'
-              : 'L\'indirizzo di studio è determinato <b>esclusivamente in base alla sezione</b> (A, B, C, D, E, F, G, H, L) per tutte le classi da 1 a 5. Il sistema rileva automaticamente se la classe appartiene al <b>Biennio</b> (1-2) o al <b>Triennio</b> (3-5) e applica la suddivisione blocchi orari di default (le eventuali eccezioni vengono specificate a livello di singola cattedra).'}
-          </div>
-        </div>
-        <button class="btn btn-sm btn-sec" onclick="navigate('block_rules')" title="${isEn ? 'Configure or view complete default rules table' : 'Configura o visualizza la tabella completa delle regole di default'}">
-          ${isEn ? '📐 Block & Section Rules' : '📐 Regole Blocchi & Sezioni'}
-        </button>
-      </div>
-
-      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;">
-        ${(sectionsData.sections || []).map(s => {
-          const p = s.percorso || 'tecnico';
-          return `
-            <div style="background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:6px 10px;display:flex;flex-direction:column;gap:5px;">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
-                <b style="font-size:13px;color:var(--text-main);">${isEn ? 'Section' : 'Sezione'} ${s.section}</b>
-                <span style="font-size:11px;color:var(--text-muted);" title="${(s.classes || []).join(', ')}">${s.classes_count} ${isEn ? 'classes' : 'classi'}</span>
-              </div>
-              <div class="percorso-btn-group">
-                <button type="button" class="percorso-btn ${p === 'liceo' ? 'active liceo' : ''}" onclick="updateSectionPercorso('${s.section}', 'liceo')" title="${isEn ? 'Set Section ' + s.section + ' as High School' : 'Imposta Sezione ' + s.section + ' come Liceo'}">
-                  ${isEn ? '🎓 High School' : '🎓 Liceo'}
-                </button>
-                <button type="button" class="percorso-btn ${p === 'tecnico' ? 'active tecnico' : ''}" onclick="updateSectionPercorso('${s.section}', 'tecnico')" title="${isEn ? 'Set Section ' + s.section + ' as Technical' : 'Imposta Sezione ' + s.section + ' come Tecnico'}">
-                  ${isEn ? '⚙️ Technical' : '⚙️ Tecnico'}
-                </button>
-                <button type="button" class="percorso-btn ${p === 'professionale' ? 'active professionale' : ''}" onclick="updateSectionPercorso('${s.section}', 'professionale')" title="${isEn ? 'Set Section ' + s.section + ' as Vocational' : 'Imposta Sezione ' + s.section + ' come Professionale'}">
-                  ${isEn ? '🏥 Vocat.' : '🏥 Prof.'}
-                </button>
-              </div>
+    ${isSectionsView ? `
+      <!-- SEZIONE & INDIRIZZI: FINESTRA DEDICATA AL FLUSSO GERARCHICO -->
+      <div class="card" style="margin-bottom:16px;padding:18px 22px;border-left:4px solid var(--primary);box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:15px;">
+          <div>
+            <div style="font-size:16px;font-weight:700;color:var(--text-main);display:flex;align-items:center;gap:8px;">
+              🏷️ ${isEn ? 'Sections & Study Tracks Architecture' : 'Architettura Sezioni & Indirizzi di Studio'}
             </div>
-          `;
-        }).join('')}
-      </div>
-    </div>
-
-    <div class="toolbar" style="flex-wrap:wrap;gap:10px;">
-      <div class="segmented-control">
-        <button class="segmented-btn ${isClassesView ? 'active' : ''}" onclick="switchClassSubView('classes')">
-          🎓 ${isEn ? 'Regular Classes' : 'Classi Ordinarie'} (${resClasses.length})
-        </button>
-        <button class="segmented-btn ${!isClassesView ? 'active' : ''}" onclick="switchClassSubView('groups')">
-          👥 ${isEn ? 'Groups & Subdivisions' : 'Gruppi & Articolazioni'} (${resGroups.length}) ${isEn ? '(Excel Groups Tab)' : '(Tab Gruppi Excel)'}
-        </button>
-      </div>
-
-      ${isClassesView ? `
-        <div class="segmented-control" style="background:var(--bg-card);border:1px solid var(--border);">
-          <button class="segmented-btn class-bld-btn ${activeClassBuildingFilter === 'all' ? 'active' : ''}" data-bld="all" onclick="filterClassesByBuilding('all')">
-            ${isEn ? 'All' : 'Tutte'} (${resClasses.length})
-          </button>
-          <button class="segmented-btn class-bld-btn ${activeClassBuildingFilter === 'centrale' ? 'active' : ''}" data-bld="centrale" onclick="filterClassesByBuilding('centrale')" title="${isEn ? 'Show only Main Campus classes' : 'Mostra solo le classi della Sede Centrale'}">
-            🏛️ ${isEn ? 'Main Campus' : 'Sede Centrale'} (${centraleClasses.length})
-          </button>
-          <button class="segmented-btn class-bld-btn ${activeClassBuildingFilter === 'succursale' ? 'active' : ''}" data-bld="succursale" onclick="filterClassesByBuilding('succursale')" title="${isEn ? 'Show only Branch Campus classes' : 'Mostra solo le classi della Sede Succursale'}">
-            🏛️ ${isEn ? 'Branch Campus' : 'Sede Succursale'} (${succursaleClasses.length})
-          </button>
+            <div style="font-size:13px;color:var(--text-muted);margin-top:4px;max-width:850px;line-height:1.5;">
+              ${isEn
+                ? '<b>Strict Sequential Flow:</b> <b>1. Study Tracks</b> (High School, Technical, Vocational) ➔ <b>2. Sections</b> (A, B, C...) ➔ <b>3. Classes</b> (1A, 2A, 3A... inherit the section track). No mixed sections: changing a section track immediately synchronizes all its classes and default timetable blocks!'
+                : '<b>Flusso Didattico Rigoroso:</b> <b>1. Indirizzi di Studio</b> (Liceo, Tecnico, Professionale) ➔ <b>2. Sezioni</b> (A, B, C...) ➔ <b>3. Classi dell\'Istituto</b> (1A, 2A, 3A... ereditano univocamente l\'indirizzo della sezione). Non sono permesse sezioni miste: modificando l\'indirizzo di una sezione, tutte le sue classi vengono sincronizzate all\'istante!'}
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-sm btn-sec" onclick="navigate('block_rules')" title="${isEn ? 'Configure or view complete default rules table' : 'Configura o visualizza la tabella completa delle regole di default'}">
+              📐 ${isEn ? 'Block & Section Rules' : 'Regole Blocchi & Sezioni'}
+            </button>
+          </div>
         </div>
-      ` : ''}
 
-      <input type="text" id="${isClassesView ? 'classSearchInput' : 'groupSearchInput'}" class="search-input" placeholder="${isEn ? (isClassesView ? '🔍 Search class, room or campus...' : '🔍 Search group or class...') : (isClassesView ? '🔍 Cerca classe, aula o sede...' : '🔍 Cerca gruppo o classe...')}" oninput="${isClassesView ? 'applyClassFilters()' : 'filterTable(\'groupTable\', this.value)'}" style="min-width:180px;">
+        <!-- KPI METRIC CARDS -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(170px, 1fr));gap:12px;margin-top:16px;margin-bottom:20px;">
+          <div style="background:var(--bg-main);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px;">
+            <div style="font-size:24px;">🏷️</div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;">${isEn ? 'Total Sections' : 'Totale Sezioni'}</div>
+              <div style="font-size:18px;font-weight:700;color:var(--primary);">${totalSections}</div>
+            </div>
+          </div>
+          <div style="background:rgba(59, 130, 246, 0.08);border:1px solid rgba(59, 130, 246, 0.25);border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px;">
+            <div style="font-size:24px;">🎓</div>
+            <div>
+              <div style="font-size:11px;color:#1e40af;font-weight:600;text-transform:uppercase;">${isEn ? 'High School' : 'Liceo'}</div>
+              <div style="font-size:18px;font-weight:700;color:#1e40af;">${liceoCount} ${isEn ? 'sections' : 'sezioni'}</div>
+            </div>
+          </div>
+          <div style="background:rgba(16, 185, 129, 0.08);border:1px solid rgba(16, 185, 129, 0.25);border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px;">
+            <div style="font-size:24px;">⚙️</div>
+            <div>
+              <div style="font-size:11px;color:#065f46;font-weight:600;text-transform:uppercase;">${isEn ? 'Technical' : 'Tecnico'}</div>
+              <div style="font-size:18px;font-weight:700;color:#065f46;">${tecnicoCount} ${isEn ? 'sections' : 'sezioni'}</div>
+            </div>
+          </div>
+          <div style="background:rgba(139, 92, 246, 0.08);border:1px solid rgba(139, 92, 246, 0.25);border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px;">
+            <div style="font-size:24px;">🏥</div>
+            <div>
+              <div style="font-size:11px;color:#5b21b6;font-weight:600;text-transform:uppercase;">${isEn ? 'Vocational' : 'Professionale'}</div>
+              <div style="font-size:18px;font-weight:700;color:#5b21b6;">${profCount} ${isEn ? 'sections' : 'sezioni'}</div>
+            </div>
+          </div>
+          <div style="background:var(--bg-main);border:1px solid var(--border);border-radius:8px;padding:12px;display:flex;align-items:center;gap:12px;">
+            <div style="font-size:24px;">📚</div>
+            <div>
+              <div style="font-size:11px;color:var(--text-muted);font-weight:600;text-transform:uppercase;">${isEn ? 'Classes Mapped' : 'Classi Associate'}</div>
+              <div style="font-size:18px;font-weight:700;color:var(--text-main);">${resClasses.length}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AGGIUNGI SEZIONE BAR -->
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;background:#f8fafc;padding:12px 16px;border-radius:8px;border:1px solid var(--border);margin-bottom:20px;">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span style="font-size:13px;font-weight:700;color:var(--text-main);">➕ ${isEn ? 'Register New Section:' : 'Registra Nuova Sezione:'}</span>
+            <input type="text" id="newSectionLetter" class="search-input" maxlength="2" placeholder="${isEn ? 'Letter (e.g. M)' : 'Lettera (es. M)'}" style="width:115px;text-transform:uppercase;text-align:center;font-weight:700;">
+            <select id="newSectionTrack" class="search-input" style="width:160px;">
+              <option value="tecnico">${isEn ? '⚙️ Technical' : '⚙️ Tecnico'}</option>
+              <option value="liceo">${isEn ? '🎓 High School' : '🎓 Liceo'}</option>
+              <option value="professionale">${isEn ? '🏥 Vocational' : '🏥 Professionale'}</option>
+            </select>
+            <button class="btn btn-primary" onclick="addNewSection()">+ ${isEn ? 'Add Section' : 'Aggiungi Sezione'}</button>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);">
+            💡 ${isEn ? 'Click any track button on a section card to reassign its study track instantly.' : 'Clicca sul pulsante dell\'indirizzo per riassegnare istantaneamente l\'intera sezione.'}
+          </div>
+        </div>
+
+        <!-- SECTIONS GRID -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:14px;">
+          ${secList.map(s => {
+            const p = s.percorso || 'tecnico';
+            const isLiceo = p === 'liceo';
+            const isTecnico = p === 'tecnico';
+            const isProf = p === 'professionale';
+            const trackColor = isLiceo ? '#2563eb' : (isTecnico ? '#059669' : '#7c3aed');
+            return `
+              <div style="background:var(--bg-card);border:1.5px solid ${trackColor}40;border-left:5px solid ${trackColor};border-radius:8px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div>
+                    <span style="font-size:16px;font-weight:800;color:var(--text-main);">${isEn ? 'Section' : 'Sezione'} ${s.section}</span>
+                    <span class="badge ${isLiceo ? 'badge-liceo' : (isTecnico ? 'badge-tecnico' : 'badge-professionale')}" style="font-size:10.5px;margin-left:6px;">
+                      ${isEn ? (isLiceo ? 'HIGH SCHOOL' : (isTecnico ? 'TECHNICAL' : 'VOCATIONAL')) : p.toUpperCase()}
+                    </span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <span style="font-size:12px;font-weight:600;color:var(--text-muted);">${s.classes_count} ${isEn ? 'classes' : 'classi'}</span>
+                    ${s.classes_count === 0 ? `
+                      <button class="btn btn-xs btn-danger" onclick="deleteSection('${s.section}')" title="${isEn ? 'Remove empty section' : 'Elimina sezione vuota'}">🗑️</button>
+                    ` : ''}
+                  </div>
+                </div>
+
+                <!-- TRACK SELECTOR BUTTONS -->
+                <div class="percorso-btn-group" style="width:100%;display:flex;">
+                  <button type="button" style="flex:1;" class="percorso-btn ${isLiceo ? 'active liceo' : ''}" onclick="updateSectionPercorso('${s.section}', 'liceo')" title="${isEn ? 'Set Section ' + s.section + ' as High School' : 'Imposta Sezione ' + s.section + ' come Liceo'}">
+                    🎓 ${isEn ? 'High School' : 'Liceo'}
+                  </button>
+                  <button type="button" style="flex:1;" class="percorso-btn ${isTecnico ? 'active tecnico' : ''}" onclick="updateSectionPercorso('${s.section}', 'tecnico')" title="${isEn ? 'Set Section ' + s.section + ' as Technical' : 'Imposta Sezione ' + s.section + ' come Tecnico'}">
+                    ⚙️ ${isEn ? 'Technical' : 'Tecnico'}
+                  </button>
+                  <button type="button" style="flex:1;" class="percorso-btn ${isProf ? 'active professionale' : ''}" onclick="updateSectionPercorso('${s.section}', 'professionale')" title="${isEn ? 'Set Section ' + s.section + ' as Vocational' : 'Imposta Sezione ' + s.section + ' come Professionale'}">
+                    🏥 ${isEn ? 'Vocational' : 'Prof.'}
+                  </button>
+                </div>
+
+                <!-- ASSOCIATED CLASSES CHIPS -->
+                <div style="display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding-top:4px;border-top:1px dashed var(--border);">
+                  <span style="font-size:11px;color:var(--text-muted);font-weight:600;">${isEn ? 'Classes:' : 'Classi:'}</span>
+                  ${s.classes && s.classes.length > 0 ? s.classes.map(clsName => `
+                    <button type="button" class="btn btn-xs btn-sec" onclick="filterClassesBySection('${clsName}')" title="${isEn ? 'View class in classes table' : 'Visualizza questa classe nella tabella'}" style="padding:2px 7px;font-size:11px;font-weight:600;">
+                      🎓 ${escapeHtml(clsName)}
+                    </button>
+                  `).join('') : `<span style="font-size:11.5px;color:var(--text-muted);font-style:italic;">${isEn ? 'No classes created yet' : 'Nessuna classe ancora creata'}</span>`}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    ${!isSectionsView ? `
+      <div class="info-banner-blue">
+        ${isEn
+          ? '🎓 <b>Didactic Architecture - Classes & Students:</b> <b>Classes</b> represent cohorts of students for the academic year (e.g. <b>2L</b> with <b>26 students</b>). Each class has a resident <b>Homeroom</b> (e.g. <i>Room 53 - Main Campus</i>) for regular lessons. For subjects like <i>Physical Education</i> or <i>Computer Science</i>, the class relocates to the <b>Gym</b> or <b>Lab</b>; if these are located in another campus, the FET engine automatically schedules the <b>campus transfer</b> and travel allowances.'
+          : '🎓 <b>Architettura Didattica - Classi & Studenti:</b> Le <b>Classi</b> rappresentano i gruppi di studenti dell\'anno scolastico (es. <b>2L</b> con <b>26 alunni</b>). Ogni classe ha un\'<b>Aula Base</b> (es. <i>Aula 53 - Sede Centrale</i>) in cui risiede per le lezioni ordinarie. Per materie come <i>Scienze Motorie</i> o <i>Informatica</i>, la classe si sposta in <b>Palestra</b> o in <b>Laboratorio</b>; se questi si trovano in un altro plesso, il motore FET pianifica il <b>cambio di plesso</b> e i tempi di trasferimento.'}
+      </div>
+
+      <div class="toolbar" style="flex-wrap:wrap;gap:10px;">
+        ${isClassesView ? `
+          <div class="segmented-control" style="background:var(--bg-card);border:1px solid var(--border);">
+            <button class="segmented-btn class-bld-btn ${activeClassBuildingFilter === 'all' ? 'active' : ''}" data-bld="all" onclick="filterClassesByBuilding('all')">
+              ${isEn ? 'All' : 'Tutte'} (${resClasses.length})
+            </button>
+            <button class="segmented-btn class-bld-btn ${activeClassBuildingFilter === 'centrale' ? 'active' : ''}" data-bld="centrale" onclick="filterClassesByBuilding('centrale')" title="${isEn ? 'Show only Main Campus classes' : 'Mostra solo le classi della Sede Centrale'}">
+              🏛️ ${isEn ? 'Main Campus' : 'Sede Centrale'} (${centraleClasses.length})
+            </button>
+            <button class="segmented-btn class-bld-btn ${activeClassBuildingFilter === 'succursale' ? 'active' : ''}" data-bld="succursale" onclick="filterClassesByBuilding('succursale')" title="${isEn ? 'Show only Branch Campus classes' : 'Mostra solo le classi della Sede Succursale'}">
+              🏛️ ${isEn ? 'Branch Campus' : 'Sede Succursale'} (${succursaleClasses.length})
+            </button>
+          </div>
+        ` : ''}
+
+        <input type="text" id="${isClassesView ? 'classSearchInput' : 'groupSearchInput'}" class="search-input" placeholder="${isEn ? (isClassesView ? '🔍 Search class, room or campus...' : '🔍 Search group or class...') : (isClassesView ? '🔍 Cerca classe, aula o sede...' : '🔍 Cerca gruppo o classe...')}" oninput="${isClassesView ? 'applyClassFilters()' : 'filterTable(\'groupTable\', this.value)'}" style="min-width:180px;">
+
+        ${isClassesView ? `
+          <div style="display:flex;gap:8px;margin-left:auto;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-outline" onclick="openImportStudentsModal()" title="${isEn ? 'Import or sync student count per class from Excel' : 'Importa o sincronizza il numero di alunni per classe dal foglio Excel / Parametri Orario'}" style="font-weight:600;display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--primary);color:var(--primary);background:var(--bg-main);white-space:nowrap;padding:7px 12px;">
+              <span>📥</span> ${isEn ? 'Import Students (Excel)' : 'Importa Alunni (Excel)'}
+            </button>
+            <input type="text" id="newClassName" class="search-input" placeholder="${isEn ? 'New class (e.g. 4A)' : 'Nuova classe (es. 4A)'}" style="width:140px;">
+            <input type="number" id="newClassStudents" class="search-input" placeholder="${isEn ? 'Students' : 'Alunni'}" value="25" style="width:75px;">
+            <select id="newClassBuilding" class="search-input" style="width:125px;">
+              <option value="Centrale">${isEn ? 'Main Campus' : 'Sede Centrale'}</option>
+              <option value="Succursale">${isEn ? 'Branch Campus' : 'Sede Succursale'}</option>
+            </select>
+            <button class="btn btn-primary" onclick="addClass()">+ ${isEn ? 'Add Class' : 'Aggiungi Classe'}</button>
+          </div>
+        ` : `
+          <div style="display:flex;gap:8px;margin-left:auto;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-outline" onclick="openImportStudentsModal()" title="${isEn ? 'Import or sync student count per class and group from Excel' : 'Importa o sincronizza il numero di alunni per classe e gruppo dal foglio Excel / Parametri Orario'}" style="font-weight:600;display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--primary);color:var(--primary);background:var(--bg-main);white-space:nowrap;padding:7px 12px;">
+              <span>📥</span> ${isEn ? 'Import Students (Excel)' : 'Importa Alunni (Excel)'}
+            </button>
+            <button class="btn btn-primary" onclick="openAddGroupModal()">+ ${isEn ? 'Add Subgroup' : 'Aggiungi Gruppo Articolato'}</button>
+          </div>
+        `}
+      </div>
 
       ${isClassesView ? `
-        <div style="display:flex;gap:8px;margin-left:auto;align-items:center;flex-wrap:wrap;">
-          <button class="btn btn-outline" onclick="openImportStudentsModal()" title="${isEn ? 'Import or sync student count per class from Excel' : 'Importa o sincronizza il numero di alunni per classe dal foglio Excel / Parametri Orario'}" style="font-weight:600;display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--primary);color:var(--primary);background:var(--bg-main);white-space:nowrap;padding:7px 12px;">
-            <span>📥</span> ${isEn ? 'Import Students (Excel)' : 'Importa Alunni (Excel)'}
-          </button>
-          <input type="text" id="newClassName" class="search-input" placeholder="${isEn ? 'New class (e.g. 4A)' : 'Nuova classe (es. 4A)'}" style="width:140px;">
-          <input type="number" id="newClassStudents" class="search-input" placeholder="${isEn ? 'Students' : 'Alunni'}" value="25" style="width:75px;">
-          <select id="newClassPercorso" class="search-input" style="width:130px;" title="${isEn ? 'Study Track (leave Auto to inherit from section)' : 'Indirizzo di studio (lascia Auto per ereditare dalla sezione)'}">
-            <option value="">${isEn ? 'Track: Auto' : 'Indirizzo: Auto'}</option>
-            <option value="liceo">${isEn ? 'High School' : 'Liceo'}</option>
-            <option value="tecnico">${isEn ? 'Technical' : 'Tecnico'}</option>
-            <option value="professionale">${isEn ? 'Vocational' : 'Professionale'}</option>
-          </select>
-          <select id="newClassBuilding" class="search-input" style="width:125px;">
-            <option value="Centrale">${isEn ? 'Main Campus' : 'Sede Centrale'}</option>
-            <option value="Succursale">${isEn ? 'Branch Campus' : 'Sede Succursale'}</option>
-          </select>
-          <button class="btn btn-primary" onclick="addClass()">+ ${isEn ? 'Add Class' : 'Aggiungi Classe'}</button>
+        <div class="table-container">
+          <table class="data-table" id="classTable">
+            <thead>
+              <tr>
+                <th style="width:45px;">#</th>
+                <th style="width:140px;">${isEn ? 'Class & Track' : 'Classe & Indirizzo'}</th>
+                <th style="width:95px;text-align:center;">${isEn ? 'Students' : 'N. Alunni'}</th>
+                <th style="min-width:180px;">${isEn ? 'Campus & Homeroom' : 'Sede & Aula Base Residente'}</th>
+                <th>${isEn ? 'Subgroups (Languages, Ethics/Alt, Subgroups)' : 'Gruppi Articolati (Lingue, Religione/Alt, Sottogruppi)'}</th>
+                <th style="width:85px;text-align:center;">${isEn ? 'Hrs/Wk' : 'Ore/Sett.'}</th>
+                <th style="text-align:right;min-width:270px;">${isEn ? 'Quick Actions' : 'Azioni Rapide'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${resClasses.map((c, idx) => {
+                const m = c.name.match(/^(\d+)([A-Za-z]+)/);
+                const secLetter = m ? m[2].toUpperCase()[0] : '';
+                const defaultPercorso = (sectionsData.section_percorsi || {})[secLetter] || 'tecnico';
+                const percorso = c.percorso || defaultPercorso;
+                const yearNum = m ? parseInt(m[1], 10) : 1;
+                const period = isEn ? (yearNum <= 2 ? 'Lower' : 'Upper') : (yearNum <= 2 ? 'Biennio' : 'Triennio');
+                const percDisplay = isEn ? (percorso === 'liceo' ? 'HIGH SCHOOL' : (percorso === 'tecnico' ? 'TECHNICAL' : 'VOCATIONAL')) : percorso.toUpperCase();
+                const cGroups = groupsByClass[c.name] || [];
+                const isSucc = (c.building || '').toLowerCase().includes('succ');
+                return `
+                  <tr class="class-row" data-building="${isSucc ? 'succursale' : 'centrale'}">
+                    <td style="color:var(--text-sub);">${idx + 1}</td>
+                    <td>
+                      <b style="font-size:14.5px;color:var(--primary);">🎓 ${escapeHtml(c.name)}</b>
+                      <span class="badge ${percorso === 'liceo' ? 'badge-liceo' : (percorso === 'tecnico' ? 'badge-tecnico' : 'badge-professionale')}" style="font-size:10px;margin-left:4px;" title="${isEn ? 'Track strictly inherited from Section ' + secLetter + ' (' + period + ')' : 'Indirizzo ereditato rigidamente dalla Sezione ' + secLetter + ' (' + period + ')'}">
+                        ${percDisplay} (${period}) · Sez. ${secLetter}
+                      </span>
+                    </td>
+                    <td style="text-align:center;">
+                      <span style="font-size:13px;font-weight:700;color:var(--text-main);">${c.students || 0}</span>
+                      <button class="btn-sm btn-sec" style="padding:1px 5px;font-size:10px;margin-left:3px;" onclick="quickEditClassStudents('${escapeJs(c.name)}', ${c.students || 25})" title="${isEn ? 'Edit student count' : 'Modifica numero alunni'}">✏️</button>
+                    </td>
+                    <td>
+                      <span class="badge ${isSucc ? 'badge-warn' : 'badge-info'}" style="margin-right:6px;">
+                        🏛️ ${escapeHtml(c.building ? (isEn && c.building === 'Centrale' ? 'Main' : (isEn && c.building.includes('Succ') ? 'Branch' : c.building)) : (isEn ? 'Main' : 'Centrale'))}
+                      </span>
+                      <span class="item-chip" title="${isEn ? 'Resident Homeroom of this class' : 'Aula Ordinaria di questa classe'}">
+                        🚪 ${escapeHtml(c.base_room || ((isEn ? 'Room ' : 'Aula ') + c.name))}
+                      </span>
+                    </td>
+                    <td>
+                      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;">
+                        ${cGroups.length > 0 ? cGroups.map(g => `
+                          <span class="group-badge">
+                            👥 <b>${escapeHtml(g.name)}</b> ${g.students ? `(${g.students} ${isEn ? 'st.' : 'al.'})` : ''}
+                            <span class="del-btn" onclick="deleteGroup('${escapeJs(g.name)}')" title="${isEn ? 'Delete subgroup' : 'Elimina gruppo articolato'}">×</span>
+                          </span>
+                        `).join('') : `<span style="color:var(--text-muted);font-size:12px;margin-right:6px;">${isEn ? 'No groups' : 'Nessun gruppo'}</span>`}
+                        <button class="btn-add-group" onclick="openAddGroupModal('${escapeJs(c.name)}')" title="${isEn ? 'Create subgroup for ' + escapeJs(c.name) : 'Crea un gruppo articolato per ' + escapeJs(c.name)}">
+                          + ${isEn ? 'Group' : 'Gruppo'}
+                        </button>
+                      </div>
+                    </td>
+                    <td style="text-align:center;">
+                      <span class="badge badge-info" title="${c.group_hours > 0 ? (isEn ? `Common curriculum: ${c.common_hours}h + Groups: ${c.group_hours}h` : `Ore comuni: ${c.common_hours}h + Gruppi articolati: ${c.group_hours}h`) : (isEn ? 'Weekly timetable hours' : 'Monte ore settimanale')}">
+                        ${c.total_hours || 0} h
+                      </span>
+                      ${c.group_hours > 0 ? `<div style="font-size:10.5px;color:var(--text-sub);font-weight:600;margin-top:2px;" title="${isEn ? 'Common + Max Subgroup Hours' : 'Ore comuni + Ore max gruppo'}">${c.common_hours}+${c.group_hours}h</div>` : ''}
+                    </td>
+                    <td style="text-align:right;white-space:nowrap;">
+                      <button class="btn btn-sm btn-primary" onclick="openNewCattedraModal({ className: '${escapeJs(c.name)}' })" title="${isEn ? 'Assign new teaching assignment to ' + escapeJs(c.name) : 'Assegna nuova cattedra a ' + escapeJs(c.name)}">
+                        ➕ ${isEn ? 'Assignment' : 'Cattedra'}
+                      </button>
+                      <button class="btn btn-sm btn-sec" onclick="jumpToActivities({ className: '${escapeJs(c.name)}' })" title="${isEn ? 'View assignments for class ' + escapeJs(c.name) : 'Vedi cattedre della classe ' + escapeJs(c.name)}">
+                        📚 ${isEn ? 'Assignments' : 'Cattedre'}
+                      </button>
+                      <button class="btn btn-sm btn-sec" onclick="openEditClassModal('${escapeJs(c.name)}')" title="${isEn ? 'Edit students, homeroom and campus' : 'Modifica alunni, aula base e sede'}">✏️ ${isEn ? 'Campus/Room' : 'Sede'}</button>
+                      <button class="btn btn-sm btn-sec" onclick="openClassAvailability('${escapeJs(c.name)}')">📅</button>
+                      <button class="btn btn-sm btn-danger" onclick="deleteClass('${escapeJs(c.name)}')">🗑️</button>
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
         </div>
       ` : `
-        <div style="display:flex;gap:8px;margin-left:auto;align-items:center;flex-wrap:wrap;">
-          <button class="btn btn-outline" onclick="openImportStudentsModal()" title="${isEn ? 'Import or sync student count per class and group from Excel' : 'Importa o sincronizza il numero di alunni per classe e gruppo dal foglio Excel / Parametri Orario'}" style="font-weight:600;display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--primary);color:var(--primary);background:var(--bg-main);white-space:nowrap;padding:7px 12px;">
-            <span>📥</span> ${isEn ? 'Import Students (Excel)' : 'Importa Alunni (Excel)'}
-          </button>
-          <button class="btn btn-primary" onclick="openAddGroupModal()">+ ${isEn ? 'Add Subgroup' : 'Aggiungi Gruppo Articolato'}</button>
-        </div>
-      `}
-    </div>
-
-    ${isClassesView ? `
-      <div class="table-container">
-        <table class="data-table" id="classTable">
-          <thead>
-            <tr>
-              <th style="width:45px;">#</th>
-              <th style="width:140px;">${isEn ? 'Class & Track' : 'Classe & Indirizzo'}</th>
-              <th style="width:95px;text-align:center;">${isEn ? 'Students' : 'N. Alunni'}</th>
-              <th style="min-width:180px;">${isEn ? 'Campus & Homeroom' : 'Sede & Aula Base Residente'}</th>
-              <th>${isEn ? 'Subgroups (Languages, Ethics/Alt, Subgroups)' : 'Gruppi Articolati (Lingue, Religione/Alt, Sottogruppi)'}</th>
-              <th style="width:85px;text-align:center;">${isEn ? 'Hrs/Wk' : 'Ore/Sett.'}</th>
-              <th style="text-align:right;min-width:270px;">${isEn ? 'Quick Actions' : 'Azioni Rapide'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${resClasses.map((c, idx) => {
-              const m = c.name.match(/^(\d+)([A-Za-z]+)/);
-              const secLetter = m ? m[2].toUpperCase()[0] : '';
-              const defaultPercorso = (sectionsData.section_percorsi || {})[secLetter] || 'tecnico';
-              const percorso = c.percorso || defaultPercorso;
-              const isOverridden = !!c.percorso && c.percorso !== defaultPercorso;
-              const yearNum = m ? parseInt(m[1], 10) : 1;
-              const period = isEn ? (yearNum <= 2 ? 'Lower' : 'Upper') : (yearNum <= 2 ? 'Biennio' : 'Triennio');
-              const percDisplay = isEn ? (percorso === 'liceo' ? 'HIGH SCHOOL' : (percorso === 'tecnico' ? 'TECHNICAL' : 'VOCATIONAL')) : percorso.toUpperCase();
-              const cGroups = groupsByClass[c.name] || [];
-              const isSucc = (c.building || '').toLowerCase().includes('succ');
-              return `
-                <tr class="class-row" data-building="${isSucc ? 'succursale' : 'centrale'}">
+        <div class="table-container">
+          <table class="data-table" id="groupTable">
+            <thead>
+              <tr>
+                <th style="width:45px;">#</th>
+                <th style="width:130px;">${isEn ? 'Parent Class' : 'Classe Padre'}</th>
+                <th style="min-width:180px;">${isEn ? 'Group / Division Name' : 'Nome Gruppo / Articolazione'}</th>
+                <th style="width:110px;text-align:center;">${isEn ? 'Students' : 'N. Alunni'}</th>
+                <th style="width:110px;text-align:center;">${isEn ? 'Assigned Hours' : 'Ore Assegnate'}</th>
+                <th>${isEn ? 'Notes & Type' : 'Note & Tipologia'}</th>
+                <th style="text-align:right;min-width:260px;">${isEn ? 'Quick Actions' : 'Azioni Rapide'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${resGroups.map((g, idx) => `
+                <tr>
                   <td style="color:var(--text-sub);">${idx + 1}</td>
                   <td>
-                    <b style="font-size:14.5px;color:var(--primary);">🎓 ${escapeHtml(c.name)}</b>
-                    <span class="badge ${percorso === 'liceo' ? 'badge-liceo' : (percorso === 'tecnico' ? 'badge-tecnico' : 'badge-professionale')}" style="font-size:10px;margin-left:4px;" title="${isOverridden ? (isEn ? 'Custom track override for this class' : 'Indirizzo personalizzato per questa classe') : (isEn ? 'Track determined by Section ' + secLetter + ' (' + period + ')' : 'Indirizzo determinato dalla Sezione ' + secLetter + ' (' + period + ')')}">
-                      ${percDisplay} (${period})${isOverridden ? ' ⚙️' : ''}
-                    </span>
-                  </td>
-                  <td style="text-align:center;">
-                    <span style="font-size:13px;font-weight:700;color:var(--text-main);">${c.students || 0}</span>
-                    <button class="btn-sm btn-sec" style="padding:1px 5px;font-size:10px;margin-left:3px;" onclick="quickEditClassStudents('${escapeJs(c.name)}', ${c.students || 25})" title="${isEn ? 'Edit student count' : 'Modifica numero alunni'}">✏️</button>
+                    <span class="item-chip primary" style="font-weight:700;">🎓 ${escapeHtml(g.class_name)}</span>
                   </td>
                   <td>
-                    <span class="badge ${isSucc ? 'badge-warn' : 'badge-info'}" style="margin-right:6px;">
-                      🏛️ ${escapeHtml(c.building ? (isEn && c.building === 'Centrale' ? 'Main' : (isEn && c.building.includes('Succ') ? 'Branch' : c.building)) : (isEn ? 'Main' : 'Centrale'))}
-                    </span>
-                    <span class="item-chip" title="${isEn ? 'Resident Homeroom of this class' : 'Aula Ordinaria di questa classe'}">
-                      🚪 ${escapeHtml(c.base_room || ((isEn ? 'Room ' : 'Aula ') + c.name))}
-                    </span>
-                  </td>
-                  <td>
-                    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;">
-                      ${cGroups.length > 0 ? cGroups.map(g => `
-                        <span class="group-badge">
-                          👥 <b>${escapeHtml(g.name)}</b> ${g.students ? `(${g.students} ${isEn ? 'st.' : 'al.'})` : ''}
-                          <span class="del-btn" onclick="deleteGroup('${escapeJs(g.name)}')" title="${isEn ? 'Delete subgroup' : 'Elimina gruppo articolato'}">×</span>
-                        </span>
-                      `).join('') : `<span style="color:var(--text-muted);font-size:12px;margin-right:6px;">${isEn ? 'No groups' : 'Nessun gruppo'}</span>`}
-                      <button class="btn-add-group" onclick="openAddGroupModal('${escapeJs(c.name)}')" title="${isEn ? 'Create subgroup for ' + escapeJs(c.name) : 'Crea un gruppo articolato per ' + escapeJs(c.name)}">
-                        + ${isEn ? 'Group' : 'Gruppo'}
-                      </button>
-                    </div>
+                    <b style="color:var(--text-main);font-size:13.5px;">👥 ${escapeHtml(g.name)}</b>
                   </td>
                   <td style="text-align:center;">
-                    <span class="badge badge-info" title="${c.group_hours > 0 ? (isEn ? `Common curriculum: ${c.common_hours}h + Groups: ${c.group_hours}h` : `Ore comuni: ${c.common_hours}h + Gruppi articolati: ${c.group_hours}h`) : (isEn ? 'Weekly timetable hours' : 'Monte ore settimanale')}">
-                      ${c.total_hours || 0} h
-                    </span>
-                    ${c.group_hours > 0 ? `<div style="font-size:10.5px;color:var(--text-sub);font-weight:600;margin-top:2px;" title="${isEn ? 'Common + Max Subgroup Hours' : 'Ore comuni + Ore max gruppo'}">${c.common_hours}+${c.group_hours}h</div>` : ''}
+                    <span style="font-size:13px;font-weight:700;">${g.students || 0}</span>
+                    <button class="btn-sm btn-sec" style="padding:1px 5px;font-size:10px;margin-left:3px;" onclick="quickEditGroupStudents('${escapeJs(g.name)}', ${g.students || 0})" title="${isEn ? 'Edit student count in group' : 'Modifica numero alunni nel gruppo'}">✏️</button>
+                  </td>
+                  <td style="text-align:center;">
+                    <span class="badge ${g.total_hours > 0 ? 'badge-info' : ''}" style="font-weight:700;">${g.total_hours || 0} h</span>
+                  </td>
+                  <td style="color:var(--text-muted);font-size:12px;">
+                    ${escapeHtml(g.comments || (isEn ? 'Subgroup / division' : 'Gruppo articolato / sottogruppo'))}
                   </td>
                   <td style="text-align:right;white-space:nowrap;">
-                    <button class="btn btn-sm btn-primary" onclick="openNewCattedraModal({ className: '${escapeJs(c.name)}' })" title="${isEn ? 'Assign new teaching assignment to ' + escapeJs(c.name) : 'Assegna nuova cattedra a ' + escapeJs(c.name)}">
-                      ➕ ${isEn ? 'Assignment' : 'Cattedra'}
-                    </button>
-                    <button class="btn btn-sm btn-sec" onclick="jumpToActivities({ className: '${escapeJs(c.name)}' })" title="${isEn ? 'View assignments for class ' + escapeJs(c.name) : 'Vedi cattedre della classe ' + escapeJs(c.name)}">
-                      📚 ${isEn ? 'Assignments' : 'Cattedre'}
-                    </button>
-                    <button class="btn btn-sm btn-sec" onclick="openEditClassModal('${escapeJs(c.name)}')" title="${isEn ? 'Edit students, homeroom and campus' : 'Modifica alunni, aula base e sede'}">✏️ ${isEn ? 'Campus/Room' : 'Sede'}</button>
-                    <button class="btn btn-sm btn-sec" onclick="openClassAvailability('${escapeJs(c.name)}')">📅</button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteClass('${escapeJs(c.name)}')">🗑️</button>
+                    <button class="btn btn-sm btn-sec" onclick="openEditGroupModal('${escapeJs(g.name)}')" title="${isEn ? 'Edit group' : 'Modifica gruppo'}">✏️ ${isEn ? 'Edit' : 'Modifica'}</button>
+                    <button class="btn btn-sm btn-primary" onclick="openNewCattedraModal({ className: '${escapeJs(g.name)}' })" title="${isEn ? 'Assign new assignment to this group' : 'Assegna nuova cattedra a questo gruppo'}">➕ ${isEn ? 'Assignment' : 'Cattedra'}</button>
+                    <button class="btn btn-sm btn-sec" onclick="jumpToActivities({ className: '${escapeJs(g.name)}' })" title="${isEn ? 'View group assignments' : 'Vedi cattedre del gruppo'}">📚 ${isEn ? 'Assignments' : 'Cattedre'}</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteGroup('${escapeJs(g.name)}')" title="${isEn ? 'Delete group' : 'Elimina gruppo'}">🗑️</button>
                   </td>
                 </tr>
-              `;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-    ` : `
-      <div class="table-container">
-        <table class="data-table" id="groupTable">
-          <thead>
-            <tr>
-              <th style="width:45px;">#</th>
-              <th style="width:130px;">${isEn ? 'Parent Class' : 'Classe Padre'}</th>
-              <th style="min-width:180px;">${isEn ? 'Group / Division Name' : 'Nome Gruppo / Articolazione'}</th>
-              <th style="width:110px;text-align:center;">${isEn ? 'Students' : 'N. Alunni'}</th>
-              <th style="width:110px;text-align:center;">${isEn ? 'Assigned Hours' : 'Ore Assegnate'}</th>
-              <th>${isEn ? 'Notes & Type' : 'Note & Tipologia'}</th>
-              <th style="text-align:right;min-width:260px;">${isEn ? 'Quick Actions' : 'Azioni Rapide'}</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${resGroups.map((g, idx) => `
-              <tr>
-                <td style="color:var(--text-sub);">${idx + 1}</td>
-                <td>
-                  <span class="item-chip primary" style="font-weight:700;">🎓 ${escapeHtml(g.class_name)}</span>
-                </td>
-                <td>
-                  <b style="color:var(--text-main);font-size:13.5px;">👥 ${escapeHtml(g.name)}</b>
-                </td>
-                <td style="text-align:center;">
-                  <span style="font-size:13px;font-weight:700;">${g.students || 0}</span>
-                  <button class="btn-sm btn-sec" style="padding:1px 5px;font-size:10px;margin-left:3px;" onclick="quickEditGroupStudents('${escapeJs(g.name)}', ${g.students || 0})" title="${isEn ? 'Edit student count in group' : 'Modifica numero alunni nel gruppo'}">✏️</button>
-                </td>
-                <td style="text-align:center;">
-                  <span class="badge ${g.total_hours > 0 ? 'badge-info' : ''}" style="font-weight:700;">${g.total_hours || 0} h</span>
-                </td>
-                <td style="color:var(--text-muted);font-size:12px;">
-                  ${escapeHtml(g.comments || (isEn ? 'Subgroup / division' : 'Gruppo articolato / sottogruppo'))}
-                </td>
-                <td style="text-align:right;white-space:nowrap;">
-                  <button class="btn btn-sm btn-sec" onclick="openEditGroupModal('${escapeJs(g.name)}')" title="${isEn ? 'Edit group' : 'Modifica gruppo'}">✏️ ${isEn ? 'Edit' : 'Modifica'}</button>
-                  <button class="btn btn-sm btn-primary" onclick="openNewCattedraModal({ className: '${escapeJs(g.name)}' })" title="${isEn ? 'Assign new assignment to this group' : 'Assegna nuova cattedra a questo gruppo'}">➕ ${isEn ? 'Assignment' : 'Cattedra'}</button>
-                  <button class="btn btn-sm btn-sec" onclick="jumpToActivities({ className: '${escapeJs(g.name)}' })" title="${isEn ? 'View group assignments' : 'Vedi cattedre del gruppo'}">📚 ${isEn ? 'Assignments' : 'Cattedre'}</button>
-                  <button class="btn btn-sm btn-danger" onclick="deleteGroup('${escapeJs(g.name)}')" title="${isEn ? 'Delete group' : 'Elimina gruppo'}">🗑️</button>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    `}
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      `}
+    ` : ''}
   `;
 
   if (isClassesView) {
@@ -8825,13 +8967,11 @@ async function addClass() {
   const name = document.getElementById('newClassName').value.trim();
   const stud = document.getElementById('newClassStudents').value.trim();
   const bld = document.getElementById('newClassBuilding').value.trim();
-  const percSel = document.getElementById('newClassPercorso');
-  const perc = percSel ? percSel.value.trim() : '';
   if (!name) return;
   const res = await fetch('/api/classes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: name, students: parseInt(stud) || 25, building: bld, base_room: `Aula ${name}`, percorso: perc })
+    body: JSON.stringify({ name: name, students: parseInt(stud) || 25, building: bld, base_room: `Aula ${name}` })
   });
   if (res.ok) {
     document.getElementById('newClassName').value = '';
@@ -8866,7 +9006,13 @@ function openEditClassModal(className) {
   const cls = (stateData.classes || []).find(c => c.name === className);
   if (!cls) return;
 
-  const currentPerc = (cls.percorso || '').toLowerCase();
+  const m = cls.name.match(/^(\d+)([A-Za-z]+)/);
+  const secLetter = m ? m[2].toUpperCase()[0] : '';
+  const currentPerc = (cls.percorso || 'tecnico').toLowerCase();
+  const yearNum = m ? parseInt(m[1], 10) : 1;
+  const period = isEn ? (yearNum <= 2 ? 'Lower' : 'Upper') : (yearNum <= 2 ? 'Biennio' : 'Triennio');
+  const percDisplay = isEn ? (currentPerc === 'liceo' ? 'HIGH SCHOOL' : (currentPerc === 'tecnico' ? 'TECHNICAL' : 'VOCATIONAL')) : currentPerc.toUpperCase();
+
   const roomsList = stateData.rooms || [];
   const bldOptions = (stateData.buildings || ['Centrale', 'Succursale']).map(b => `
     <option value="${escapeHtml(b)}" ${cls.building === b ? 'selected' : ''}>${escapeHtml(b)}</option>
@@ -8891,14 +9037,16 @@ function openEditClassModal(className) {
           <input type="text" class="form-input" value="${escapeHtml(cls.name)}" disabled>
         </div>
         <div class="form-group">
-          <label class="form-label">Indirizzo di Studio</label>
-          <select id="editClassPercorso" class="form-select">
-            <option value="" ${!currentPerc ? 'selected' : ''}>${isEn ? 'Default from Section (Auto)' : 'Predefinito da Sezione (Auto)'}</option>
-            <option value="liceo" ${currentPerc === 'liceo' ? 'selected' : ''}>${isEn ? 'High School (Liceo)' : 'Liceo'}</option>
-            <option value="tecnico" ${currentPerc === 'tecnico' ? 'selected' : ''}>${isEn ? 'Technical (Tecnico)' : 'Tecnico'}</option>
-            <option value="professionale" ${currentPerc === 'professionale' ? 'selected' : ''}>${isEn ? 'Vocational (Professionale)' : 'Professionale'}</option>
-          </select>
-          <span class="form-hint">${isEn ? 'Overrides the general section track if set specifically for this class.' : 'Se impostato, definisce o sovrascrive l\'indirizzo della sezione per questa singola classe.'}</span>
+          <label class="form-label">${isEn ? 'Study Track (inherited from Section)' : 'Indirizzo di Studio (ereditato dalla Sezione)'}</label>
+          <div style="display:flex;align-items:center;gap:10px;margin-top:4px;">
+            <span class="badge ${currentPerc === 'liceo' ? 'badge-liceo' : (currentPerc === 'tecnico' ? 'badge-tecnico' : 'badge-professionale')}" style="font-size:12.5px;padding:6px 12px;font-weight:700;">
+              🎓 ${percDisplay} (${period}) · ${isEn ? 'Section' : 'Sezione'} ${secLetter}
+            </span>
+            <button type="button" class="btn btn-xs btn-sec" onclick="closeModal(); switchClassSubView('sections');" title="${isEn ? 'Change study track for this section' : 'Modifica indirizzo didattico per l\'intera sezione'}">
+              🏷️ ${isEn ? 'Edit Section Track' : 'Modifica Indirizzo Sezione'}
+            </button>
+          </div>
+          <span class="form-hint" style="margin-top:5px;display:block;">${isEn ? 'Educational integrity: all classes in the same section strictly share the same study track.' : 'Integrità didattica: tutte le classi della medesima sezione condividono rigorosamente lo stesso indirizzo di studio.'}</span>
         </div>
         <div class="form-group">
           <label class="form-label">Numero Alunni (Studenti nella classe)</label>
@@ -8935,12 +9083,11 @@ async function saveClassDetails(className) {
   const building = document.getElementById('editClassBuilding').value;
   const base_room = document.getElementById('editClassBaseRoom').value;
   const comments = document.getElementById('editClassComments').value;
-  const percorso = document.getElementById('editClassPercorso') ? document.getElementById('editClassPercorso').value : '';
 
   const res = await fetch('/api/classes/update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: className, students, building, base_room, comments, percorso })
+    body: JSON.stringify({ name: className, students, building, base_room, comments })
   });
   if (res.ok) {
     closeModal();

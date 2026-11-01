@@ -1382,9 +1382,16 @@ class Database:
                     "base_room": broom,
                     "comments": comments
                 }
-                perc = str(percorso or "").strip().lower()
-                if perc in ("liceo", "tecnico", "professionale"):
-                    new_cls["percorso"] = perc
+                # L'indirizzo di studio viene ereditato rigidamente dalla Sezione
+                m = re.match(r"^([0-9]+)([A-Za-z]+)", name)
+                if m:
+                    sec_letter = m.group(2).upper()[0]
+                    sec_map = self.data.get("section_percorsi", DEFAULT_SECTION_PERCORSI)
+                    new_cls["percorso"] = sec_map.get(sec_letter, "tecnico")
+                else:
+                    perc = str(percorso or "").strip().lower()
+                    if perc in ("liceo", "tecnico", "professionale"):
+                        new_cls["percorso"] = perc
                 self.data["classes"].append(new_cls)
                 self.data["classes"].sort(key=lambda c: natural_class_sort_key(c["name"]))
                 self.data["class_availability"][name] = []
@@ -1404,7 +1411,13 @@ class Database:
                         c["base_room"] = class_data["base_room"].strip()
                     if "comments" in class_data:
                         c["comments"] = class_data["comments"]
-                    if "percorso" in class_data:
+                    # L'indirizzo della classe è derivato univocamente dalla Sezione di appartenenza
+                    m_sec = re.match(r"^([0-9]+)([A-Za-z]+)", c["name"])
+                    if m_sec:
+                        s_letter = m_sec.group(2).upper()[0]
+                        s_map = self.data.get("section_percorsi", DEFAULT_SECTION_PERCORSI)
+                        c["percorso"] = s_map.get(s_letter, "tecnico")
+                    elif "percorso" in class_data:
                         perc = str(class_data["percorso"] or "").strip().lower()
                         if perc in ("liceo", "tecnico", "professionale"):
                             c["percorso"] = perc
@@ -2127,16 +2140,16 @@ class Database:
         name = (class_or_group_name or "").strip()
         # Se il nome corrisponde esattamente a una classe con percorso esplicito
         target_cls = next((c for c in self.data.get("classes", []) if c.get("name") == name), None)
-        explicit_perc = target_cls.get("percorso") if target_cls else None
-
         m = re.match(r"^([0-9]+)([A-Za-z]+)", name)
         if m:
             y = int(m.group(1))
             sec_letter = m.group(2).upper()[0]
             percorso_map = self.data.get("section_percorsi", DEFAULT_SECTION_PERCORSI)
-            perc = explicit_perc or percorso_map.get(sec_letter, "tecnico")
+            # L'indirizzo della sezione è la fonte di verità unica e imprescindibile
+            perc = percorso_map.get(sec_letter, "tecnico")
             period = "biennio" if y <= 2 else "triennio"
             return sec_letter, perc, period
+        explicit_perc = target_cls.get("percorso") if target_cls else None
         return "", (explicit_perc or "tecnico"), "biennio"
 
     def get_section_percorsi(self):
@@ -2155,20 +2168,41 @@ class Database:
                     sec_letter = m.group(2).upper()[0]
                     sec_classes[sec_letter].append(cname)
 
+            all_secs = sorted(set(sec_classes.keys()) | set(mapping.keys()))
             sections_list = []
-            for sec in sorted(sec_classes.keys()):
+            for sec in all_secs:
                 perc = mapping.get(sec, "tecnico")
+                cls_list = sorted(sec_classes.get(sec, []), key=natural_class_sort_key)
                 sections_list.append({
                     "section": sec,
                     "percorso": perc,
-                    "classes_count": len(sec_classes[sec]),
-                    "classes": sorted(sec_classes[sec], key=natural_class_sort_key)
+                    "classes_count": len(cls_list),
+                    "classes": cls_list
                 })
 
             return {
                 "section_percorsi": mapping,
                 "sections": sections_list
             }
+
+    def delete_section(self, section):
+        with self.lock:
+            sec = str(section).strip().upper()
+            if not sec:
+                return False, "Lettera sezione non valida"
+            # Verifica che non vi siano classi attive in questa sezione
+            for c in self.data.get("classes", []):
+                cname = c.get("name", "")
+                m = re.match(r"^([0-9]+)([A-Za-z]+)", cname)
+                if m and m.group(2).upper()[0] == sec:
+                    return False, f"Impossibile eliminare la sezione {sec}: ci sono ancora classi associate ({cname})."
+            raw_cur = dict(self.data.get("section_percorsi", DEFAULT_SECTION_PERCORSI))
+            if sec in raw_cur:
+                del raw_cur[sec]
+                self.data["section_percorsi"] = raw_cur
+                self._save_to_disk(self.data)
+                return True, f"Sezione {sec} eliminata con successo"
+            return True, f"Sezione {sec} rimossa"
 
     def set_section_percorsi(self, new_mapping):
         with self.lock:
@@ -2193,6 +2227,14 @@ class Database:
                                 cur[sec] = perc
 
             self.data["section_percorsi"] = cur
+            # Sincronizza rigidamente tutte le classi dell'istituto con l'indirizzo della sezione
+            for c in self.data.get("classes", []):
+                cname = c.get("name", "")
+                m = re.match(r"^([0-9]+)([A-Za-z]+)", cname)
+                if m:
+                    sec_letter = m.group(2).upper()[0]
+                    if sec_letter in cur:
+                        c["percorso"] = cur[sec_letter]
             self._save_to_disk(self.data)
             return self.get_section_percorsi()
 

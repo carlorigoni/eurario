@@ -43,27 +43,32 @@
     {
       "name": "1A",
       "students": 24,
-      "comments": "Liceo Scientifico - Primo Anno"
+      "comments": "Liceo Scientifico - Primo Anno",
+      "percorso": "tecnico"
     },
     {
       "name": "2A",
       "students": 22,
-      "comments": "Liceo Scientifico - Secondo Anno"
+      "comments": "Liceo Scientifico - Secondo Anno",
+      "percorso": "tecnico"
     },
     {
       "name": "3A",
       "students": 20,
-      "comments": "Liceo Scientifico - Terzo Anno"
+      "comments": "Liceo Scientifico - Terzo Anno",
+      "percorso": "tecnico"
     },
     {
       "name": "4A",
       "students": 21,
-      "comments": "Liceo Scientifico - Quarto Anno"
+      "comments": "Liceo Scientifico - Quarto Anno",
+      "percorso": "tecnico"
     },
     {
       "name": "5A",
       "students": 19,
-      "comments": "Liceo Scientifico - Quinto Anno"
+      "comments": "Liceo Scientifico - Quinto Anno",
+      "percorso": "tecnico"
     }
   ],
   "teachers": [
@@ -2881,7 +2886,7 @@
     "L": "liceo"
   },
   "config_name": "Configurazione Corrente",
-  "data_version": 49,
-  "last_modified": "2026-11-01T15:38:23.333141+01:00",
+  "data_version": 54,
+  "last_modified": "2026-11-01T17:03:14.485951+01:00",
   "admin_messages": []
 }
