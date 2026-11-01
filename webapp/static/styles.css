@@ -1997,6 +1997,7 @@ textarea:focus:not(:focus-visible) {
   left: 64px;
   width: 310px;
   max-width: calc(100vw - 80px);
+  max-height: calc(100vh - 20px);
   background: #ffffff;
   border: 1px solid var(--border);
   border-left: none; /* Perfetto aggancio alla linea destra del rail a 64px */
@@ -2127,7 +2128,7 @@ textarea:focus:not(:focus-visible) {
 
 .flyout-items-container {
   padding: 6px 0;
-  max-height: 460px;
+  max-height: calc(100vh - 80px);
   overflow-y: auto;
   display: flex;
   flex-direction: column;

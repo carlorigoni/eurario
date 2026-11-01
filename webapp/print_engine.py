@@ -2343,7 +2343,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
           </div>
           <div class="header-right">
             <div><b>{('Orario Ufficiale in vigore dal:' if not is_en else 'Schedule Valid From:')}</b> {escape(validity_date)}</div>
-            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.38</div>
+            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.39</div>
           </div>
         </div>
 """)
@@ -2466,7 +2466,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
         # Footer Foglio 1
         html_parts.append(f"""
       <div class="sheet-footer">
-        <div><b>Eurario FET Suite v1.9.38</b> &mdash; {("Documento Ufficiale dell'Istituto per la gestione degli accessi e dei varchi" if not is_en else "Official Institutional Schedule for Access & Gate Management")}</div>
+        <div><b>Eurario FET Suite v1.9.39</b> &mdash; {("Documento Ufficiale dell'Istituto per la gestione degli accessi e dei varchi" if not is_en else "Official Institutional Schedule for Access & Gate Management")}</div>
         <div>{('Stampato il:' if not is_en else 'Printed on:')} {datetime.now().strftime('%d/%m/%Y %H:%M')}</div>
       </div>
     </div>
@@ -2486,7 +2486,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
           </div>
           <div class="header-right">
             <div><b>{('Orario Ufficiale in vigore dal:' if not is_en else 'Schedule Valid From:')}</b> {escape(validity_date)}</div>
-            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.38</div>
+            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.39</div>
           </div>
         </div>
 
@@ -2578,7 +2578,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
         html_parts.append(f"""
       </div>
       <div class="sheet-footer">
-        <div><b>Eurario FET Suite v1.9.38</b> &mdash; {("Documento Ufficiale dell'Istituto per la consultazione del corpo docente" if not is_en else "Official Institutional Schedule for Faculty Noticeboard")}</div>
+        <div><b>Eurario FET Suite v1.9.39</b> &mdash; {("Documento Ufficiale dell'Istituto per la consultazione del corpo docente" if not is_en else "Official Institutional Schedule for Faculty Noticeboard")}</div>
         <div>{('Stampato il:' if not is_en else 'Printed on:')} {datetime.now().strftime('%d/%m/%Y %H:%M')}</div>
       </div>
     </div>

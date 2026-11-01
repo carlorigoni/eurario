@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.38';
+let APP_VERSION = '1.9.39';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -3341,24 +3341,45 @@ function openRailFlyout(groupId, triggerEl, isPersistent) {
   popover.style.visibility = 'hidden';
 
   requestAnimationFrame(() => {
-    const popoverHeight = popover.offsetHeight || 260;
-    const isUpward = (groupId === 'system') || ((rect.bottom + popoverHeight - 40) > window.innerHeight);
+    const margin = 10;
+    const windowH = window.innerHeight;
+    const popoverHeight = popover.offsetHeight || 280;
+
+    // Posizionamento verticale: di base allinea la sommità del popover all'icona
+    let top = rect.top - 4;
+
+    // Se l'apertura verso il basso sfora oltre il margine inferiore dello schermo,
+    // o se è il gruppo di fondo (system), posiziona sollevando verso l'alto
+    const wouldOverflowBottom = (top + popoverHeight) > (windowH - margin);
+    const isUpward = (groupId === 'system') || wouldOverflowBottom;
 
     if (isUpward) {
-      // Apertura verso l'alto (Upward / Dropup): la base del popover si allinea al fondo del pulsante icona in basso
-      const bottom = Math.max(8, window.innerHeight - rect.bottom);
-      popover.style.top = 'auto';
-      popover.style.bottom = bottom + 'px';
+      // Allinea la base del popover alla base dell'icona (sollevamento)
+      top = rect.bottom - popoverHeight;
+    }
+
+    // CLAMP RIGIDO DI SICUREZZA:
+    // Non può MAI sbordare oltre il bordo superiore (top < margin) né oltre il fondo
+    const maxTop = windowH - popoverHeight - margin;
+    if (top > maxTop) top = maxTop;
+    if (top < margin) top = margin; // Impedisce matematicamente che il menu venga tagliato in alto!
+
+    popover.style.top = Math.round(top) + 'px';
+    popover.style.bottom = 'auto'; // Sempre top esplicito, mai bottom relativo che spinge il top in negativo
+
+    // Adatta dinamicamente l'altezza interna scrollabile se lo schermo è compatto
+    const availableHeight = windowH - top - margin;
+    const flyoutItemsContainer = document.getElementById('flyoutItemsContainer');
+    if (flyoutItemsContainer) {
+      const headerEl = popover.querySelector('.flyout-header');
+      const headerH = headerEl ? headerEl.offsetHeight : 44;
+      const maxListH = Math.max(140, availableHeight - headerH - 8);
+      flyoutItemsContainer.style.maxHeight = maxListH + 'px';
+    }
+
+    if (isUpward) {
       popover.classList.add('popover-upward');
     } else {
-      // Apertura standard verso il basso
-      let top = rect.top - 4;
-      const maxTop = window.innerHeight - popoverHeight - 14;
-      if (top > maxTop) top = Math.max(10, maxTop);
-      if (top < 10) top = 10;
-
-      popover.style.bottom = 'auto';
-      popover.style.top = top + 'px';
       popover.classList.remove('popover-upward');
     }
 
