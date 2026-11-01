@@ -48,7 +48,7 @@
   <meta name="twitter:title" content="Eurario — Gestione Orario Scolastico & Solver FET">
   <meta name="twitter:description" content="Applicazione web per la generazione e gestione dell'orario scolastico italiano con motore solutore FET.">
   <meta name="twitter:image" content="https://app.eurario.it/og-image.png">
-  <link rel="stylesheet" href="styles.css?v=1.9.33">
+  <link rel="stylesheet" href="styles.css?v=1.9.34">
   <!-- Google Identity Services OAuth -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -93,11 +93,6 @@
           <span class="nav-icon">🗓️</span>
           <span class="nav-label" data-i18n="nav.timetable">Orario Risolto</span>
         </a>
-        <a class="nav-item" onclick="navigate('timemachine')" data-tooltip="TimeMachine Plessi" title="TimeMachine: Flussi Sedi e Docenti Itineranti">
-          <span class="nav-icon">⏳</span>
-          <span class="nav-label" data-i18n="nav.timemachine">TimeMachine Plessi</span>
-          <span class="badge badge-sm badge-info" style="margin-left:auto;font-size:10px;padding:1px 5px;">Live 🚗</span>
-        </a>
         <a class="nav-item" onclick="navigate('solver')" data-tooltip="Compilatore FET" title="Compilatore FET in tempo reale">
           <span class="nav-icon">⚡</span>
           <span class="nav-label" data-i18n="nav.solver">Compilatore FET</span>
@@ -138,6 +133,11 @@
             <a class="nav-item" onclick="openPrintTeachersModal()" data-tooltip="Tabellone Docenti (A3)" title="Procedura 12: Tabellone completo docenti con bande verticali (A3 Orizzontale / PDF)">
               <span class="nav-icon">📄</span>
               <span class="nav-label" data-i18n="nav.print_teachers">Tabellone Docenti (A3)</span>
+            </a>
+            <a class="nav-item" onclick="openPrintTransfersModal()" data-tooltip="Spostamenti Plessi (Bacheca)" title="Quadro docenti itineranti e classi fuori sede per portineria e sala docenti (A4/A3)">
+              <span class="nav-icon">🚗</span>
+              <span class="nav-label" data-i18n="nav.print_transfers">Spostamenti Plessi (Bacheca)</span>
+              <span class="badge badge-sm badge-info" style="margin-left:auto;font-size:10px;padding:1px 5px;">A4/A3</span>
             </a>
           </div>
         </div>
@@ -303,7 +303,7 @@
             <span id="statusIndicatorDot" class="status-indicator-dot dot-green"></span>
             <span id="statusIndicatorText" class="status-indicator-text">FET Engine</span>
           </span>
-          <span id="sidebarVerTag" class="footer-ver-tag" title="Versione Eurario">v1.9.33</span>
+          <span id="sidebarVerTag" class="footer-ver-tag" title="Versione Eurario">v1.9.34</span>
           <button class="footer-info-btn" onclick="openAboutModal()" title="Crediti, Mentore e Info Legali" aria-label="Informazioni e crediti">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
               <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
@@ -508,7 +508,7 @@
 
     <footer class="app-page-footer">
       <div>
-        <b>Eurario FET Suite</b> &mdash; <span data-i18n="footer.version">Versione</span> <span id="pageFooterVer" class="badge-ver">v1.9.33</span> &bull; <span data-i18n="footer.author">Autore</span>: <b>Carlo Rigoni</b> &bull; <span data-i18n="footer.engine">Motore</span>: <b>FET Engine Nativo</b> &bull; <a href="javascript:void(0)" onclick="openAboutModal()" style="color:var(--primary);text-decoration:none;font-weight:600;" data-i18n="footer.credits">Crediti & Note Legali</a> &bull; <a href="javascript:void(0)" onclick="openContactAdminModal()" style="color:var(--primary);text-decoration:none;font-weight:600;" data-i18n="footer.contact_admin">Contatta Amministratore</a>
+        <b>Eurario FET Suite</b> &mdash; <span data-i18n="footer.version">Versione</span> <span id="pageFooterVer" class="badge-ver">v1.9.34</span> &bull; <span data-i18n="footer.author">Autore</span>: <b>Carlo Rigoni</b> &bull; <span data-i18n="footer.engine">Motore</span>: <b>FET Engine Nativo</b> &bull; <a href="javascript:void(0)" onclick="openAboutModal()" style="color:var(--primary);text-decoration:none;font-weight:600;" data-i18n="footer.credits">Crediti & Note Legali</a> &bull; <a href="javascript:void(0)" onclick="openContactAdminModal()" style="color:var(--primary);text-decoration:none;font-weight:600;" data-i18n="footer.contact_admin">Contatta Amministratore</a>
       </div>
       <div style="font-size:11.5px;color:var(--text-muted);">
         <span data-i18n="footer.heuristic">Algoritmo euristico</span>: <a href="https://lalescu.ro/liviu/fet/" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:none;font-weight:600;">FET Free Timetabling Software</a> &bull; <span data-i18n="footer.ai_credit">AI Pair Programming</span>: Google DeepMind Antigravity
@@ -975,6 +975,70 @@
     </div>
   </div>
 
+  <!-- Modal Stampa Spostamenti Plessi & Docenti Itineranti -->
+  <div id="printTransfersModal" class="modal-backdrop" role="dialog" aria-modal="true" style="display:none;">
+    <div class="modal-dialog" style="max-width:560px;">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>🚗</span> <span data-i18n="modals.print_transfers.title">Tabellone Spostamenti Plessi (Bacheca)</span>
+        </div>
+        <button class="modal-close" onclick="closePrintTransfersModal()">✕</button>
+      </div>
+      <div class="modal-body" style="gap:14px;">
+        <div class="modal-notice" data-i18n="modals.print_transfers.info_box">
+          Genera il <b>Quadro Ufficiale Spostamenti Plessi & Docenti Itineranti</b> pronto per la stampa o esportazione in PDF (A4 o A3 Orizzontale).
+          Ottimizzato per la <b>Portineria / Collaboratori Scolastici</b> (cronoprogramma orario per orario dei varchi d'accesso) e per la <b>Sala Professori</b> (matrice settimanale compatta per docente).
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" style="font-weight:600;" data-i18n="modals.print_transfers.valid_from">📅 Valido a partire dal:</label>
+          <input type="text" id="printTransfersDate" class="form-input" placeholder="GG/MM/AAAA" />
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div class="form-group">
+            <label class="form-label" style="font-weight:600;" data-i18n="modals.print_transfers.paper_size">📐 Formato Carta:</label>
+            <select id="printTransfersPaperSize" class="select-input">
+              <option value="A4" selected data-i18n="modals.print_transfers.paper_a4">📑 A4 Orizzontale (Standard per portineria / bacheca)</option>
+              <option value="A3" data-i18n="modals.print_transfers.paper_a3">📄 A3 Orizzontale (Grande formato per atrio / sala docenti)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="font-weight:600;" data-i18n="modals.print_transfers.layout">📋 Layout di Stampa:</label>
+            <select id="printTransfersLayout" class="select-input">
+              <option value="all" selected data-i18n="modals.print_transfers.layout_all">📋 Tutto Unificato (Cronologico + Matrice)</option>
+              <option value="chronology" data-i18n="modals.print_transfers.layout_chronology">🚗 Solo Cronologico Varchi (Portineria)</option>
+              <option value="teachers" data-i18n="modals.print_transfers.layout_teachers">👨‍🏫 Solo Matrice Docenti (Sala Docenti)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" style="font-weight:600;" data-i18n="modals.print_transfers.language">🌐 Lingua Stampa / Document Language:</label>
+          <select id="printTransfersLang" class="select-input">
+            <option value="it">🇮🇹 Italiano (ITA)</option>
+            <option value="en">🇬🇧 English (ENG)</option>
+          </select>
+        </div>
+
+        <div class="modal-notice-info" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <div>
+            ⏳ <b>Simulazione interattiva:</b> vuoi seguire i movimenti minuto per minuto con animazione?
+          </div>
+          <button type="button" class="btn btn-sm btn-sec" onclick="closePrintTransfersModal();navigate('timemachine');" style="white-space:nowrap;font-size:11.5px;font-weight:700;">
+            Apri TimeMachine ➔
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center;">
+        <button class="btn btn-sec" onclick="closePrintTransfersModal()" data-i18n="common.cancel">Annulla</button>
+        <button class="btn btn-primary" onclick="submitPrintTransfers()" data-i18n="modals.print_transfers.submit_btn">
+          🖨️ Apri Anteprima & Stampa (PDF)
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal Informazioni su Eurario & Crediti (Stato dell'arte) -->
   <div id="aboutModal" class="modal-backdrop" role="dialog" aria-modal="true" style="display:none;" onclick="if(event.target===this) closeAboutModal()">
     <div class="modal-dialog" style="max-width:640px;">
@@ -992,7 +1056,7 @@
         <!-- Banner Versione & Verifica Aggiornamenti -->
         <div class="about-banner">
           <div style="display:flex;align-items:center;gap:8px;">
-            <span id="aboutModalVer" class="badge badge-info" style="font-size:12px;padding:3px 8px;font-weight:700;">v1.9.33</span>
+            <span id="aboutModalVer" class="badge badge-info" style="font-size:12px;padding:3px 8px;font-weight:700;">v1.9.34</span>
             <span id="aboutUpdateStatusText" style="font-size:11.5px;color:var(--text-sub);" data-i18n="modals.about.stable_release">Release Stabile</span>
           </div>
           <div style="display:flex;align-items:center;gap:10px;">
@@ -1306,7 +1370,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=1.9.33"></script>
-  <script src="app.js?v=1.9.33"></script>
+  <script src="i18n.js?v=1.9.34"></script>
+  <script src="app.js?v=1.9.34"></script>
 </body>
 </html>

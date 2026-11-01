@@ -1880,6 +1880,662 @@ def generate_teachers_master_docx(data, options=None):
 
 
 # =====================================================================
+# PROCEDURA SPECIALE: TABELLONE SPOSTAMENTI PLESSI & DOCENTI ITINERANTI (A4/A3)
+# =====================================================================
+
+def generate_transfers_print_html(data, tm_data, options=None):
+    """
+    Genera il documento tipografico per la bacheca d'istituto (A4 o A3 Landscape)
+    degli spostamenti tra plessi e dei docenti itineranti:
+    1. Avviso Classi con Inizio Fuori Sede (1ª ora)
+    2. Cronoprogramma Spostamenti Giornalieri (per Portineria & Collaboratori Scolastici)
+    3. Matrice Settimanale Docenti Itineranti (per Sala Professori)
+    """
+    options = options or {}
+    validity_date = options.get("validity_date") or get_default_validity_date()
+    paper_size = (options.get("paper_size") or "A4").upper()
+    if paper_size not in ("A4", "A3"):
+        paper_size = "A4"
+    layout = options.get("layout") or "all" # 'all' | 'chronology' | 'teachers'
+    raw_lang = options.get("lang", "it") if options else "it"
+    is_en = str(raw_lang).strip().lower() in ("en", "eng", "english")
+    lang = "en" if is_en else "it"
+    is_trial = bool(options.get("is_trial", False))
+
+    institution = data.get("institution", 'Istituto Scolastico')
+    days = tm_data.get("days", ["Lun", "Mar", "Mer", "Gio", "Ven"])
+    hours = tm_data.get("hours", ["1", "2", "3", "4", "5", "6"])
+    timeline = tm_data.get("timeline", {})
+    all_anomalous_events = tm_data.get("all_anomalous_events", [])
+    itinerant_teachers = tm_data.get("itinerant_teachers_list", [])
+    stats = tm_data.get("weekly_stats", {})
+    total_itinerant = stats.get("total_itinerant_teachers", 0)
+    total_transfers = stats.get("total_transfers_week", 0)
+    anomalous_count = stats.get("anomalous_classes_count", 0)
+
+    def _fmt_timing(tr):
+        try:
+            from_h = int(tr.get("from_hour", 1))
+            to_h = int(tr.get("to_hour", 2))
+        except (ValueError, TypeError):
+            from_h, to_h = 1, 2
+
+        if to_h == from_h + 1:
+            inv = INTERVALLI_DOPO_ORA.get(from_h)
+            if inv:
+                return f"Al termine {from_h}ª ora ({inv['inizio']} - {inv['fine']}, {inv['label']})" if not is_en else f"After Period {from_h} ({inv['inizio']} - {inv['fine']}, {inv['label']})"
+            time_info = ORARIO_ORE.get(from_h, {})
+            end_t = time_info.get("fine", "")
+            return f"Al termine {from_h}ª ora ({end_t})" if not is_en else f"After Period {from_h} ({end_t})"
+        else:
+            gap_hours = list(range(from_h + 1, to_h))
+            gap_str = ", ".join([f"{g}ª" for g in gap_hours])
+            return f"Tra {from_h}ª e {to_h}ª ora (buca alla {gap_str})" if not is_en else f"Between Periods {from_h} and {to_h} (gap: {gap_str})"
+
+    # Costruisci HTML
+    doc_title = "Quadro Spostamenti Plessi & Docenti Itineranti" if not is_en else "Campus Transfers & Itinerant Faculty Board"
+
+    html_parts = []
+    html_parts.append(f"""<!DOCTYPE html>
+<html lang="{lang}">
+<head>
+  <meta charset="UTF-8">
+  <title>{escape(institution)} — {escape(doc_title)}</title>
+  <style>
+    @page {{
+      size: {paper_size} landscape;
+      margin: 8mm 8mm 8mm 8mm;
+    }}
+    * {{
+      box-sizing: border-box;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }}
+    body {{
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 12px;
+      color: #0f172a;
+      background: #ffffff;
+      font-size: 11px;
+      line-height: 1.35;
+    }}
+
+    /* Toolbar a schermo (nascosta in stampa) */
+    .screen-toolbar {{
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 10px 16px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }}
+    .screen-toolbar button, .screen-toolbar select {{
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      cursor: pointer;
+      background: #1e293b;
+      color: #f8fafc;
+      transition: all 0.15s ease;
+    }}
+    .screen-toolbar button:hover {{
+      background: #2563eb;
+      border-color: #2563eb;
+    }}
+    .screen-toolbar button.btn-print {{
+      background: #10b981;
+      border-color: #059669;
+      color: #ffffff;
+      font-weight: 700;
+    }}
+    .screen-toolbar button.btn-print:hover {{
+      background: #059669;
+    }}
+
+    @media print {{
+      .screen-toolbar {{
+        display: none !important;
+      }}
+      body {{
+        padding: 0 !important;
+      }}
+      .page-break {{
+        page-break-before: always;
+        break-before: page;
+      }}
+    }}
+
+    /* Testata Documento Ufficiale */
+    .board-header {{
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }}
+    .board-title {{
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+      color: #0f172a;
+    }}
+    .board-sub {{
+      font-size: 12px;
+      font-weight: 600;
+      color: #475569;
+      margin-top: 2px;
+    }}
+    .board-meta {{
+      text-align: right;
+      font-size: 11px;
+      color: #334155;
+    }}
+    .board-kpis {{
+      display: flex;
+      gap: 12px;
+      margin-top: 6px;
+    }}
+    .kpi-pill {{
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #1e293b;
+    }}
+
+    /* Riquadro Avviso Classi Fuori Sede */
+    .alert-box {{
+      border: 2px solid #b91c1c;
+      background: #fef2f2;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }}
+    .alert-header {{
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      color: #991b1b;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }}
+    .alert-desc {{
+      font-size: 11px;
+      color: #7f1d1d;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }}
+
+    /* Tabelle Dati */
+    table.data-table {{
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 14px;
+      font-size: 10.5px;
+    }}
+    table.data-table th {{
+      background: #f1f5f9;
+      color: #0f172a;
+      font-weight: 700;
+      text-align: left;
+      padding: 6px 8px;
+      border: 1px solid #94a3b8;
+      white-space: nowrap;
+    }}
+    table.data-table td {{
+      padding: 5px 8px;
+      border: 1px solid #cbd5e1;
+      vertical-align: middle;
+    }}
+    table.data-table tr:nth-child(even) td {{
+      background: #f8fafc;
+    }}
+
+    /* Sezioni */
+    .section-title {{
+      font-size: 13px;
+      font-weight: 800;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin: 14px 0 6px 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-bottom: 1.5px solid #0f172a;
+      padding-bottom: 4px;
+    }}
+
+    /* Badge Comfort */
+    .badge-comfort {{
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 9.5px;
+      font-weight: 700;
+      white-space: nowrap;
+    }}
+    .badge-comfort.is-comfort {{
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }}
+    .badge-comfort.is-consec {{
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1.5px solid #ef4444;
+      font-weight: 800;
+    }}
+
+    /* Griglia 2 Colonne per Giorni */
+    .days-columns {{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }}
+    .day-block {{
+      page-break-inside: avoid;
+      break-inside: avoid;
+      margin-bottom: 12px;
+    }}
+    .day-header {{
+      background: #0f172a;
+      color: #ffffff;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      border-radius: 4px 4px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }}
+
+    .route-arrow {{
+      font-weight: 800;
+      color: #2563eb;
+    }}
+    .node-highlight {{
+      font-weight: 700;
+      color: #0f172a;
+    }}
+
+    /* Matrice Docenti */
+    table.matrix-table {{
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+    }}
+    table.matrix-table th {{
+      background: #0f172a;
+      color: #ffffff;
+      font-weight: 800;
+      text-align: center;
+      padding: 6px 6px;
+      border: 1px solid #334155;
+    }}
+    table.matrix-table th.col-name {{
+      text-align: left;
+      min-width: 130px;
+    }}
+    table.matrix-table td {{
+      padding: 4px 6px;
+      border: 1px solid #94a3b8;
+      vertical-align: top;
+    }}
+    table.matrix-table tr:nth-child(even) td {{
+      background: #f8fafc;
+    }}
+    .matrix-transfer-line {{
+      margin: 2px 0;
+      padding: 2px 4px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      font-size: 9.5px;
+      font-weight: 600;
+      border-left: 3px solid #2563eb;
+    }}
+
+    .footer-note {{
+      margin-top: 14px;
+      padding-top: 6px;
+      border-top: 1px solid #cbd5e1;
+      font-size: 9.5px;
+      color: #64748b;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }}
+  </style>
+  <script>
+    function updateLayout(val) {{
+      const secAlert = document.getElementById('secAlert');
+      const secChrono = document.getElementById('secChrono');
+      const secMatrix = document.getElementById('secMatrix');
+      if (val === 'all') {{
+        if (secAlert) secAlert.style.display = 'block';
+        if (secChrono) secChrono.style.display = 'block';
+        if (secMatrix) secMatrix.style.display = 'block';
+      }} else if (val === 'chronology') {{
+        if (secAlert) secAlert.style.display = 'block';
+        if (secChrono) secChrono.style.display = 'block';
+        if (secMatrix) secMatrix.style.display = 'none';
+      }} else if (val === 'teachers') {{
+        if (secAlert) secAlert.style.display = 'none';
+        if (secChrono) secChrono.style.display = 'none';
+        if (secMatrix) secMatrix.style.display = 'block';
+      }}
+    }}
+  </script>
+</head>
+<body>
+
+  <!-- Barra comandi a schermo -->
+  <div class="screen-toolbar">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <button type="button" class="btn-print" onclick="window.print()">🖨️ {('Stampa / Salva in PDF' if not is_en else 'Print / Save PDF')}</button>
+      <label style="font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;">
+        {('Vista:' if not is_en else 'View:')}
+        <select onchange="updateLayout(this.value)" style="padding:4px 8px;">
+          <option value="all" {('selected' if layout == 'all' else '')}>{('Tutto Unificato (Consigliato)' if not is_en else 'All Unified (Recommended)')}</option>
+          <option value="chronology" {('selected' if layout == 'chronology' else '')}>{('Solo Cronologico Varchi / Portineria' if not is_en else 'Gate & Chronology Only')}</option>
+          <option value="teachers" {('selected' if layout == 'teachers' else '')}>{('Solo Matrice Docenti Itineranti (Sala Prof)' if not is_en else 'Faculty Travel Matrix Only')}</option>
+        </select>
+      </label>
+      <span style="font-size:11px;color:#94a3b8;">Format: <b>{paper_size} Landscape</b></span>
+    </div>
+    <div>
+      <button type="button" onclick="window.close()">{('Chiudi' if not is_en else 'Close')}</button>
+    </div>
+  </div>
+
+  <!-- Testata Istituzionale -->
+  <div class="board-header">
+    <div>
+      <div class="board-title">{escape(institution)}</div>
+      <div class="board-sub">{escape(doc_title)} &mdash; {('Destinazione: Portineria, Collaboratori Scolastici e Sala Docenti' if not is_en else 'Target: Front Desk, Security Staff and Faculty Room')}</div>
+      <div class="board-kpis">
+        <span class="kpi-pill">🚗 {('Docenti Itineranti:' if not is_en else 'Itinerant Faculty:')} <b>{total_itinerant}</b></span>
+        <span class="kpi-pill">🔄 {('Trasferimenti Settimanali:' if not is_en else 'Weekly Transfers:')} <b>{total_transfers}</b></span>
+        <span class="kpi-pill">🌅 {('Classi Inizio Fuori Sede:' if not is_en else 'Off-Site Start Cohorts:')} <b>{anomalous_count}</b></span>
+      </div>
+    </div>
+    <div class="board-meta">
+      <div><b>{('Orario Ufficiale in vigore dal:' if not is_en else 'Schedule Valid From:')}</b> {escape(validity_date)}</div>
+      <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.33</div>
+    </div>
+  </div>
+""")
+
+    # 1. SEZIONE CLASSI CON INIZIO FUORI SEDE
+    if all_anomalous_events:
+        alert_disp = "none" if layout == "teachers" else "block"
+        html_parts.append(f"""
+  <div id="secAlert" class="alert-box" style="display:{alert_disp};">
+    <div class="alert-header">
+      <span>🌅</span>
+      <span>{('AVVISO: CLASSI CON INIZIO GIORNATA FUORI DALLA SEDE ORDINARIA (1ª ORA)' if not is_en else 'ALERT: COHORTS COMMENCING DAY AT OFF-SITE CAMPUS (PERIOD 1)')}</span>
+    </div>
+    <div class="alert-desc">
+      {('I collaboratori scolastici ai varchi di accesso e i docenti sono informati che le seguenti classi <b>entrano direttamente nel plesso indicato alle 07:55</b> (es. per attività in palestra o laboratori dedicati), anziché nella propria sede ordinaria di residenza:' if not is_en else 'Security gate staff and faculty are advised that the following student cohorts <b>enter directly at the designated campus at 07:55</b> rather than their regular base building:')}
+    </div>
+    <table class="data-table" style="margin-bottom:0;">
+      <thead>
+        <tr>
+          <th>{('Giorno' if not is_en else 'Day')}</th>
+          <th>{('Classe' if not is_en else 'Cohort')}</th>
+          <th>{('Sede Ordinaria' if not is_en else 'Regular Base')}</th>
+          <th style="background:#fee2e2;color:#991b1b;">➔ {('SI PRESENTA IN' if not is_en else 'ARRIVES AT')}</th>
+          <th>{('Aula / Palestra / Spazio' if not is_en else 'Room / Gym / Lab')}</th>
+          <th>{('Materia' if not is_en else 'Subject')}</th>
+          <th>{('Docente' if not is_en else 'Faculty Member')}</th>
+        </tr>
+      </thead>
+      <tbody>
+""")
+        # Raggruppa e ordina per giorno
+        day_order = {d: i for i, d in enumerate(days)}
+        sorted_anom = sorted(all_anomalous_events, key=lambda x: (day_order.get(x.get("day", ""), 99), x.get("class_name", "")))
+        for ev in sorted_anom:
+            d_name = get_day_name(ev.get("day", ""), lang=lang, full=True)
+            teachers_str = ", ".join(ev.get("teachers", [])) or "—"
+            html_parts.append(f"""
+        <tr>
+          <td><b>{escape(d_name)}</b> (1ª ora)</td>
+          <td><b style="font-size:11.5px;color:#0f172a;">{escape(ev.get("class_name", ""))}</b></td>
+          <td>{escape(ev.get("base_building", ""))}</td>
+          <td style="background:#fee2e2;color:#991b1b;font-weight:800;">➔ {escape(ev.get("actual_building", ""))}</td>
+          <td><b>{escape(ev.get("room", ""))}</b></td>
+          <td>{escape(ev.get("subject", ""))}</td>
+          <td>{escape(teachers_str)}</td>
+        </tr>
+""")
+        html_parts.append("""
+      </tbody>
+    </table>
+  </div>
+""")
+
+    # 2. SEZIONE CRONOPROGRAMMA SPOSTAMENTI GIORNALIERI (PER I COLLABORATORI / VARCHI)
+    chrono_disp = "none" if layout == "teachers" else "block"
+    html_parts.append(f"""
+  <div id="secChrono" style="display:{chrono_disp};">
+    <div class="section-title">
+      <span>🚗</span>
+      <span>{('Cronoprogramma Spostamenti Giornalieri (Per la Portineria & Collaboratori Scolastici)' if not is_en else 'Daily Transfer Chronology (For Front Desk & Security Staff)')}</span>
+    </div>
+    <div class="days-columns">
+""")
+
+    for d in days:
+        d_name = get_day_name(d, lang=lang, full=True)
+        # Raccogli tutti i trasferimenti della giornata ordinati per ora
+        day_transfers = []
+        for h in hours:
+            h_transfers = timeline.get(d, {}).get(h, {}).get("transfers", [])
+            for tr in h_transfers:
+                day_transfers.append((h, tr))
+
+        html_parts.append(f"""
+      <div class="day-block">
+        <div class="day-header">
+          <span>📅 {escape(d_name)}</span>
+          <span style="font-size:10px;background:rgba(255,255,255,0.2);padding:2px 6px;border-radius:10px;">{len(day_transfers)} {('trasferimenti' if not is_en else 'transfers')}</span>
+        </div>
+""")
+        if not day_transfers:
+            html_parts.append(f"""
+        <div style="padding:10px;border:1px solid #cbd5e1;border-top:none;background:#f8fafc;color:#64748b;font-style:italic;">
+          {('Nessun docente in trasferimento tra le sedi in questa giornata.' if not is_en else 'No itinerant faculty transfers scheduled for this day.')}
+        </div>
+      </div>
+""")
+            continue
+
+        html_parts.append(f"""
+        <table class="data-table" style="border-top:none;">
+          <thead>
+            <tr>
+              <th>{('Orario / Fascia' if not is_en else 'Time / Period')}</th>
+              <th>{('Docente' if not is_en else 'Faculty')}</th>
+              <th>{('Tragitto' if not is_en else 'Route')}</th>
+              <th>{('Destinazione' if not is_en else 'Destination')}</th>
+              <th>{('Note' if not is_en else 'Notes')}</th>
+            </tr>
+          </thead>
+          <tbody>
+""")
+        for h, tr in day_transfers:
+            timing_str = _fmt_timing(tr)
+            to_succ = "succ" in tr.get("to_building", "").lower()
+            comfort_cls = "is-consec" if tr.get("comfort") == "consecutivo" else "is-comfort"
+            dest_room = tr.get("to_room") or tr.get("to_building", "")
+            dest_class = tr.get("to_class") or ""
+            dest_subj = tr.get("to_subject") or ""
+
+            html_parts.append(f"""
+            <tr>
+              <td style="font-weight:700;white-space:nowrap;">{escape(timing_str)}</td>
+              <td><b>Prof. {escape(tr.get("teacher", ""))}</b></td>
+              <td>
+                <span class="node-highlight">{escape(tr.get("from_building", ""))}</span>
+                <span class="route-arrow">➔</span>
+                <span class="node-highlight" style="color:{('#7c3aed' if to_succ else '#2563eb')};font-weight:800;">{escape(tr.get("to_building", ""))}</span>
+              </td>
+              <td>
+                <b>{escape(dest_room)}</b>
+                {f'<small style="color:#475569;">({escape(dest_class)} - {escape(dest_subj)})</small>' if dest_class else ''}
+              </td>
+              <td>
+                <span class="badge-comfort {comfort_cls}">{escape(tr.get("comfort_label", ""))}</span>
+              </td>
+            </tr>
+""")
+        html_parts.append("""
+          </tbody>
+        </table>
+      </div>
+""")
+
+    html_parts.append("""
+    </div>
+  </div>
+""")
+
+    # 3. SEZIONE MATRICE SETTIMANALE DEI DOCENTI ITINERANTI (PER LA SALA PROFESSORI)
+    matrix_disp = "none" if layout == "chronology" else "block"
+    html_parts.append(f"""
+  <div id="secMatrix" class="page-break" style="margin-top:16px;display:{matrix_disp};">
+    <div class="section-title">
+      <span>📋</span>
+      <span>{('Matrice Settimanale Docenti Itineranti (Per la Sala Professori)' if not is_en else 'Weekly Faculty Travel Matrix (For Staff Room Noticeboard)')}</span>
+    </div>
+    <div style="font-size:10.5px;color:#475569;margin-bottom:8px;">
+      {('Elenco dei soli docenti con cambi plesso programmati, con l\'indicazione sintetica della sede di servizio per fascia oraria e dell\'orario di tragitto:' if not is_en else 'Roster of traveling faculty detailing hourly building assignments and transfer transit windows:')}
+    </div>
+""")
+
+    if not itinerant_teachers:
+        html_parts.append(f"""
+    <div style="padding:16px;border:1px solid #cbd5e1;background:#f8fafc;color:#64748b;font-style:italic;">
+      {('Nessun docente itinerante rilevato nell\'orario scolastico corrente.' if not is_en else 'No traveling faculty detected in current timetable.')}
+    </div>
+""")
+    else:
+        html_parts.append(f"""
+    <table class="matrix-table">
+      <thead>
+        <tr>
+          <th class="col-name">{('Docente' if not is_en else 'Faculty Member')}</th>
+          <th style="width:50px;">{('Viaggi' if not is_en else 'Trips')}</th>
+""")
+        for d in days:
+            html_parts.append(f"<th>{escape(get_day_name(d, lang=lang, full=True))}</th>")
+        html_parts.append("""
+        </tr>
+      </thead>
+      <tbody>
+""")
+
+        # Ordina alfabeticamente per cognome docente per facilitare la ricerca a colpo d'occhio
+        sorted_teachers = sorted(itinerant_teachers, key=lambda x: x.get("name", "").lower())
+        for t in sorted_teachers:
+            tname = t.get("name", "")
+            tot_trips = t.get("total_transfers", 0)
+            daily_sched = t.get("daily_schedule", {})
+
+            html_parts.append(f"""
+        <tr>
+          <td class="col-name"><b>{escape(tname)}</b></td>
+          <td style="text-align:center;font-weight:800;color:#2563eb;">🚗 {tot_trips}</td>
+""")
+            for d in days:
+                slots = daily_sched.get(d, [])
+                # Controlla se in questo giorno ci sono trasferimenti per questo docente
+                day_trs = [tr for h in hours for tr in timeline.get(d, {}).get(h, {}).get("transfers", []) if tr.get("teacher") == tname]
+
+                if not any(not s.get("is_free") for s in slots):
+                    # Giorno libero o nessuna ora
+                    html_parts.append('<td style="text-align:center;color:#94a3b8;font-style:italic;">Libero</td>')
+                elif not day_trs:
+                    # In servizio ma sempre nello stesso plesso
+                    blds = list(set([s.get("building") for s in slots if not s.get("is_free") and s.get("building")]))
+                    b_str = ", ".join(blds) if blds else "—"
+                    html_parts.append(f'<td style="font-size:9px;color:#475569;">Stabile in <b>{escape(b_str)}</b></td>')
+                else:
+                    # Ci sono trasferimenti: elenchiamo i blocchi
+                    cell_html = []
+                    # Troviamo i blocchi continui di plesso
+                    current_bld = None
+                    start_h = None
+                    last_h = None
+                    for s in slots:
+                        if s.get("is_free"):
+                            continue
+                        h_num = s.get("hour")
+                        bld = s.get("building") or "Centrale"
+                        if bld != current_bld:
+                            if current_bld is not None:
+                                cell_html.append(f"<b>{start_h}ª-{last_h}ª:</b> {current_bld[:4]}.")
+                            current_bld = bld
+                            start_h = h_num
+                        last_h = h_num
+                    if current_bld is not None:
+                        cell_html.append(f"<b>{start_h}ª-{last_h}ª:</b> {current_bld[:4]}.")
+
+                    # Aggiungiamo i dettagli dei trasferimenti
+                    tr_details = []
+                    for tr in day_trs:
+                        tr_details.append(f"➔ {tr.get('to_building', '')[:4]}. ({tr.get('to_hour', '')}ª in {tr.get('to_room', '')})")
+
+                    html_parts.append(f"""
+          <td>
+            <div style="font-size:9.5px;color:#0f172a;">{' | '.join(cell_html)}</div>
+            <div class="matrix-transfer-line">🚗 {'; '.join(tr_details)}</div>
+          </td>
+""")
+            html_parts.append("""
+        </tr>
+""")
+        html_parts.append("""
+      </tbody>
+    </table>
+""")
+
+    # Note a piè di pagina
+    html_parts.append(f"""
+    <div class="footer-note">
+      <div><b>Eurario FET Suite v1.9.33</b> &mdash; {('Documento Ufficiale d\'Istituto per la gestione degli accessi e dei varchi' if not is_en else 'Official Institutional Schedule for Access & Gate Management')}</div>
+      <div>{('Stampato il:' if not is_en else 'Printed on:')} {datetime.now().strftime('%d/%m/%Y %H:%M')}</div>
+    </div>
+  </div>
+
+</body>
+</html>""")
+
+    return "".join(html_parts)
+
+
+
+# =====================================================================
 # API DI METADATI PER OPZIONI MODALI FRONTEND
 # =====================================================================
 

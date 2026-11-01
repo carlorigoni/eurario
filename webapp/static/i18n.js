@@ -50,6 +50,8 @@
         print_classes_desc: "Stampa A4 orizzontale con articolazioni e intervalli",
         print_teachers: "Tabellone Docenti (A3)",
         print_teachers_desc: "Tabellone orizzontale completo con bande verticali (A3/PDF)",
+        print_transfers: "Spostamenti Plessi (Bacheca)",
+        print_transfers_desc: "Quadro docenti itineranti e classi fuori sede per portineria e sala docenti (A4/A3)",
         anagrafiche_group: "Anagrafiche & Cattedre",
         teachers: "Docenti",
         teachers_title: "Gestione Docenti",
@@ -242,6 +244,20 @@
           cancel_btn: "Annulla",
           download_docx: "📥 Scarica Documento (.docx Google Docs)",
           submit_btn: "🖨️ Stampa / Anteprima A3"
+        },
+        print_transfers: {
+          title: "Tabellone Spostamenti Plessi & Docenti Itineranti (Bacheca)",
+          info_box: "Genera il Quadro Ufficiale Spostamenti Plessi & Docenti Itineranti pronto per la stampa o esportazione in PDF (A4 o A3 Orizzontale). Ottimizzato per la Portineria / Collaboratori Scolastici (cronoprogramma orario per orario dei varchi d'accesso) e per la Sala Professori (matrice settimanale compatta per docente).",
+          valid_from: "📅 Valido a partire dal:",
+          paper_size: "📐 Formato Carta:",
+          paper_a4: "📑 A4 Orizzontale (Standard per portineria / bacheca)",
+          paper_a3: "📄 A3 Orizzontale (Grande formato per atrio / sala docenti)",
+          layout: "📋 Layout di Stampa:",
+          layout_all: "📋 Tutto Unificato (Cronologico + Matrice)",
+          layout_chronology: "🚗 Solo Cronologico Varchi (Portineria)",
+          layout_teachers: "👨‍🏫 Solo Matrice Docenti (Sala Docenti)",
+          language: "🌐 Lingua Stampa / Document Language:",
+          submit_btn: "🖨️ Apri Anteprima & Stampa (PDF)"
         },
         about: {
           title: "Eurario FET Suite",
@@ -795,6 +811,8 @@
         print_classes_desc: "A4 landscape printout with splits and intervals",
         print_teachers: "Teacher Master Board (A3)",
         print_teachers_desc: "Full horizontal teacher master grid with vertical bands (A3/PDF)",
+        print_transfers: "Campus Transfers (Noticeboard)",
+        print_transfers_desc: "Itinerant faculty and off-site classes noticeboard for front desk & faculty room (A4/A3)",
         anagrafiche_group: "School Records & Roles",
         teachers: "Faculty & Teachers",
         teachers_title: "Faculty Staff & Teachers Management",
@@ -987,6 +1005,20 @@
           cancel_btn: "Cancel",
           download_docx: "📥 Download Doc (.docx Google Docs)",
           submit_btn: "🖨️ Print / Preview A3"
+        },
+        print_transfers: {
+          title: "Campus Transfers & Itinerant Faculty Board",
+          info_box: "Generate the official Campus Transfers & Itinerant Faculty Noticeboard ready for printing or PDF export (A4 or A3 Landscape). Optimized for Front Desk / Security Staff (period-by-period gate arrival schedule) and for the Faculty Staff Room (compact weekly travel matrix per teacher).",
+          valid_from: "📅 Valid from:",
+          paper_size: "📐 Paper Format:",
+          paper_a4: "📑 A4 Landscape (Standard for front desk / noticeboard)",
+          paper_a3: "📄 A3 Landscape (Large poster for lobby / staff room)",
+          layout: "📋 Print Layout:",
+          layout_all: "📋 Unified (Chronology + Faculty Matrix)",
+          layout_chronology: "🚗 Gate Chronology Only (Front Desk)",
+          layout_teachers: "👨‍🏫 Faculty Travel Matrix Only (Staff Room)",
+          language: "🌐 Document Language:",
+          submit_btn: "🖨️ Open Preview & Print (PDF)"
         },
         about: {
           title: "Eurario FET Suite",

@@ -53,6 +53,7 @@ from webapp.print_engine import (
     generate_classes_print_html,
     generate_teachers_master_print_html,
     generate_teachers_master_docx,
+    generate_transfers_print_html,
     generate_organico_template_docx
 )
 from webapp import updater
@@ -97,7 +98,7 @@ def fetch_google_doc_docx_bytes(url):
     except Exception as e:
         raise ValueError(f"Impossibile scaricare il Google Doc: {e}")
 
-APP_VERSION = "1.9.33"
+APP_VERSION = "1.9.34"
 FET_VERSION = "7.12.0"
 APP_AUTHOR = "Carlo Rigoni"
 APP_MENTOR = "Federico Rettore"
@@ -794,6 +795,29 @@ class EurarioHandler(BaseHTTPRequestHandler):
             self._send_cors()
             self.end_headers()
             self.wfile.write(docx_bytes)
+            return
+
+        elif path == "/api/print/transfers":
+            req_lang = self._get_request_lang(query)
+            options = {
+                "validity_date": query.get("validity_date", [""])[0],
+                "paper_size": query.get("paper_size", ["A4"])[0],
+                "layout": query.get("layout", ["all"])[0],
+                "lang": req_lang,
+                "is_trial": self._is_current_school_trial()
+            }
+            tm_data = db.get_timemachine_data()
+            html_content = generate_transfers_print_html(db.get_all(), tm_data, options)
+            html_bytes = html_content.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(html_bytes)))
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
+            self._send_cors()
+            self.end_headers()
+            self.wfile.write(html_bytes)
             return
 
         elif path == "/api/organico/template_docx":

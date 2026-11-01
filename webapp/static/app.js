@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.33';
+let APP_VERSION = '1.9.34';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -3129,6 +3129,13 @@ const FLYOUT_GROUP_ITEMS = {
       key: 'print_teachers',
       desc: 'Tabellone orizzontale completo con bande verticali (A3/PDF)',
       action: 'openPrintTeachersModal()'
+    },
+    {
+      icon: '🚗',
+      title: 'Spostamenti Plessi (Bacheca)',
+      key: 'print_transfers',
+      desc: 'Quadro docenti itineranti e classi fuori sede (A4/A3)',
+      action: 'openPrintTransfersModal()'
     }
   ],
   anagrafiche: [
@@ -4415,6 +4422,7 @@ async function renderTimetable() {
         <button class="btn btn-primary btn-sm" onclick="navigate('timemachine')" title="${isEn ? 'Campus TimeMachine: Dynamic view of building occupancy and itinerant teachers' : 'TimeMachine Plessi: animazione e flussi dinamici delle sedi e docenti itineranti'}" style="background:linear-gradient(135deg, #1e3a8a, #2563eb);border:none;">⏳ ${isEn ? 'TimeMachine' : 'TimeMachine Plessi'}</button>
         <button class="btn btn-primary btn-sm" onclick="openPrintClassesModal()" title="${isEn ? 'Procedure 9: Print weekly timetable per class in A4 Landscape with articulated classes' : 'Procedura 9: Stampa orario settimanale per classe in A4 Landscape con classi articolate'}">🖨️ ${isEn ? 'Print Classes (PDF)' : 'Stampa Classi (PDF)'}</button>
         <button class="btn btn-sec btn-sm" onclick="openPrintTeachersModal()" title="${isEn ? 'Procedure 12: Generate faculty master board in A3 Landscape' : 'Procedura 12: Genera tabellone generale docenti in A3 Landscape con bande verticali'}">📄 ${isEn ? 'Faculty Board (A3)' : 'Tabellone Docenti (A3)'}</button>
+        <button class="btn btn-sec btn-sm" onclick="openPrintTransfersModal()" title="${isEn ? 'Print campus transfers and itinerant faculty noticeboard (A4/A3)' : 'Stampa tabellone spostamenti plessi e docenti itineranti per bacheca (A4/A3)'}">🚗 ${isEn ? 'Transfers (Noticeboard)' : 'Spostamenti (Bacheca)'}</button>
       </div>
     </div>
 
@@ -5409,6 +5417,7 @@ function renderTimeMachineView() {
               <button type="button" class="tm-mode-btn ${mode === 'campus' ? 'active' : ''}" onclick="tmSetMode('campus')">🗺️ ${isEn ? 'Campus Map' : 'Vista Spaziale'}</button>
               <button type="button" class="tm-mode-btn ${mode === 'metro' ? 'active' : ''}" onclick="tmSetMode('metro')">🚇 ${isEn ? 'Metro Map' : 'Mappa Metro'}</button>
             </div>
+            <button class="btn btn-primary btn-sm" onclick="openPrintTransfersModal()" style="display:inline-flex;align-items:center;gap:6px;">🖨️ ${isEn ? 'Print Board (PDF)' : 'Stampa per Bacheca'}</button>
             <button class="btn btn-sec btn-sm" onclick="navigate('timetable')">🗓️ ${isEn ? 'Back to Timetable' : 'Torna all\'Orario'}</button>
           </div>
         </div>
@@ -10097,7 +10106,11 @@ async function renderRooms() {
         <div style="font-weight:700;font-size:14px;color:var(--text-main);">
           🏛️ ${isEn ? `Campus & Buildings Configuration (${stateData.buildingsList.length} Active Campuses)` : `Configurazione Sedi & Plessi dell'Istituto (${stateData.buildingsList.length} Sedi Attive)`}
         </div>
-        <button class="btn btn-sm btn-primary" onclick="openAddBuildingModal()">+ ${isEn ? 'Add New Campus / Building' : 'Aggiungi Nuovo Plesso / Sede'}</button>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <button class="btn btn-sm btn-sec" onclick="navigate('timemachine')" title="${isEn ? 'Open TimeMachine simulation' : 'Visualizza simulazione oraria dinamica dei plessi'}">⏳ ${isEn ? 'TimeMachine Flows' : 'TimeMachine Flussi Plessi'}</button>
+          <button class="btn btn-sm btn-sec" onclick="openPrintTransfersModal()" title="${isEn ? 'Print transfers noticeboard' : 'Stampa quadro spostamenti per bacheca'}">🚗 ${isEn ? 'Print Transfers' : 'Stampa Spostamenti (Bacheca)'}</button>
+          <button class="btn btn-sm btn-primary" onclick="openAddBuildingModal()">+ ${isEn ? 'Add New Campus / Building' : 'Aggiungi Nuovo Plesso / Sede'}</button>
+        </div>
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:12px;">
@@ -15659,4 +15672,66 @@ function submitDownloadTeachersDocx() {
   window.location.href = url;
   closePrintTeachersModal();
 }
+
+async function openPrintTransfersModal() {
+  const modal = document.getElementById('printTransfersModal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+
+  const dateInput = document.getElementById('printTransfersDate');
+  if (dateInput && !dateInput.value) {
+    try {
+      const meta = await loadPrintOptionsMetadata();
+      if (meta && meta.default_validity_date) {
+        dateInput.value = meta.default_validity_date;
+      } else {
+        const today = new Date();
+        const nextMon = new Date(today);
+        nextMon.setDate(today.getDate() + ((1 + 7 - today.getDay()) % 7 || 7));
+        const dd = String(nextMon.getDate()).padStart(2, '0');
+        const mm = String(nextMon.getMonth() + 1).padStart(2, '0');
+        const yyyy = nextMon.getFullYear();
+        dateInput.value = `${dd}/${mm}/${yyyy}`;
+      }
+    } catch (_) {
+      dateInput.value = new Date().toLocaleDateString('it-IT');
+    }
+  }
+
+  const curLang = (window.I18N ? window.I18N.getLanguage() : null) || localStorage.getItem('app_lang') || 'it';
+  const langSelect = document.getElementById('printTransfersLang');
+  if (langSelect) langSelect.value = curLang;
+}
+
+function closePrintTransfersModal() {
+  const modal = document.getElementById('printTransfersModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function submitPrintTransfers() {
+  const dateVal = document.getElementById('printTransfersDate')?.value || '';
+  const paperSize = document.getElementById('printTransfersPaperSize')?.value || 'A4';
+  const layoutVal = document.getElementById('printTransfersLayout')?.value || 'all';
+  const appLang = document.getElementById('printTransfersLang')?.value || (window.I18N ? window.I18N.getLanguage() : null) || localStorage.getItem('app_lang') || 'it';
+
+  try {
+    document.cookie = "app_lang=" + appLang + "; path=/; max-age=31536000; SameSite=Lax";
+    localStorage.setItem('app_lang', appLang);
+  } catch (_) {}
+
+  const params = new URLSearchParams({
+    validity_date: dateVal,
+    paper_size: paperSize,
+    layout: layoutVal,
+    lang: appLang
+  });
+
+  const url = '/api/print/transfers?' + params.toString();
+  const win = window.open(url, '_blank');
+  if (!win || win.closed || typeof win.closed === 'undefined') {
+    window.location.href = url;
+  }
+  closePrintTransfersModal();
+}
+
 
