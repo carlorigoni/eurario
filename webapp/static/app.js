@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.40';
+let APP_VERSION = '1.9.41';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -373,26 +373,21 @@ const APP_AUTHOR = 'Carlo Rigoni';
 // --- GESTIONE INTERNAZIONALIZZAZIONE (i18n) & TEMI (DARK/LIGHT/AUTO) ---
 function positionTopbarPopup(btn, popup) {
   if (!btn || !popup) return;
-  if (window.innerWidth <= 768) {
-    const rect = btn.getBoundingClientRect();
-    popup.style.position = 'fixed';
-    popup.style.top = Math.round(rect.bottom + 6) + 'px';
-    popup.style.zIndex = '99999';
+  const rect = btn.getBoundingClientRect();
+  popup.style.position = 'fixed';
+  popup.style.top = Math.round(rect.bottom + 6) + 'px';
+  popup.style.zIndex = '99999';
 
-    const popupWidth = popup.offsetWidth || 270;
-    let left = Math.round(rect.left);
-    if (left + popupWidth > window.innerWidth - 8) {
-      left = Math.max(8, window.innerWidth - popupWidth - 8);
-    }
-    popup.style.left = Math.max(8, left) + 'px';
-    popup.style.right = 'auto';
-  } else {
-    popup.style.position = '';
-    popup.style.top = '';
-    popup.style.left = '';
-    popup.style.right = '';
-    popup.style.zIndex = '';
+  const popupWidth = popup.offsetWidth || 270;
+  let left = Math.round(rect.left);
+  // Se il pulsante è allineato a destra, allinea il bordo destro del menu col pulsante
+  if (rect.right - popupWidth >= 8 && left + popupWidth > window.innerWidth - 8) {
+    left = rect.right - popupWidth;
+  } else if (left + popupWidth > window.innerWidth - 8) {
+    left = Math.max(8, window.innerWidth - popupWidth - 8);
   }
+  popup.style.left = Math.max(8, left) + 'px';
+  popup.style.right = 'auto';
 }
 
 function toggleLangMenu(event) {
