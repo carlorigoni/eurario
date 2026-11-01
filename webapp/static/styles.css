@@ -2288,6 +2288,15 @@ textarea:focus:not(:focus-visible) {
   flex-shrink: 0;
 }
 
+.topbar-scroll-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
 .topbar-left {
   display: flex;
   align-items: center;
@@ -5294,22 +5303,6 @@ input:checked + .slider:before {
 /* --- RESPONSIVE LAYOUT & SIDEBAR BREAKPOINTS (Standard Moderno UX/UI) --- */
 /* Mobile Drawer (< 768px) */
 @media (max-width: 768px) {
-  .topbar-hamburger-btn,
-  .topbar-brand-btn {
-    display: inline-flex !important;
-    margin-right: 6px !important;
-    flex-shrink: 0 !important;
-    min-width: 38px !important;
-    width: 38px !important;
-    height: 38px !important;
-  }
-
-  /* Nascondi etichette testuali lunghe nei pulsanti della topbar per non spiazzare il menu */
-  .contact-btn-label,
-  .pending-btn-label {
-    display: none !important;
-  }
-
   /* Pulsante di chiusura dedicato nel drawer mobile */
   .mobile-sidebar-close-btn {
     display: inline-flex !important;
@@ -5542,139 +5535,168 @@ input:checked + .slider:before {
     display: inline-flex !important;
   }
 
-  /* --- Topbar Ottimizzata per Mobile --- */
+  /* --- Topbar Ottimizzata per Mobile (con barra pulsanti scorrevole e menu fisso a sinistra) --- */
   .topbar {
     height: 50px !important;
-    padding: 0 10px !important;
-    gap: 8px !important;
+    padding: 0 !important;
+    gap: 0 !important;
     display: flex !important;
     align-items: center !important;
-    justify-content: space-between !important;
+    justify-content: flex-start !important;
     box-sizing: border-box !important;
     max-width: 100vw !important;
-  }
-
-  .topbar-left {
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-    min-width: 0 !important;
-    flex: 1 1 auto !important;
     overflow: hidden !important;
+    position: relative !important;
   }
 
-  /* Tasto Hamburger con Logo Eurario: prioritario, mai compresso, touch target comodo */
+  /* Tasto Hamburger Logo Eurario: Fissato stabilmente a sinistra, mai compresso, tocco comodo */
   .topbar-hamburger-btn,
   .topbar-brand-btn {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     flex-shrink: 0 !important;
-    min-width: 38px !important;
-    width: 38px !important;
-    height: 38px !important;
+    min-width: 46px !important;
+    width: 46px !important;
+    height: 50px !important;
     margin: 0 !important;
     padding: 0 !important;
-    border-radius: 50% !important;
-    background: transparent !important;
-    cursor: pointer !important;
+    border-radius: 0 !important;
+    background: var(--bg-card) !important;
     border: none !important;
+    border-right: 1px solid var(--border) !important;
+    z-index: 30 !important;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.08) !important;
+    cursor: pointer !important;
     -webkit-tap-highlight-color: transparent !important;
   }
 
-  .topbar-hamburger-btn:active {
+  [data-theme="dark"] .topbar-hamburger-btn,
+  [data-theme="dark"] .topbar-brand-btn {
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.35) !important;
+  }
+
+  .topbar-hamburger-btn:active,
+  .topbar-brand-btn:active {
     background: rgba(60, 64, 67, 0.16) !important;
   }
-  [data-theme="dark"] .topbar-hamburger-btn:active {
+  [data-theme="dark"] .topbar-hamburger-btn:active,
+  [data-theme="dark"] .topbar-brand-btn:active {
     background: rgba(255, 255, 255, 0.16) !important;
   }
 
+  /* Contenitore scorrevole orizzontale di tutti gli strumenti e azioni della barra superiore */
+  .topbar-scroll-container {
+    flex: 1 1 auto !important;
+    height: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding: 0 14px 0 10px !important;
+    white-space: nowrap !important;
+  }
+  .topbar-scroll-container::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .topbar-left {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+    min-width: 0 !important;
+    overflow: visible !important;
+    white-space: nowrap !important;
+  }
+
+  .topbar-right {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex-shrink: 0 !important;
+    margin-left: 0 !important;
+    overflow: visible !important;
+    white-space: nowrap !important;
+  }
+
   .topbar-title {
-    font-size: 14.5px !important;
+    font-size: 14px !important;
     font-weight: 700 !important;
     color: var(--text-main) !important;
     white-space: nowrap !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    max-width: 140px !important;
-    display: inline-block !important;
-    flex-shrink: 1 !important;
+    flex-shrink: 0 !important;
   }
 
-  /* Selettore Scuola in Topbar su Mobile */
-  .school-selector-dropdown {
-    flex-shrink: 1 !important;
-    min-width: 0 !important;
+  .nav-back-btn {
+    flex-shrink: 0 !important;
+    height: 32px !important;
+    padding: 0 10px !important;
+  }
+
+  /* Pulsanti e dropdown nella barra scorrevole: mai compressi */
+  .school-selector-dropdown,
+  .global-subject-filter-dropdown,
+  .lang-selector-dropdown,
+  .theme-selector-dropdown {
+    flex-shrink: 0 !important;
+    display: inline-flex !important;
   }
 
   .school-pill-btn {
-    max-width: 130px !important;
+    max-width: 170px !important;
     height: 32px !important;
-    padding: 2px 8px !important;
+    padding: 2px 10px !important;
     display: inline-flex !important;
     align-items: center !important;
-    gap: 4px !important;
+    gap: 5px !important;
+    flex-shrink: 0 !important;
   }
 
   .school-name-text,
   .school-pill-name {
-    max-width: 80px !important;
+    max-width: 110px !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
     white-space: nowrap !important;
     display: inline-block !important;
-    font-size: 11.5px !important;
+    font-size: 12px !important;
   }
 
-  /* Filtro materia in testata: nascosto su mobile (rimane nelle singole sezioni operative) */
-  .global-subject-filter-dropdown {
-    display: none !important;
-  }
-
-  #instBadge {
-    display: none !important;
-  }
-
-  /* Su smartphone verticali compatti (< 480px), iconizza la scuola per lasciare spazio a titolo e menu */
-  @media (max-width: 480px) {
-    .school-name-text,
-    .school-pill-name {
-      display: none !important;
-    }
-    .school-pill-btn {
-      max-width: 36px !important;
-      padding: 2px 4px !important;
-      justify-content: center !important;
-    }
-    .school-pill-btn svg {
-      display: none !important;
-    }
-  }
-
-  /* Sezione destra: pulita, essenziale ed ergonomica */
-  .topbar-right {
-    display: flex !important;
+  .global-filter-pill-btn {
+    height: 32px !important;
+    padding: 2px 10px !important;
+    display: inline-flex !important;
     align-items: center !important;
-    gap: 6px !important;
+    gap: 5px !important;
     flex-shrink: 0 !important;
-    margin-left: auto !important;
   }
 
-  /* Rimuovi dalla barra superiore mobile i pulsanti ridondanti già presenti nel Drawer */
+  .global-filter-pill-btn .filter-text {
+    max-width: 110px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    display: inline-block !important;
+    font-size: 12px !important;
+  }
+
   #topbarContactAdminBtn,
   .topbar-right a[href*="docs.eurario.it"] {
-    display: none !important;
+    display: inline-flex !important;
+    flex-shrink: 0 !important;
+    height: 32px !important;
   }
 
-  /* Su smartphone (< 640px) sposta lingua e tema nel Drawer laterale */
-  @media (max-width: 640px) {
-    #langSelectorDropdown,
-    #themeSelectorDropdown {
-      display: none !important;
-    }
+  .contact-btn-label {
+    display: inline-block !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
   }
 
-  /* Notifiche Richieste di Accesso in Attesa */
   #topbarPendingBtn {
     height: 32px !important;
     padding: 2px 8px !important;
@@ -5683,24 +5705,27 @@ input:checked + .slider:before {
     align-items: center !important;
     gap: 4px !important;
     font-size: 12px !important;
+    flex-shrink: 0 !important;
   }
 
   .pending-btn-label {
-    display: none !important;
+    display: inline-block !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
   }
 
-  .topbar-btn {
-    padding: 4px 6px !important;
-    font-size: 12px !important;
+  .lang-selector-dropdown .topbar-pill-btn,
+  .theme-selector-dropdown .topbar-icon-btn,
+  .topbar-right a[href*="docs.eurario.it"] {
+    height: 32px !important;
+    flex-shrink: 0 !important;
   }
 
-  /* Pillola utente avatar compatta */
-  .user-pill {
-    padding: 2px 4px !important;
-    gap: 4px !important;
-    margin-left: 2px !important;
+  .topbar-scroll-container .user-pill {
+    flex-shrink: 0 !important;
+    margin-right: 4px !important;
     height: 34px !important;
-    border-radius: 17px !important;
+    padding: 2px 6px !important;
   }
 
   .user-name,
@@ -5717,6 +5742,22 @@ input:checked + .slider:before {
   .btn-logout {
     padding: 2px 4px !important;
     font-size: 13px !important;
+  }
+
+  /* Popups dropdown in posizione fixed sul viewport così non vengono clippati dal contenitore scroll */
+  .topbar-popup-menu {
+    position: fixed !important;
+    z-index: 99999 !important;
+    max-width: calc(100vw - 16px) !important;
+    box-sizing: border-box !important;
+  }
+  .global-filter-popup-menu {
+    min-width: 290px !important;
+    max-width: calc(100vw - 16px) !important;
+  }
+  .school-popup-menu {
+    min-width: 270px !important;
+    max-width: calc(100vw - 16px) !important;
   }
 
   /* Blocco Preferenze Rapide (Lingua & Tema) nel Drawer Mobile */

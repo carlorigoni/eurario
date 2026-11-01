@@ -48,7 +48,7 @@
   <meta name="twitter:title" content="Eurario — Gestione Orario Scolastico & Solver FET">
   <meta name="twitter:description" content="Applicazione web per la generazione e gestione dell'orario scolastico italiano con motore solutore FET.">
   <meta name="twitter:image" content="https://app.eurario.it/og-image.png">
-  <link rel="stylesheet" href="styles.css?v=1.9.30">
+  <link rel="stylesheet" href="styles.css?v=1.9.31">
   <!-- Google Identity Services OAuth -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -331,152 +331,157 @@
   <!-- Main Content Area -->
   <div class="main-wrapper">
     <header class="topbar">
-      <div class="topbar-left">
-        <button id="topbarHamburgerBtn" class="topbar-brand-btn topbar-hamburger-btn" onclick="toggleSidebarPin()" title="Menu principale (☰)" aria-label="Menu principale">
-          <svg class="eurario-mark-svg" viewBox="0 0 64 64" width="24" height="24" role="img" aria-label="Eurario">
-            <rect class="eurario-spine" x="6.00" y="6.00" width="12.00" height="52.00" rx="3.00" fill="#1B2A4A"/>
-            <rect class="eurario-bar eurario-bar-top" x="22.00" y="6.00" width="36.00" height="12.00" rx="3.00" fill="#E4572E"/>
-            <rect class="eurario-bar eurario-bar-mid" x="22.00" y="26.00" width="26.00" height="12.00" rx="3.00" fill="#F2B134"/>
-            <rect class="eurario-bar eurario-bar-bot" x="22.00" y="46.00" width="36.00" height="12.00" rx="3.00" fill="#2F7F86"/>
-          </svg>
-        </button>
-        <button id="navBackBtn" class="nav-back-btn" onclick="navigateBack()" title="Torna alla schermata precedente" style="display:none;">
-          <span>◀</span> <span id="navBackText">Indietro</span>
-        </button>
-        <span id="pageTitle" class="topbar-title">Dashboard</span>
+      <!-- Bottone Hamburger / Logo Eurario Fisso a sinistra per Mobile -->
+      <button id="topbarHamburgerBtn" class="topbar-brand-btn topbar-hamburger-btn" onclick="toggleSidebarPin()" title="Menu principale (☰)" aria-label="Menu principale">
+        <svg class="eurario-mark-svg" viewBox="0 0 64 64" width="24" height="24" role="img" aria-label="Eurario">
+          <rect class="eurario-spine" x="6.00" y="6.00" width="12.00" height="52.00" rx="3.00" fill="#1B2A4A"/>
+          <rect class="eurario-bar eurario-bar-top" x="22.00" y="6.00" width="36.00" height="12.00" rx="3.00" fill="#E4572E"/>
+          <rect class="eurario-bar eurario-bar-mid" x="22.00" y="26.00" width="26.00" height="12.00" rx="3.00" fill="#F2B134"/>
+          <rect class="eurario-bar eurario-bar-bot" x="22.00" y="46.00" width="36.00" height="12.00" rx="3.00" fill="#2F7F86"/>
+        </svg>
+      </button>
 
-        <!-- Selettore Multi-Scuola (Dropdown Istituti) -->
-        <div class="school-selector-dropdown" id="schoolSelectorDropdown">
-          <button type="button" id="btnSchoolToggle" class="topbar-btn school-pill-btn" onclick="toggleSchoolMenu(event)" title="Cambia Istituto Scolastico" aria-label="Selettore istituto" data-i18n-title="schools.selector_title">
-            <span class="school-icon">🏫</span>
-            <span id="currentSchoolName" class="school-name-text" data-i18n="schools.no_school">Nessun Istituto</span>
-            <span id="currentSchoolTrialBadge" class="badge-trial-pill" style="display:none;" title="Istituto in prova (stampe filigranate)" data-i18n="schools.trial_badge" data-i18n-title="schools.trial_badge_title">In Prova</span>
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style="opacity:0.7;">
-              <path d="M7 10l5 5 5-5z"/>
-            </svg>
+      <!-- Contenitore Scorrevole Orizzontale per Azioni / Strumenti di Testata -->
+      <div class="topbar-scroll-container" id="topbarScrollContainer">
+        <div class="topbar-left">
+          <button id="navBackBtn" class="nav-back-btn" onclick="navigateBack()" title="Torna alla schermata precedente" style="display:none;">
+            <span>◀</span> <span id="navBackText">Indietro</span>
           </button>
-          <div id="schoolMenuPopup" class="topbar-popup-menu school-popup-menu" style="display:none;">
-            <div class="school-popup-header">
-              <span style="font-weight:700;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;" data-i18n="schools.my_schools">I Miei Istituti</span>
-            </div>
-            <div id="schoolMenuList" class="school-menu-items">
-              <!-- Elenco generato dinamicamente da app.js -->
-            </div>
-            <div class="school-popup-divider"></div>
-            <button type="button" class="topbar-popup-item school-action-item" onclick="openCreateSchoolModal()">
-              <span>➕</span> <span style="font-weight:600;" data-i18n="schools.register_new">Registra Nuovo Istituto...</span>
+          <span id="pageTitle" class="topbar-title">Dashboard</span>
+
+          <!-- Selettore Multi-Scuola (Dropdown Istituti) -->
+          <div class="school-selector-dropdown" id="schoolSelectorDropdown">
+            <button type="button" id="btnSchoolToggle" class="topbar-btn school-pill-btn" onclick="toggleSchoolMenu(event)" title="Cambia Istituto Scolastico" aria-label="Selettore istituto" data-i18n-title="schools.selector_title">
+              <span class="school-icon">🏫</span>
+              <span id="currentSchoolName" class="school-name-text" data-i18n="schools.no_school">Nessun Istituto</span>
+              <span id="currentSchoolTrialBadge" class="badge-trial-pill" style="display:none;" title="Istituto in prova (stampe filigranate)" data-i18n="schools.trial_badge" data-i18n-title="schools.trial_badge_title">In Prova</span>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style="opacity:0.7;">
+                <path d="M7 10l5 5 5-5z"/>
+              </svg>
             </button>
-            <button type="button" id="btnSuperAdminConsole" class="topbar-popup-item school-action-item superadmin-item" style="display:none;" onclick="openSuperAdminModal()">
-              <span>⭐</span> <span style="font-weight:700;color:var(--warning-dark,#b45309);" data-i18n="schools.superadmin_console">Console SuperAdmin</span>
-            </button>
+            <div id="schoolMenuPopup" class="topbar-popup-menu school-popup-menu" style="display:none;">
+              <div class="school-popup-header">
+                <span style="font-weight:700;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;" data-i18n="schools.my_schools">I Miei Istituti</span>
+              </div>
+              <div id="schoolMenuList" class="school-menu-items">
+                <!-- Elenco generato dinamicamente da app.js -->
+              </div>
+              <div class="school-popup-divider"></div>
+              <button type="button" class="topbar-popup-item school-action-item" onclick="openCreateSchoolModal()">
+                <span>➕</span> <span style="font-weight:600;" data-i18n="schools.register_new">Registra Nuovo Istituto...</span>
+              </button>
+              <button type="button" id="btnSuperAdminConsole" class="topbar-popup-item school-action-item superadmin-item" style="display:none;" onclick="openSuperAdminModal()">
+                <span>⭐</span> <span style="font-weight:700;color:var(--warning-dark,#b45309);" data-i18n="schools.superadmin_console">Console SuperAdmin</span>
+              </button>
+            </div>
           </div>
-        </div>
 
-        <!-- Filtro Globale per Materia -->
-        <div class="global-subject-filter-dropdown" id="globalSubjectFilterDropdown">
-          <button type="button" id="btnGlobalFilterToggle" class="topbar-btn global-filter-pill-btn" onclick="toggleGlobalSubjectFilterMenu(event)" title="Filtro globale per materia (valido per tutte le schermate)" aria-label="Filtro per materia">
-            <span class="filter-icon">🎯</span>
-            <span id="globalFilterText" class="filter-text" data-i18n="filter.all_subjects">Tutte le Materie</span>
-            <span id="globalFilterClearBtn" class="filter-clear-badge" style="display:none;" onclick="clearGlobalSubjectFilter(event)" title="Rimuovi filtro globale">✕</span>
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style="opacity:0.7;">
-              <path d="M7 10l5 5 5-5z"/>
-            </svg>
-          </button>
-          <div id="globalSubjectFilterPopup" class="topbar-popup-menu global-filter-popup-menu" style="display:none;min-width:320px;">
-            <div class="global-filter-popup-header" style="display:flex;justify-content:space-between;align-items:center;">
-              <span style="font-weight:700;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;" data-i18n="filter.popup_title">Filtro Globale Materie (Selezione Multipla)</span>
-              <span style="font-size:11px;cursor:pointer;color:var(--text-muted);font-weight:700;" onclick="toggleGlobalSubjectFilterMenu(event)">✕</span>
-            </div>
-            <div style="padding:6px 8px;display:flex;flex-direction:column;gap:6px;">
-              <input type="text" id="globalFilterSearchInput" class="form-input" style="width:100%;font-size:12px;padding:5px 8px;" placeholder="Cerca materia..." oninput="filterGlobalSubjectList(this.value)">
-              <div style="display:flex;gap:6px;justify-content:space-between;">
-                <button type="button" class="btn btn-sm btn-sec" style="flex:1;padding:3px 6px;font-size:11px;font-weight:600;" onclick="selectAllGlobalSubjectFilters()">✓ Seleziona Tutte</button>
-                <button type="button" class="btn btn-sm btn-sec" style="flex:1;padding:3px 6px;font-size:11px;font-weight:600;" onclick="clearGlobalSubjectFilter(event)">✕ Deseleziona Tutte</button>
+          <!-- Filtro Globale per Materia -->
+          <div class="global-subject-filter-dropdown" id="globalSubjectFilterDropdown">
+            <button type="button" id="btnGlobalFilterToggle" class="topbar-btn global-filter-pill-btn" onclick="toggleGlobalSubjectFilterMenu(event)" title="Filtro globale per materia (valido per tutte le schermate)" aria-label="Filtro per materia">
+              <span class="filter-icon">🎯</span>
+              <span id="globalFilterText" class="filter-text" data-i18n="filter.all_subjects">Tutte le Materie</span>
+              <span id="globalFilterClearBtn" class="filter-clear-badge" style="display:none;" onclick="clearGlobalSubjectFilter(event)" title="Rimuovi filtro globale">✕</span>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style="opacity:0.7;">
+                <path d="M7 10l5 5 5-5z"/>
+              </svg>
+            </button>
+            <div id="globalSubjectFilterPopup" class="topbar-popup-menu global-filter-popup-menu" style="display:none;min-width:320px;">
+              <div class="global-filter-popup-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-weight:700;font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;" data-i18n="filter.popup_title">Filtro Globale Materie (Selezione Multipla)</span>
+                <span style="font-size:11px;cursor:pointer;color:var(--text-muted);font-weight:700;" onclick="toggleGlobalSubjectFilterMenu(event)">✕</span>
+              </div>
+              <div style="padding:6px 8px;display:flex;flex-direction:column;gap:6px;">
+                <input type="text" id="globalFilterSearchInput" class="form-input" style="width:100%;font-size:12px;padding:5px 8px;" placeholder="Cerca materia..." oninput="filterGlobalSubjectList(this.value)">
+                <div style="display:flex;gap:6px;justify-content:space-between;">
+                  <button type="button" class="btn btn-sm btn-sec" style="flex:1;padding:3px 6px;font-size:11px;font-weight:600;" onclick="selectAllGlobalSubjectFilters()">✓ Seleziona Tutte</button>
+                  <button type="button" class="btn btn-sm btn-sec" style="flex:1;padding:3px 6px;font-size:11px;font-weight:600;" onclick="clearGlobalSubjectFilter(event)">✕ Deseleziona Tutte</button>
+                </div>
+              </div>
+              <div id="globalSubjectFilterList" class="global-filter-menu-items" style="max-height:280px;overflow-y:auto;padding:2px 4px;">
+                <!-- Elenco con checkbox generato dinamicamente da app.js -->
+              </div>
+              <div class="school-popup-divider"></div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;gap:6px;">
+                <button type="button" class="btn btn-sm btn-sec" style="padding:4px 8px;font-size:11px;font-weight:600;" onclick="clearGlobalSubjectFilter(event)">
+                  <span>🔄</span> <span data-i18n="filter.reset_all">Azzera Filtro</span>
+                </button>
+                <button type="button" class="btn btn-sm btn-primary" style="padding:4px 12px;font-size:11px;font-weight:700;" onclick="toggleGlobalSubjectFilterMenu(event)">
+                  <span>✓</span> <span data-i18n="filter.close_apply">Chiudi</span>
+                </button>
               </div>
             </div>
-            <div id="globalSubjectFilterList" class="global-filter-menu-items" style="max-height:280px;overflow-y:auto;padding:2px 4px;">
-              <!-- Elenco con checkbox generato dinamicamente da app.js -->
-            </div>
-            <div class="school-popup-divider"></div>
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;gap:6px;">
-              <button type="button" class="btn btn-sm btn-sec" style="padding:4px 8px;font-size:11px;font-weight:600;" onclick="clearGlobalSubjectFilter(event)">
-                <span>🔄</span> <span data-i18n="filter.reset_all">Azzera Filtro</span>
-              </button>
-              <button type="button" class="btn btn-sm btn-primary" style="padding:4px 12px;font-size:11px;font-weight:700;" onclick="toggleGlobalSubjectFilterMenu(event)">
-                <span>✓</span> <span data-i18n="filter.close_apply">Chiudi</span>
-              </button>
-            </div>
           </div>
+
+          <span id="instBadge" class="badge badge-info" style="display:none;">Eurario</span>
         </div>
-
-        <span id="instBadge" class="badge badge-info" style="display:none;">Eurario</span>
-      </div>
-      <div class="topbar-right">
-        <!-- Pulsante Contatta Amministratore -->
-        <button type="button" id="topbarContactAdminBtn" class="topbar-btn contact-admin-btn" onclick="openContactAdminModal()" title="Contatta l'amministratore per supporto o richieste" aria-label="Contatta Amministratore">
-          <span style="font-size:15px;">💬</span>
-          <span class="contact-btn-label" style="font-weight:600;font-size:11.5px;margin-left:4px;" data-i18n="contact.btn">Contatta Admin</span>
-        </button>
-
-        <!-- Pulsante Notifica Richieste di Accesso in Attesa per l'Amministratore -->
-        <button type="button" id="topbarPendingBtn" class="topbar-btn topbar-pending-btn" onclick="openAccessManagementModal()" style="display:none;" title="Nuove richieste di accesso in attesa di approvazione" aria-label="Richieste di accesso in attesa">
-          <span class="bell-icon">🔔</span>
-          <span id="topbarPendingCount" class="badge-pending-count">1</span>
-          <span class="pending-btn-label" style="font-weight:700;font-size:11.5px;margin-left:4px;" data-i18n="schools.pending_requests_btn">Richieste in Attesa</span>
-        </button>
-
-        <!-- Selettore Lingua ITA / ENG -->
-        <div class="lang-selector-dropdown" id="langSelectorDropdown">
-          <button type="button" id="btnLangToggle" class="topbar-btn topbar-pill-btn" onclick="toggleLangMenu(event)" title="Seleziona lingua / Change language" aria-label="Language selector">
-            <span id="currentLangFlag">🇮🇹</span>
-            <span id="currentLangCode" style="font-weight:700;font-size:11.5px;letter-spacing:0.5px;">ITA</span>
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style="opacity:0.7;">
-              <path d="M7 10l5 5 5-5z"/>
-            </svg>
+        <div class="topbar-right">
+          <!-- Pulsante Contatta Amministratore -->
+          <button type="button" id="topbarContactAdminBtn" class="topbar-btn contact-admin-btn" onclick="openContactAdminModal()" title="Contatta l'amministratore per supporto o richieste" aria-label="Contatta Amministratore">
+            <span style="font-size:15px;">💬</span>
+            <span class="contact-btn-label" style="font-weight:600;font-size:11.5px;margin-left:4px;" data-i18n="contact.btn">Contatta Admin</span>
           </button>
-          <div id="langMenuPopup" class="topbar-popup-menu" style="display:none;">
-            <button type="button" class="topbar-popup-item" onclick="setAppLanguage('it')">
-              <span>🇮🇹</span> <span style="font-weight:600;">Italiano</span>
-              <span id="langCheck-it" class="popup-check">✓</span>
-            </button>
-            <button type="button" class="topbar-popup-item" onclick="setAppLanguage('en')">
-              <span>🇬🇧</span> <span style="font-weight:600;">English</span>
-              <span id="langCheck-en" class="popup-check" style="display:none;">✓</span>
-            </button>
-          </div>
-        </div>
 
-        <!-- Selettore Tema Chiaro / Scuro / Auto -->
-        <div class="theme-selector-dropdown" id="themeSelectorDropdown">
-          <button type="button" id="btnThemeToggle" class="topbar-btn topbar-icon-btn" onclick="toggleThemeMenu(event)" title="Tema: Chiaro, Scuro, Automatico" aria-label="Seleziona tema">
-            <span id="currentThemeIcon">💻</span>
+          <!-- Pulsante Notifica Richieste di Accesso in Attesa per l'Amministratore -->
+          <button type="button" id="topbarPendingBtn" class="topbar-btn topbar-pending-btn" onclick="openAccessManagementModal()" style="display:none;" title="Nuove richieste di accesso in attesa di approvazione" aria-label="Richieste di accesso in attesa">
+            <span class="bell-icon">🔔</span>
+            <span id="topbarPendingCount" class="badge-pending-count">1</span>
+            <span class="pending-btn-label" style="font-weight:700;font-size:11.5px;margin-left:4px;" data-i18n="schools.pending_requests_btn">Richieste in Attesa</span>
           </button>
-          <div id="themeMenuPopup" class="topbar-popup-menu" style="display:none;">
-            <button type="button" class="topbar-popup-item" onclick="setAppTheme('auto')">
-              <span>💻</span> <span data-i18n="theme.auto">Automatico (Sistema)</span>
-              <span id="themeCheck-auto" class="popup-check">✓</span>
+
+          <!-- Selettore Lingua ITA / ENG -->
+          <div class="lang-selector-dropdown" id="langSelectorDropdown">
+            <button type="button" id="btnLangToggle" class="topbar-btn topbar-pill-btn" onclick="toggleLangMenu(event)" title="Seleziona lingua / Change language" aria-label="Language selector">
+              <span id="currentLangFlag">🇮🇹</span>
+              <span id="currentLangCode" style="font-weight:700;font-size:11.5px;letter-spacing:0.5px;">ITA</span>
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" style="opacity:0.7;">
+                <path d="M7 10l5 5 5-5z"/>
+              </svg>
             </button>
-            <button type="button" class="topbar-popup-item" onclick="setAppTheme('light')">
-              <span>☀️</span> <span data-i18n="theme.light">Tema Chiaro</span>
-              <span id="themeCheck-light" class="popup-check" style="display:none;">✓</span>
-            </button>
-            <button type="button" class="topbar-popup-item" onclick="setAppTheme('dark')">
-              <span>🌙</span> <span data-i18n="theme.dark">Tema Scuro</span>
-              <span id="themeCheck-dark" class="popup-check" style="display:none;">✓</span>
-            </button>
+            <div id="langMenuPopup" class="topbar-popup-menu" style="display:none;">
+              <button type="button" class="topbar-popup-item" onclick="setAppLanguage('it')">
+                <span>🇮🇹</span> <span style="font-weight:600;">Italiano</span>
+                <span id="langCheck-it" class="popup-check">✓</span>
+              </button>
+              <button type="button" class="topbar-popup-item" onclick="setAppLanguage('en')">
+                <span>🇬🇧</span> <span style="font-weight:600;">English</span>
+                <span id="langCheck-en" class="popup-check" style="display:none;">✓</span>
+              </button>
+            </div>
           </div>
-        </div>
 
-        <!-- Collegamento Documentazione Ufficiale -->
-        <a href="https://docs.eurario.it/" target="_blank" rel="noopener" onclick="openDocs(); return false;" class="topbar-btn topbar-icon-btn" title="Documentazione Ufficiale & Guida FET (docs.eurario.it)" aria-label="Documentazione">
-          <span style="font-size:16px;">📖</span>
-        </a>
+          <!-- Selettore Tema Chiaro / Scuro / Auto -->
+          <div class="theme-selector-dropdown" id="themeSelectorDropdown">
+            <button type="button" id="btnThemeToggle" class="topbar-btn topbar-icon-btn" onclick="toggleThemeMenu(event)" title="Tema: Chiaro, Scuro, Automatico" aria-label="Seleziona tema">
+              <span id="currentThemeIcon">💻</span>
+            </button>
+            <div id="themeMenuPopup" class="topbar-popup-menu" style="display:none;">
+              <button type="button" class="topbar-popup-item" onclick="setAppTheme('auto')">
+                <span>💻</span> <span data-i18n="theme.auto">Automatico (Sistema)</span>
+                <span id="themeCheck-auto" class="popup-check">✓</span>
+              </button>
+              <button type="button" class="topbar-popup-item" onclick="setAppTheme('light')">
+                <span>☀️</span> <span data-i18n="theme.light">Tema Chiaro</span>
+                <span id="themeCheck-light" class="popup-check" style="display:none;">✓</span>
+              </button>
+              <button type="button" class="topbar-popup-item" onclick="setAppTheme('dark')">
+                <span>🌙</span> <span data-i18n="theme.dark">Tema Scuro</span>
+                <span id="themeCheck-dark" class="popup-check" style="display:none;">✓</span>
+              </button>
+            </div>
+          </div>
 
-        <div id="topbarUserPill" class="user-pill" style="display:none;">
-          <img id="topbarUserAvatar" class="user-avatar" src="" alt="Avatar" style="display:none;" />
-          <span id="topbarUserName" class="user-name"></span>
-          <span id="topbarUserRole" class="badge badge-role"></span>
-          <button class="btn-logout" onclick="logout()" title="Disconnetti">🚪</button>
+          <!-- Collegamento Documentazione Ufficiale -->
+          <a href="https://docs.eurario.it/" target="_blank" rel="noopener" onclick="openDocs(); return false;" class="topbar-btn topbar-icon-btn" title="Documentazione Ufficiale & Guida FET (docs.eurario.it)" aria-label="Documentazione">
+            <span style="font-size:16px;">📖</span>
+          </a>
+
+          <div id="topbarUserPill" class="user-pill" style="display:none;">
+            <img id="topbarUserAvatar" class="user-avatar" src="" alt="Avatar" style="display:none;" />
+            <span id="topbarUserName" class="user-name"></span>
+            <span id="topbarUserRole" class="badge badge-role"></span>
+            <button class="btn-logout" onclick="logout()" title="Disconnetti">🚪</button>
+          </div>
         </div>
       </div>
     </header>
@@ -1296,7 +1301,7 @@
     </div>
   </div>
 
-  <script src="i18n.js?v=1.9.30"></script>
-  <script src="app.js?v=1.9.30"></script>
+  <script src="i18n.js?v=1.9.31"></script>
+  <script src="app.js?v=1.9.31"></script>
 </body>
 </html>

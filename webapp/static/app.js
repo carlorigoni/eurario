@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.30';
+let APP_VERSION = '1.9.31';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -371,15 +371,46 @@ const FET_VERSION = '7.12.0';
 const APP_AUTHOR = 'Carlo Rigoni';
 
 // --- GESTIONE INTERNAZIONALIZZAZIONE (i18n) & TEMI (DARK/LIGHT/AUTO) ---
+function positionTopbarPopup(btn, popup) {
+  if (!btn || !popup) return;
+  if (window.innerWidth <= 768) {
+    const rect = btn.getBoundingClientRect();
+    popup.style.position = 'fixed';
+    popup.style.top = Math.round(rect.bottom + 6) + 'px';
+    popup.style.zIndex = '99999';
+
+    const popupWidth = popup.offsetWidth || 270;
+    let left = Math.round(rect.left);
+    if (left + popupWidth > window.innerWidth - 8) {
+      left = Math.max(8, window.innerWidth - popupWidth - 8);
+    }
+    popup.style.left = Math.max(8, left) + 'px';
+    popup.style.right = 'auto';
+  } else {
+    popup.style.position = '';
+    popup.style.top = '';
+    popup.style.left = '';
+    popup.style.right = '';
+    popup.style.zIndex = '';
+  }
+}
+
 function toggleLangMenu(event) {
   if (event) event.stopPropagation();
+  const btn = document.getElementById('btnLangToggle') || (event && event.currentTarget);
   const menu = document.getElementById('langMenuPopup');
   const themeMenu = document.getElementById('themeMenuPopup');
   const schoolMenu = document.getElementById('schoolMenuPopup');
+  const filterMenu = document.getElementById('globalSubjectFilterPopup');
   if (themeMenu) themeMenu.style.display = 'none';
   if (schoolMenu) schoolMenu.style.display = 'none';
+  if (filterMenu) filterMenu.style.display = 'none';
   if (!menu) return;
-  menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+  const isOpening = menu.style.display === 'none' || !menu.style.display;
+  menu.style.display = isOpening ? 'flex' : 'none';
+  if (isOpening) {
+    positionTopbarPopup(btn, menu);
+  }
 }
 
 function setAppLanguage(lang) {
@@ -398,13 +429,20 @@ function setAppLanguage(lang) {
 
 function toggleThemeMenu(event) {
   if (event) event.stopPropagation();
+  const btn = document.getElementById('btnThemeToggle') || (event && event.currentTarget);
   const menu = document.getElementById('themeMenuPopup');
   const langMenu = document.getElementById('langMenuPopup');
   const schoolMenu = document.getElementById('schoolMenuPopup');
+  const filterMenu = document.getElementById('globalSubjectFilterPopup');
   if (langMenu) langMenu.style.display = 'none';
   if (schoolMenu) schoolMenu.style.display = 'none';
+  if (filterMenu) filterMenu.style.display = 'none';
   if (!menu) return;
-  menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+  const isOpening = menu.style.display === 'none' || !menu.style.display;
+  menu.style.display = isOpening ? 'flex' : 'none';
+  if (isOpening) {
+    positionTopbarPopup(btn, menu);
+  }
 }
 
 function setAppTheme(theme) {
@@ -510,6 +548,7 @@ function initGlobalSubjectFilter() {
 
 function toggleGlobalSubjectFilterMenu(event) {
   if (event) event.stopPropagation();
+  const btn = document.getElementById('btnGlobalFilterToggle') || (event && event.currentTarget);
   const menu = document.getElementById('globalSubjectFilterPopup');
   const schoolMenu = document.getElementById('schoolMenuPopup');
   const langMenu = document.getElementById('langMenuPopup');
@@ -518,10 +557,11 @@ function toggleGlobalSubjectFilterMenu(event) {
   if (langMenu) langMenu.style.display = 'none';
   if (themeMenu) themeMenu.style.display = 'none';
   if (!menu) return;
-  const isOpening = menu.style.display === 'none';
+  const isOpening = menu.style.display === 'none' || !menu.style.display;
   menu.style.display = isOpening ? 'flex' : 'none';
   if (isOpening) {
     populateGlobalSubjectFilterMenu();
+    positionTopbarPopup(btn, menu);
     setTimeout(() => {
       const inp = document.getElementById('globalFilterSearchInput');
       if (inp) { inp.value = ''; inp.focus(); }
@@ -871,13 +911,20 @@ let mySchools = [];
 
 function toggleSchoolMenu(event) {
   if (event) event.stopPropagation();
+  const btn = document.getElementById('btnSchoolToggle') || (event && event.currentTarget);
   const menu = document.getElementById('schoolMenuPopup');
   const langMenu = document.getElementById('langMenuPopup');
   const themeMenu = document.getElementById('themeMenuPopup');
+  const filterMenu = document.getElementById('globalSubjectFilterPopup');
   if (langMenu) langMenu.style.display = 'none';
   if (themeMenu) themeMenu.style.display = 'none';
+  if (filterMenu) filterMenu.style.display = 'none';
   if (!menu) return;
-  menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+  const isOpening = menu.style.display === 'none' || !menu.style.display;
+  menu.style.display = isOpening ? 'flex' : 'none';
+  if (isOpening) {
+    positionTopbarPopup(btn, menu);
+  }
 }
 
 async function loadMySchools() {
@@ -1418,6 +1465,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   initNavGroups();
   initGlobalSubjectFilter();
+
+  // Chiudi eventuali menu aperti durante lo scrolling orizzontale della testata
+  const scrollContainer = document.getElementById('topbarScrollContainer');
+  if (scrollContainer) {
+    scrollContainer.addEventListener('scroll', () => {
+      ['schoolMenuPopup', 'globalSubjectFilterPopup', 'langMenuPopup', 'themeMenuPopup'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.style.display !== 'none') el.style.display = 'none';
+      });
+    }, { passive: true });
+  }
+
   initAuth();
   checkSoftwareUpdates();
   setInterval(() => checkSoftwareUpdates(false), 30 * 60 * 1000);
