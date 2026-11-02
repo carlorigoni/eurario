@@ -1369,7 +1369,7 @@ class Database:
                 result.append(c_copy)
             return result
 
-    def add_class(self, name, students=25, comments="", base_room="", building="", percorso=""):
+    def add_class(self, name, students=25, comments="", base_room="", building="", percorso="", building_change_policy="no_transfer", max_building_changes=0):
         with self.lock:
             name = name.strip()
             if not any(c["name"].lower() == name.lower() for c in self.data["classes"]):
@@ -1380,7 +1380,9 @@ class Database:
                     "students": int(students or 25),
                     "building": bld,
                     "base_room": broom,
-                    "comments": comments
+                    "comments": comments,
+                    "building_change_policy": building_change_policy or "no_transfer",
+                    "max_building_changes": int(max_building_changes or 0)
                 }
                 # L'indirizzo di studio viene ereditato rigidamente dalla Sezione
                 m = re.match(r"^([0-9]+)([A-Za-z]+)", name)
@@ -1411,6 +1413,10 @@ class Database:
                         c["base_room"] = class_data["base_room"].strip()
                     if "comments" in class_data:
                         c["comments"] = class_data["comments"]
+                    if "building_change_policy" in class_data:
+                        c["building_change_policy"] = class_data["building_change_policy"] or "no_transfer"
+                    if "max_building_changes" in class_data:
+                        c["max_building_changes"] = int(class_data["max_building_changes"] or 0)
                     # L'indirizzo della classe è derivato univocamente dalla Sezione di appartenenza
                     m_sec = re.match(r"^([0-9]+)([A-Za-z]+)", c["name"])
                     if m_sec:
@@ -2987,9 +2993,28 @@ class Database:
             transfers_per_day = defaultdict(int)
             anomalous_classes_overall = set()
             all_anomalous_events = []
+            full_day_guest_classes_overall = set()
+
+            class_policy_map = {c["name"]: c.get("building_change_policy", "no_transfer") for c in self.data.get("classes", [])}
+            class_max_changes_map = {c["name"]: int(c.get("max_building_changes", 0) or 0) for c in self.data.get("classes", [])}
 
             for d in days:
                 timeline[d] = {}
+                # Calcolo sequenza plessi per ciascuna classe nella giornata d
+                class_day_transfers = {}
+                for cname, grid in views.get("by_class", {}).items():
+                    bld_seq = []
+                    for h in clean_hours:
+                        sl = grid.get(d, {}).get(h, [])
+                        if sl:
+                            b = sl[0].get("building") or primary_bld
+                            bld_seq.append(b)
+                    switches = 0
+                    for i in range(1, len(bld_seq)):
+                        if bld_seq[i] != bld_seq[i - 1]:
+                            switches += 1
+                    class_day_transfers[cname] = switches
+
                 for h_idx, h in enumerate(clean_hours):
                     bld_data = {
                         bname: {
@@ -3016,7 +3041,20 @@ class Database:
                                 }
                             base_bld = class_base_buildings.get(cname, primary_bld)
                             is_displaced = (curr_bld != base_bld)
-                            is_start = (h_idx == 0)
+                            day_switches = class_day_transfers.get(cname, 0)
+                            policy = class_policy_map.get(cname, "no_transfer")
+                            allowed_changes = class_max_changes_map.get(cname, 1 if policy == "move_and_stay" else 0)
+
+                            # Se la classe è nel plesso ospite per l'intera giornata senza cambi infra-giornalieri (regola di default)
+                            is_full_day_guest = is_displaced and (day_switches == 0)
+                            if is_full_day_guest:
+                                full_day_guest_classes_overall.add(cname)
+
+                            # Se la classe effettua uno spostamento intra-giornaliero autorizzato dall'eccezione
+                            is_authorized_exception = (day_switches == 1) and (policy == "move_and_stay" or allowed_changes >= 1)
+
+                            # Violazione reale: la classe cambia plesso a metà giornata oltre le eccezioni concesse
+                            is_unauthorized_transfer = (day_switches > allowed_changes)
 
                             c_entry = {
                                 "class_name": cname,
@@ -3026,10 +3064,13 @@ class Database:
                                 "base_building": base_bld,
                                 "current_building": curr_bld,
                                 "is_displaced": is_displaced,
-                                "is_anomalous_start": is_displaced and is_start
+                                "is_full_day_guest": is_full_day_guest,
+                                "is_authorized_exception": is_authorized_exception,
+                                "is_unauthorized_transfer": is_unauthorized_transfer,
+                                "is_anomalous_start": is_unauthorized_transfer
                             }
                             bld_data[curr_bld]["classes"].append(c_entry)
-                            if is_displaced and is_start:
+                            if is_unauthorized_transfer and h_idx == 0:
                                 anomalous_starts.append(c_entry)
                                 anomalous_classes_overall.add(cname)
                                 all_anomalous_events.append({
@@ -3040,7 +3081,8 @@ class Database:
                                     "actual_building": curr_bld,
                                     "room": l.get("room", ""),
                                     "subject": l.get("subject", ""),
-                                    "teachers": l.get("teachers", [])
+                                    "teachers": l.get("teachers", []),
+                                    "reason": f"Spostamento infra-giornaliero non autorizzato ({day_switches} cambi effettuati, max consentiti: {allowed_changes})"
                                 })
 
                     # 2. Presenze Docenti
@@ -3191,7 +3233,8 @@ class Database:
                     "total_itinerant_teachers": len(itinerant_teachers_set),
                     "total_transfers_week": total_transfers_count,
                     "transfers_by_day": dict(transfers_per_day),
-                    "anomalous_classes_count": len(anomalous_classes_overall)
+                    "anomalous_classes_count": len(anomalous_classes_overall),
+                    "full_day_guest_classes_count": len(full_day_guest_classes_overall)
                 }
             }
 

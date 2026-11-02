@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.41';
+let APP_VERSION = '1.9.42';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -5186,15 +5186,23 @@ function renderTimeMachineView() {
                       <span class="tm-class-room">${escapeHtml(c.room || bld1)}</span>
                     </div>
                     <div class="tm-class-subj" title="${escapeHtml(c.subject)}">${escapeHtml(c.subject || 'Lezione')}</div>
-                    ${c.is_anomalous_start ? `
-                      <div class="tm-chip-badge badge-start-anomalous" title="${isEn ? 'Starts day off-site!' : 'Inizia la giornata in Centrale anziché nella propria sede!'}">
-                        🚨 Inizio Fuori Sede
+                    ${c.is_unauthorized_transfer ? `
+                      <div class="tm-chip-badge badge-start-anomalous" title="${isEn ? 'Unauthorized intra-day transfer! Class is non-itinerant.' : 'Spostamento infra-giornaliero non autorizzato! Le classi non sono itineranti per default.'}">
+                        ⚠️ Cambio Plesso Non Autorizzato
+                      </div>
+                    ` : (c.is_authorized_exception ? `
+                      <div class="tm-chip-badge badge-info" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;" title="${isEn ? 'Authorized exception: Move & Stay' : 'Eccezione autorizzata: una volta che ti sposti rimani'}">
+                        🚶‍♂️ Sposta & Rimani
+                      </div>
+                    ` : (c.is_full_day_guest ? `
+                      <div class="tm-chip-badge badge-guest" title="${isEn ? `Full day at guest campus ${c.current_building} (non-itinerant from 1st to last period)` : `Intera giornata in ${c.current_building} (non itinerante dalla 1ª all'ultima ora)`}">
+                        🏛️ Giornata Intera (${escapeHtml(c.current_building)})
                       </div>
                     ` : (c.is_displaced ? `
                       <div class="tm-chip-badge badge-guest" title="${isEn ? `Regular building: ${c.base_building}` : `Sede ordinaria: ${c.base_building}`}">
                         📍 Ospite (${c.base_building})
                       </div>
-                    ` : '')}
+                    ` : '')))}
                   </div>
                 `).join('')}
               </div>
@@ -5300,15 +5308,23 @@ function renderTimeMachineView() {
                       <span class="tm-class-room">${escapeHtml(c.room || bld2)}</span>
                     </div>
                     <div class="tm-class-subj" title="${escapeHtml(c.subject)}">${escapeHtml(c.subject || 'Lezione')}</div>
-                    ${c.is_anomalous_start ? `
-                      <div class="tm-chip-badge badge-start-anomalous" title="${isEn ? 'Starts day off-site!' : 'Inizia la giornata in Succursale anziché nella propria sede!'}">
-                        🚨 Inizio Fuori Sede
+                    ${c.is_unauthorized_transfer ? `
+                      <div class="tm-chip-badge badge-start-anomalous" title="${isEn ? 'Unauthorized intra-day transfer! Class is non-itinerant.' : 'Spostamento infra-giornaliero non autorizzato! Le classi non sono itineranti per default.'}">
+                        ⚠️ Cambio Plesso Non Autorizzato
+                      </div>
+                    ` : (c.is_authorized_exception ? `
+                      <div class="tm-chip-badge badge-info" style="background:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;" title="${isEn ? 'Authorized exception: Move & Stay' : 'Eccezione autorizzata: una volta che ti sposti rimani'}">
+                        🚶‍♂️ Sposta & Rimani
+                      </div>
+                    ` : (c.is_full_day_guest ? `
+                      <div class="tm-chip-badge badge-guest" title="${isEn ? `Full day at guest campus ${c.current_building} (non-itinerant from 1st to last period)` : `Intera giornata in ${c.current_building} (non itinerante dalla 1ª all'ultima ora)`}">
+                        🏛️ Giornata Intera (${escapeHtml(c.current_building)})
                       </div>
                     ` : (c.is_displaced ? `
                       <div class="tm-chip-badge badge-guest" title="${isEn ? `Regular building: ${c.base_building}` : `Sede ordinaria: ${c.base_building}`}">
                         📍 Ospite (${c.base_building})
                       </div>
-                    ` : '')}
+                    ` : '')))}
                   </div>
                 `).join('')}
               </div>
@@ -5498,10 +5514,10 @@ function renderTimeMachineView() {
           </div>
         </div>
         <div class="tm-kpi-card ${anomalousStarts.length > 0 ? 'kpi-start-glow' : ''}">
-          <div class="tm-kpi-icon">🌅</div>
+          <div class="tm-kpi-icon">⚠️</div>
           <div>
             <div class="tm-kpi-val ${anomalousStarts.length > 0 ? 'color-amber' : ''}">${anomalousStarts.length} <small>classi</small></div>
-            <div class="tm-kpi-lbl">${isEn ? 'Off-Site Starts (Period 1)' : 'Inizio Fuori Sede (1ª ora)'}</div>
+            <div class="tm-kpi-lbl">${isEn ? 'Unauthorized Transfers' : 'Cambi Plesso Non Autorizzati'}</div>
           </div>
         </div>
       </div>
@@ -8883,6 +8899,13 @@ async function renderClasses() {
                       <span class="item-chip" title="${isEn ? 'Resident Homeroom of this class' : 'Aula Ordinaria di questa classe'}">
                         🚪 ${escapeHtml(c.base_room || ((isEn ? 'Room ' : 'Aula ') + c.name))}
                       </span>
+                      ${c.building_change_policy === 'move_and_stay' ? `
+                        <span class="badge badge-info" style="margin-left:4px;" title="${isEn ? 'Authorized exception: move and stay (max 1 daily campus change)' : 'Eccezione autorizzata: una volta che ti sposti rimani (max 1 cambio al giorno)'}">🚶‍♂️ ${isEn ? 'Move & Stay' : 'Sposta & Rimani'}</span>
+                      ` : (c.max_building_changes > 0 ? `
+                        <span class="badge badge-info" style="margin-left:4px;" title="${isEn ? `Custom exception: max ${c.max_building_changes} daily campus changes` : `Eccezione personalizzata: max ${c.max_building_changes} cambi sede al giorno`}">🔄 Max ${c.max_building_changes}</span>
+                      ` : `
+                        <span class="badge badge-ok" style="margin-left:4px;" title="${isEn ? 'Non-itinerant (Default): 0 campus changes per day. Entire day on same campus.' : 'Non itinerante (Default): 0 cambi sede al giorno. Intera giornata nello stesso plesso.'}">🏢 ${isEn ? '0 Changes' : '0 Cambi'}</span>
+                      `)}
                     </td>
                     <td>
                       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;">
@@ -9082,6 +9105,23 @@ function openEditClassModal(className) {
           <span class="form-hint">L'aula in cui la classe svolge tutte le normali lezioni frontali non laboratoriali.</span>
         </div>
         <div class="form-group">
+          <label class="form-label">${isEn ? 'Campus Transfer Rule / Itinerancy' : 'Regola Spostamento tra Plessi / Itineranza'}</label>
+          <select id="editClassBuildingPolicy" class="form-select">
+            <option value="no_transfer" ${(cls.building_change_policy || 'no_transfer') === 'no_transfer' ? 'selected' : ''}>
+              ${isEn ? '🏢 Non-itinerant (Default - 0 campus changes per day)' : '🏢 Non itinerante (Default - 0 cambi plesso al giorno)'}
+            </option>
+            <option value="move_and_stay" ${cls.building_change_policy === 'move_and_stay' ? 'selected' : ''}>
+              ${isEn ? '🚶‍♂️ Exception: Move & Stay (Max 1 change/day - e.g. move at 4th period and stay until end)' : '🚶‍♂️ Eccezione: Una volta che ti sposti rimani (Max 1 cambio/giorno - es. spostamento alla 4ª ora e permanenza fino alla fine)'}
+            </option>
+            <option value="custom" ${cls.building_change_policy === 'custom' ? 'selected' : ''}>
+              ${isEn ? '🔄 Custom Exception (Max 2 changes)' : '🔄 Eccezione Personalizzata (Max 2 cambi)'}
+            </option>
+          </select>
+          <span class="form-hint">${isEn
+            ? 'Default: Classes and activities are non-itinerant. If a branch class has an activity at the main campus (e.g. gym), it must be there from 1st period and remain all day.'
+            : 'Default: Le classi e le relative attività non sono itineranti. Se una classe della succursale ha anche un\'ora in centrale, deve essere presente in centrale sin dalla prima ora e rimanerci fino all\'ultima ora del giorno.'}</span>
+        </div>
+        <div class="form-group">
           <label class="form-label">Note</label>
           <input type="text" id="editClassComments" class="form-input" value="${escapeHtml(cls.comments || '')}" placeholder="Note o particolarità...">
         </div>
@@ -9099,11 +9139,13 @@ async function saveClassDetails(className) {
   const building = document.getElementById('editClassBuilding').value;
   const base_room = document.getElementById('editClassBaseRoom').value;
   const comments = document.getElementById('editClassComments').value;
+  const building_change_policy = document.getElementById('editClassBuildingPolicy') ? document.getElementById('editClassBuildingPolicy').value : 'no_transfer';
+  const max_building_changes = building_change_policy === 'move_and_stay' ? 1 : (building_change_policy === 'custom' ? 2 : 0);
 
   const res = await fetch('/api/classes/update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: className, students, building, base_room, comments })
+    body: JSON.stringify({ name: className, students, building, base_room, comments, building_change_policy, max_building_changes })
   });
   if (res.ok) {
     closeModal();

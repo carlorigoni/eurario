@@ -24,6 +24,7 @@ SOLO_100_CONSTRAINTS = {
     "TEACHERS_MAX_BUILDING_CHANGES_DAY",
     "TEACHERS_MAX_BUILDING_CHANGES_WEEK",
     "TEACHERS_MIN_GAPS_BUILDING_CHANGES",
+    "STUDENTS_MAX_BUILDING_CHANGES_DAY",
     "TEACHERS_MIN_HOURS_DAY",
     "DISPOSIZIONE_MIN_PER_ORA"
 }
@@ -162,6 +163,14 @@ DEFAULT_CONSTRAINTS = {
     },
 
     # --- VINCOLI SPOSTAMENTI & PLESSI ---
+    "STUDENTS_MAX_BUILDING_CHANGES_DAY": {
+        "active": True,
+        "val": 0,
+        "weight": 100,
+        "name": "Classi: Max cambi plesso al giorno",
+        "category": "Spostamenti",
+        "desc": "Default 0 = Le classi e relative attività non sono itineranti: se una classe ha lezione in un altro plesso (es. palestra in Centrale), vi rimane per l'intera giornata dalla 1ª all'ultima ora."
+    },
     "TEACHERS_MAX_BUILDING_CHANGES_DAY": {
         "active": False,
         "val": 1,
@@ -620,8 +629,31 @@ def parse_fet_xml(content_or_path):
             data["constraints"]["TEACHERS_MAX_BUILDING_CHANGES_WEEK"]["val"] = int(clean_text(c_bld_week.findtext("Max_Building_Changes", "3")) or 3)
             data["constraints"]["TEACHERS_MAX_BUILDING_CHANGES_WEEK"]["active"] = clean_text(c_bld_week.findtext("Active", "true")).lower() == "true"
 
+        c_st_bld = s_cons.find("ConstraintStudentsMaxBuildingChangesPerDay")
+        if c_st_bld is not None:
+            data["constraints"].setdefault("STUDENTS_MAX_BUILDING_CHANGES_DAY", {
+                "active": True,
+                "val": 0,
+                "weight": 100,
+                "name": "Classi: Max cambi plesso al giorno",
+                "category": "Spostamenti",
+                "desc": "Default 0 = Le classi e relative attività non sono itineranti: se una classe ha lezione in un altro plesso (es. palestra in Centrale), vi rimane per l'intera giornata dalla 1ª all'ultima ora."
+            })
+            data["constraints"]["STUDENTS_MAX_BUILDING_CHANGES_DAY"]["val"] = int(clean_text(c_st_bld.findtext("Max_Building_Changes_Per_Day", "0")) or 0)
+            data["constraints"]["STUDENTS_MAX_BUILDING_CHANGES_DAY"]["active"] = clean_text(c_st_bld.findtext("Active", "true")).lower() == "true"
+
+        for c_st_set in s_cons.findall("ConstraintStudentsSetMaxBuildingChangesPerDay"):
+            st_name = clean_text(c_st_set.findtext("Students", ""))
+            ch_val = int(clean_text(c_st_set.findtext("Max_Building_Changes_Per_Day", "1")) or 1)
+            for cls in data.get("classes", []):
+                if cls.get("name") == st_name:
+                    cls["max_building_changes"] = ch_val
+                    cls["building_change_policy"] = "move_and_stay" if ch_val == 1 else "custom"
+
         known_space_tags = {
             "ConstraintBasicCompulsorySpace",
+            "ConstraintStudentsMaxBuildingChangesPerDay",
+            "ConstraintStudentsSetMaxBuildingChangesPerDay",
             "ConstraintTeachersMaxBuildingChangesPerDay",
             "ConstraintTeachersMinGapsBetweenBuildingChanges",
             "ConstraintTeachersMaxBuildingChangesPerWeek",
@@ -1653,6 +1685,37 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
         lines.append('      <Comments></Comments>')
         lines.append('    </ConstraintTeachersMaxBuildingChangesPerWeek>')
 
+    # Spostamenti Classi: Le classi non sono itineranti per default (0 cambi plesso al giorno).
+    # Se una classe ha lezione in centrale (es. palestra), vi rimane per l'intera giornata dalla 1ª all'ultima ora.
+    c_st_b_day = constraints.get("STUDENTS_MAX_BUILDING_CHANGES_DAY", {})
+    param_no_change = data.get("parameters", {}).get("Le classi non cambiano plesso durante la giornata (SI/NO)", "SI") == "SI"
+    st_b_active = c_st_b_day.get("active", True) if ("active" in c_st_b_day) else param_no_change
+    st_b_val = c_st_b_day.get("val", 0)
+    st_b_weight = c_st_b_day.get("weight", 100)
+    if st_b_active:
+        lines.append('    <ConstraintStudentsMaxBuildingChangesPerDay>')
+        lines.append(f'      <Weight_Percentage>{st_b_weight}</Weight_Percentage>')
+        lines.append(f'      <Max_Building_Changes_Per_Day>{st_b_val}</Max_Building_Changes_Per_Day>')
+        lines.append('      <Active>true</Active>')
+        lines.append('      <Comments>Classi non itineranti per default (0 cambi plesso al giorno)</Comments>')
+        lines.append('    </ConstraintStudentsMaxBuildingChangesPerDay>')
+
+    # Eccezioni specifiche per singola classe (es. "Una volta che ti sposti rimani" - max 1 cambio/giorno)
+    for c in data.get("classes", []):
+        c_name = c.get("name", "")
+        policy = c.get("building_change_policy")
+        max_ch = c.get("max_building_changes")
+        if policy == "move_and_stay" or (max_ch is not None and int(max_ch) > 0) or (policy and policy not in ("no_transfer", "default")):
+            val = 1 if policy == "move_and_stay" else (int(max_ch) if max_ch is not None else 1)
+            desc_comm = "Una volta che ti sposti rimani (max 1 cambio al giorno)" if val == 1 else f"Max {val} cambi al giorno"
+            lines.append('    <ConstraintStudentsSetMaxBuildingChangesPerDay>')
+            lines.append('      <Weight_Percentage>100</Weight_Percentage>')
+            lines.append(f'      <Students>{xml_escape(c_name)}</Students>')
+            lines.append(f'      <Max_Building_Changes_Per_Day>{val}</Max_Building_Changes_Per_Day>')
+            lines.append('      <Active>true</Active>')
+            lines.append(f'      <Comments>Eccezione: {desc_comm}</Comments>')
+            lines.append('    </ConstraintStudentsSetMaxBuildingChangesPerDay>')
+
     valid_rooms = {r["name"] if isinstance(r, dict) else str(r) for r in data.get("rooms", [])}
     has_gym = any("palestra" in r.lower() for r in valid_rooms)
     gym_rooms = ["Palestra-1", "Palestra-2", "Palestra-3"] if has_gym else []
@@ -1725,6 +1788,10 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
             continue
 
         tag = item.get("tag", "")
+        # Ignora vecchi vincoli di mobilità studenti già generati dinamicamente
+        if tag in ("ConstraintStudentsMaxBuildingChangesPerDay", "ConstraintStudentsSetMaxBuildingChangesPerDay"):
+            continue
+
         # Ignora vecchi ConstraintActivityPreferredRooms obsoleti o già gestiti dinamicamente
         if tag == "ConstraintActivityPreferredRooms":
             if any(aid in assigned_act_pref_rooms for aid in act_matches):
@@ -1741,12 +1808,6 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
                 xml_str = re.sub(r"\s*<Preferred_Room>.*?</Preferred_Room>", "", xml_str)
                 rooms_tags = "".join(f"\n      <Preferred_Room>{pr}</Preferred_Room>" for pr in valid_prefs)
                 xml_str = xml_str.replace("</Number_of_Preferred_Rooms>", f"</Number_of_Preferred_Rooms>{rooms_tags}")
-        elif tag == "ConstraintStudentsSetMaxBuildingChangesPerDay":
-            # Le classi della Succursale devono potersi recare in Centrale per Scienze Motorie (Palestra)
-            m_st = re.search(r"<Students>(.*?)</Students>", xml_str)
-            m_ch = re.search(r"<Max_Building_Changes_Per_Day>(\d+)</Max_Building_Changes_Per_Day>", xml_str)
-            if m_st and m_st.group(1) in succursale_classes and m_ch and int(m_ch.group(1)) == 0:
-                continue
         elif tag in ("ConstraintActivityPreferredRoom", "ConstraintStudentsSetHomeRoom"):
             m_r = re.search(r"<Room>(.*?)</Room>", xml_str)
             if m_r and m_r.group(1) not in valid_rooms:
@@ -1769,8 +1830,22 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
     for c in data.get("classes", []):
         broom = c.get("base_room")
         if broom and c["name"] not in existing_homerooms:
+            # Calcolo peso aula base: se la classe ha attività fisse in un altro plesso (es. Palestra in Centrale per una classe di Succursale),
+            # usiamo peso 95% affinché FET possa usare aule di appoggio nel plesso ospite durante l'intera giornata in trasferta,
+            # rispettando rigidamente il vincolo 100% di 0 cambi plesso al giorno (permanenza dalla prima all'ultima ora).
+            c_bld = c.get("building", "")
+            has_other_bld_acts = False
+            for a in emitted_activities:
+                if c["name"] in a.get("students", []):
+                    subj = (a.get("subject") or "").lower()
+                    if ("motori" in subj or "sport" in subj) and gym_rooms:
+                        if "succ" in c_bld.lower():
+                            has_other_bld_acts = True
+                            break
+            curr_home_weight = 95 if has_other_bld_acts and home_weight == 100 else home_weight
+
             lines.append('    <ConstraintStudentsSetHomeRoom>')
-            lines.append(f'      <Weight_Percentage>{home_weight}</Weight_Percentage>')
+            lines.append(f'      <Weight_Percentage>{curr_home_weight}</Weight_Percentage>')
             lines.append(f'      <Students>{xml_escape(c["name"])}</Students>')
             lines.append(f'      <Room>{xml_escape(broom)}</Room>')
             lines.append('      <Active>true</Active>')

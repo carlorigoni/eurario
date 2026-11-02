@@ -5,6 +5,7 @@ disponibilità incrociate, cambi plesso e ore bloccate) prima del lancio di FET.
 """
 
 from typing import Dict, List, Any, Set, Tuple
+from collections import defaultdict
 import re
 
 
@@ -752,5 +753,65 @@ class TimetablePreValidator:
                 "recommendation": "Se il risolutore incontra difficoltà su docenti con orario compatto, valuta di portare il gap a 0.",
                 "quick_action": {"type": "navigate", "target": "constraints", "payload": {}}
             })
+
+        # Verifica se l'orario generato presenta classi con spostamenti infra-giornalieri non autorizzati
+        timetable = self.data.get("timetable", {})
+        if timetable:
+            rooms_map = {r["name"]: r.get("building", "Centrale") for r in self.rooms}
+            classes_map = {c["name"]: c for c in self.classes}
+            days = self.days
+            hours = self.hours
+            act_by_id = {str(a["id"]): a for a in self.activities}
+            cls_grid = defaultdict(lambda: defaultdict(dict))
+            for aid_str, pl in timetable.items():
+                act = act_by_id.get(aid_str)
+                if not act:
+                    continue
+                d = pl.get("day")
+                h = pl.get("hour")
+                rm = pl.get("room") or act.get("room", "")
+                bld = rooms_map.get(rm, "Centrale")
+                for s in act.get("students", []):
+                    cls_grid[s][d][h] = bld
+
+            unauthorized_class_switches = []
+            for cname, d_map in cls_grid.items():
+                c_info = classes_map.get(cname, {})
+                policy = c_info.get("building_change_policy", "no_transfer")
+                max_allowed = int(c_info.get("max_building_changes", 0) or (1 if policy == "move_and_stay" else 0))
+                for d, h_map in d_map.items():
+                    bld_seq = []
+                    for h in hours:
+                        if h in h_map:
+                            b = h_map[h]
+                            if not bld_seq or b != bld_seq[-1]:
+                                bld_seq.append(b)
+                    switches = max(0, len(bld_seq) - 1)
+                    if switches > max_allowed:
+                        unauthorized_class_switches.append({
+                            "class": cname,
+                            "day": d,
+                            "switches": switches,
+                            "path": " ➔ ".join(bld_seq)
+                        })
+
+            if unauthorized_class_switches:
+                issues.append({
+                    "id": "unauthorized_class_building_switches",
+                    "category": "buildings",
+                    "severity": "warn",
+                    "title": f"Classi con Spostamenti Infra-giornalieri ({len(unauthorized_class_switches)} rilevati)",
+                    "description": (
+                        "Le classi non sono itineranti per default (0 cambi plesso al giorno). "
+                        "Sono stati rilevati cambi di plesso durante la stessa giornata senza relativa eccezione: " +
+                        ", ".join(f"{x['class']} ({x['day']}: {x['path']})" for x in unauthorized_class_switches[:4]) +
+                        ("..." if len(unauthorized_class_switches) > 4 else "") + ". "
+                        "Se una classe ha lezione in un altro plesso (es. palestra in Centrale), deve rimanerci per l'intera giornata, "
+                        "oppure è necessario impostare l'eccezione 'Una volta che ti sposti rimani' nella scheda della classe."
+                    ),
+                    "entities": [{"type": "class", "id": x["class"], "name": x["class"]} for x in unauthorized_class_switches[:8]],
+                    "recommendation": "Imposta l'eccezione 'Una volta che ti sposti rimani' sulla classe oppure rigenera l'orario con il vincolo rigido a 0 cambi plesso.",
+                    "quick_action": {"type": "navigate", "target": "classes", "payload": {}}
+                })
 
         return issues

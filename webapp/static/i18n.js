@@ -603,6 +603,11 @@
           desc: "Minimo ore giornaliere di lezione per le classi nei giorni attivi.",
           category: "Classi"
         },
+        STUDENTS_MAX_BUILDING_CHANGES_DAY: {
+          name: "Classi: Max Spostamenti Giornalieri tra Sedi",
+          desc: "Default 0 = Le classi non sono itineranti: se una classe ha lezione in un altro plesso (es. palestra in Centrale), vi rimane per l'intera giornata dalla 1ª all'ultima ora.",
+          category: "Spostamenti"
+        },
         TEACHERS_MAX_BUILDING_CHANGES_DAY: {
           name: "Massimo Spostamenti Giornalieri tra Sedi",
           desc: "Massimo numero di spostamenti tra Centrale e Succursale nello stesso giorno.",
@@ -1363,6 +1368,11 @@
           name: "Students Min Daily Hours",
           desc: "Minimum daily class hours for students on active school days.",
           category: "Classes"
+        },
+        STUDENTS_MAX_BUILDING_CHANGES_DAY: {
+          name: "Classes: Max Daily Campus Transfers",
+          desc: "Default 0 = Classes are non-itinerant: if a class has lessons at another campus (e.g. gym at Main), it remains there for the full day from 1st to last period.",
+          category: "Transfers / Campuses"
         },
         TEACHERS_MAX_BUILDING_CHANGES_DAY: {
           name: "Max Daily Campus Transfers per Teacher",
