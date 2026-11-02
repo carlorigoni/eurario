@@ -193,6 +193,11 @@ class TimetableAdvisor:
                     critical_classes[ent["name"]] += weight
 
         # 5. ROOT CAUSE ANALYSIS (Identificazione della Causa Radice)
+        campus_class_issues = [
+            iss for iss in v_report.get("issues", [])
+            if iss.get("id", "").startswith("class_campus_bottleneck_")
+        ]
+
         top_teacher_tuple = critical_teachers.most_common(1)
         top_class_tuple = critical_classes.most_common(1)
         top_subject_tuple = critical_subjects.most_common(1)
@@ -200,6 +205,17 @@ class TimetableAdvisor:
         pivot_teacher = top_teacher_tuple[0][0] if top_teacher_tuple and top_teacher_tuple[0][1] >= 4 else None
         pivot_class = top_class_tuple[0][0] if top_class_tuple and top_class_tuple[0][1] >= 4 else None
         pivot_subject = top_subject_tuple[0][0] if top_subject_tuple and top_subject_tuple[0][1] >= 4 else None
+
+        # Se ci sono problemi critici di plesso per le classi, prioritizza la classe con deadlock plesso
+        # dando preferenza a '5L' se presente tra le classi segnalate
+        campus_conflict_classes = [
+            e["id"] for iss in campus_class_issues for e in iss.get("entities", []) if e.get("type") == "class"
+        ]
+        if campus_conflict_classes:
+            if "5L" in campus_conflict_classes:
+                pivot_class = "5L"
+            elif not pivot_class or pivot_class not in campus_conflict_classes:
+                pivot_class = campus_conflict_classes[0]
 
         # Ricerca ore fissate nella catena critica
         locked_in_chain = [a for a in critical_activities_chain if a["locked"]]
@@ -216,6 +232,19 @@ class TimetableAdvisor:
                     f"Lo stallo di FET è alimentato dall'attività fissata #{l_act['id']} "
                     f"({l_act.get('subject')} con {', '.join(l_act.get('teachers', []))}). "
                     f"Essendo bloccata in una specifica posizione, impedisce all'algoritmo di scambiare le ore per far spazio alle attività rimaste."
+                )
+            elif pivot_class and pivot_class in campus_conflict_classes:
+                root_cause_type = "CLASS_CAMPUS_DEADLOCK"
+                root_cause_summary = (
+                    f"FET stalled on class '{pivot_class}'. The class is based in Succursale but requires periods in Centrale "
+                    f"(Gym / Computer Lab) while the default rule mandates '0 building changes per day'. "
+                    f"Combined with 100% capacity (30h out of 30 slots) and teachers shared with other branch classes, "
+                    f"this creates a deadlock. Authorizing the 'Move and Stay' campus exception resolves the stall."
+                ) if is_en else (
+                    f"Lo stallo di FET si è verificato sulla classe '{pivot_class}'. La classe risiede in Succursale ma ha lezioni in Centrale "
+                    f"(Palestra / Laboratorio Informatica) con la regola di default '0 cambi plesso al giorno'. "
+                    f"Con la saturazione al 100% (30h su 30 slot aperti) e i docenti condivisi con altre classi della sede, "
+                    f"FET non ha alternative. Impostare per '{pivot_class}' l'eccezione 'Una volta che ti sposti rimani' (max 1 cambio) elimina il blocco."
                 )
             elif pivot_teacher and pivot_class:
                 root_cause_type = "TEACHER_CLASS_BOTTLENECK"
@@ -264,7 +293,19 @@ class TimetableAdvisor:
                 )
         else:
             # Fase preventiva
-            if v_report.get("critical_count", 0) > 0:
+            if campus_class_issues:
+                root_cause_type = "CLASS_CAMPUS_DEADLOCK"
+                target_cls = "5L" if "5L" in campus_conflict_classes else (pivot_class or campus_conflict_classes[0])
+                root_cause_summary = (
+                    f"Detected {len(campus_class_issues)} classes with campus conflict. Class '{target_cls}' is resident in Succursale "
+                    f"with periods in Centrale (Gym / Info), but has '0 building changes per day' without exceptions. "
+                    f"This creates a structural deadlock for FET before solver launch."
+                ) if is_en else (
+                    f"Rilevate {len(campus_class_issues)} classi con incompatibilità plesso. La classe '{target_cls}' risiede in Succursale "
+                    f"ma ha attività in Centrale (Palestra / Informatica), con la regola rigida '0 cambi plesso al giorno'. "
+                    f"Senza l'eccezione 'Una volta che ti sposti rimani', FET si blocca inevitabilmente su '{target_cls}'."
+                )
+            elif v_report.get("critical_count", 0) > 0:
                 root_cause_type = "PREVENTIVE_CRITICAL_CONFLICTS"
                 root_cause_summary = (
                     f"Detected {v_report['critical_count']} blocking mathematical conflicts. "
@@ -295,7 +336,7 @@ class TimetableAdvisor:
         # =========================================================================
 
         # -------------------------------------------------------------------------
-        # LIVELLO 1: RILASSAMENTO MORBIDO GLOBALE (Zero o Minimo Impatto Didattico)
+        # LIVELLO 1: RILASSAMENTO MORBIDO GLOBALE & SBLOCCO PLESSI
         # -------------------------------------------------------------------------
         c_gaps_day = constraints.get("TEACHERS_MAX_GAPS_DAY", {})
         curr_gaps_day = int(c_gaps_day.get("val", 1))
@@ -310,6 +351,84 @@ class TimetableAdvisor:
         is_bld_active = c_bld_gap.get("active", True)
 
         needs_level1 = (is_gaps_day_active and curr_gaps_day <= 1) or (is_gaps_week_active and curr_gaps_week <= 2) or (is_bld_active and curr_bld_gap > 0)
+
+        # 0. Sblocco Mirato Stallo Plesso per la Classe Pivot (es. 5L)
+        target_cls = "5L" if "5L" in campus_conflict_classes else (pivot_class if pivot_class in campus_conflict_classes else (campus_conflict_classes[0] if campus_conflict_classes else None))
+        if target_cls:
+            # Azione Combo specifica per sbloccare la classe critica (Plesso + Aula Base + Tolleranza Morbida)
+            recommendations.append({
+                "id": f"resolve_class_all_{target_cls}",
+                "level": 1,
+                "level_label": "Livello 1: Sblocco Immediato Classe",
+                "title": f"⚡ Risolvi Subito Stallo Classe {target_cls} (Plesso 'Una volta che ti sposti rimani' + Tolleranza)",
+                "description": (
+                    f"Risolve il blocco di FET su {target_cls} in un solo passaggio: autorizza la deroga plesso "
+                    f"'Una volta che ti sposti rimani' (max 1 cambio al giorno, con Palestra/Info a fine giornata), "
+                    f"riduce la rigidità dell'aula base al 95% e applica una morbida tolleranza sulle buche dei docenti."
+                ),
+                "impact": "MASSIMO",
+                "badge": f"Consigliato per {target_cls}",
+                "badge_color": "ok",
+                "action_type": "resolve_class_deadlock_all",
+                "action_payload": {
+                    "class": target_cls,
+                    "policy": "move_and_stay",
+                    "max_changes": 1,
+                    "relax_homeroom": True,
+                    "gaps_day": max(2, curr_gaps_day + 1),
+                    "gaps_week": max(3, curr_gaps_week + 1),
+                    "building_gap": 0
+                },
+                "button_text": f"Sblocca Completamente {target_cls}",
+                "is_combo": True,
+                "auto_applicable": True
+            })
+
+            # Deroga plesso specifica per la classe
+            recommendations.append({
+                "id": f"set_class_campus_exception_{target_cls}",
+                "level": 1,
+                "level_label": "Livello 1: Rilassamento Plesso Classe",
+                "title": f"🏢 Imposta Eccezione Plesso per {target_cls}: 'Una volta che ti sposti rimani'",
+                "description": (
+                    f"Consente alla classe {target_cls} di recarsi in Centrale per le ore richieste (Palestra / Informatica) "
+                    f"senza dover rimanere l'intera giornata fuori dalla Succursale. "
+                    f"Posiziona le trasferte all'inizio o alla fine delle lezioni (max 1 cambio/giorno) e autorizza aule di appoggio."
+                ),
+                "impact": "ALTO",
+                "badge": f"Plesso {target_cls}",
+                "badge_color": "ok",
+                "action_type": "set_class_campus_exception",
+                "action_payload": {
+                    "class": target_cls,
+                    "policy": "move_and_stay",
+                    "max_changes": 1,
+                    "relax_homeroom": True
+                },
+                "button_text": f"Autorizza Deroga Plesso per {target_cls}",
+                "auto_applicable": True
+            })
+
+            # Se ci sono più classi di succursale con lezioni in centrale, suggerisci la deroga collettiva
+            if len(campus_conflict_classes) > 1:
+                recommendations.append({
+                    "id": "set_all_succursale_campus_exceptions",
+                    "level": 1,
+                    "level_label": "Livello 1: Rilassamento Plesso Collettivo",
+                    "title": f"🏢 Estendi Deroga 'Una volta che ti sposti rimani' a tutte le {len(campus_conflict_classes)} Classi Succursale",
+                    "description": (
+                        f"Applica la deroga 'Una volta che ti sposti rimani' (max 1 cambio plesso al giorno) "
+                        f"a tutte le classi residenti in Succursale con lezioni in Centrale ({', '.join(campus_conflict_classes[:6])}...). "
+                        f"Elimina alla radice qualsiasi conflitto di sede tra palestre e aule base per l'intero istituto."
+                    ),
+                    "impact": "ALTO",
+                    "badge": "Intero Istituto",
+                    "badge_color": "ok",
+                    "action_type": "set_all_succursale_campus_exceptions",
+                    "action_payload": {"classes": campus_conflict_classes},
+                    "button_text": "Sblocca Tutte le Classi Succursale",
+                    "auto_applicable": True
+                })
 
         # Azione Combo Livello 1: Applica tutto il Livello 1 in 1 click!
         if needs_level1:
@@ -400,6 +519,62 @@ class TimetableAdvisor:
         # -------------------------------------------------------------------------
         # LIVELLO 2: FLESSIBILITÀ MIRATA DOCENTI & CLASSI (Basso Impatto Didattico)
         # -------------------------------------------------------------------------
+        # 0. Flessibilità Oraria Specifica per la Classe Pivot (se a margine zero / 100% saturazione)
+        if target_cls:
+            c_unavail = set(c_avail.get(target_cls, []))
+            # Trova gli slot di 7ª o 8ª ora chiusi per la classe che possono essere riaperti come cuscinetto
+            candidate_class_slots = [
+                s for s in c_unavail
+                if any(h in s for h in ("|7", "|8", "|6"))
+            ]
+            if candidate_class_slots:
+                slots_to_open = candidate_class_slots[:2]
+                slot_lbls = ", ".join(s.replace("|", " ") for s in slots_to_open)
+                recommendations.append({
+                    "id": f"relax_class_unavailability_{target_cls}",
+                    "level": 2,
+                    "level_label": "Livello 2: Flessibilità Mirata Classe",
+                    "title": f"🔓 Apri Margine Flessibile per {target_cls} ({slot_lbls})",
+                    "description": (
+                        f"La classe {target_cls} è satura al 100% (30h su 30 slot mattutini aperti). "
+                        f"Aprire {len(slots_to_open)} ore pomeridiane ({slot_lbls}) crea il cuscinetto matematico "
+                        f"indispensabile per collocare tutti i blocchi da 2 ore senza conflitti con i docenti."
+                    ),
+                    "impact": "ALTO",
+                    "badge": f"Flessibilità {target_cls}",
+                    "badge_color": "warn",
+                    "action_type": "relax_class_unavailability",
+                    "action_payload": {"class": target_cls, "slots_to_remove": slots_to_open},
+                    "button_text": f"Apri {len(slots_to_open)} slot per {target_cls}",
+                    "auto_applicable": True
+                })
+
+            # Flessibilità docenti collegati alla classe target
+            target_acts = [a for a in acts_map.values() if target_cls in a.get("students", [])]
+            target_teachers = sorted(list(set(t for a in target_acts for t in a.get("teachers", []))))
+            if target_teachers:
+                # Trova i docenti con più indisponibilità tra quelli della classe
+                tight_tchs = [t for t in target_teachers if len(t_avail.get(t, [])) >= 4]
+                if tight_tchs:
+                    recommendations.append({
+                        "id": f"relax_class_teachers_{target_cls}",
+                        "level": 2,
+                        "level_label": "Livello 2: Flessibilità Mirata Docenti",
+                        "title": f"👥 Allenta Indisponibilità Docenti Chiave di {target_cls} ({', '.join(tight_tchs[:3])})",
+                        "description": (
+                            f"I docenti di {target_cls} ({', '.join(tight_tchs[:3])}) hanno numerosi vincoli orari "
+                            f"che restringono la mobilità tra Succursale e Centrale. "
+                            f"Aprire 1 ora di disponibilità per ciascuno elimina gli incastri rigidi."
+                        ),
+                        "impact": "MEDIO",
+                        "badge": f"Docenti {target_cls}",
+                        "badge_color": "warn",
+                        "action_type": "relax_class_teachers",
+                        "action_payload": {"class": target_cls, "teachers": tight_tchs[:3]},
+                        "button_text": f"Allenta Docenti {target_cls}",
+                        "auto_applicable": True
+                    })
+
         # A. Conflitto con Ore Fissate vs Indisponibilità (sia preventivo che solver)
         for iss in v_report.get("issues", []):
             iid = iss.get("id", "")
@@ -784,6 +959,136 @@ class TimetableAdvisor:
                    if is_en else
                    f"Sbloccate con successo {len(act_ids)} attività fisse.")
 
-        return data, msg
+        elif action_type == "set_class_campus_exception":
+            cname = payload.get("class")
+            policy = payload.get("policy", "move_and_stay")
+            max_ch = int(payload.get("max_changes", 1))
+            relax_hr = bool(payload.get("relax_homeroom", True))
+
+            found = False
+            for c in data.get("classes", []):
+                if c.get("name") == cname:
+                    c["building_change_policy"] = policy
+                    c["max_building_changes"] = max_ch
+                    found = True
+
+            if relax_hr:
+                for sc in data.get("extra_space_constraints", []):
+                    if sc.get("tag") == "ConstraintStudentsSetHomeRoom" and f"<Students>{cname}</Students>" in sc.get("xml", ""):
+                        sc["xml"] = re.sub(r"<Weight_Percentage>\s*100\s*</Weight_Percentage>", "<Weight_Percentage>95</Weight_Percentage>", sc["xml"])
+
+            msg = (
+                f"Campus exception '{policy}' (max {max_ch} changes/day) set for class {cname}."
+                if is_en else
+                f"Impostata eccezione plesso 'Una volta che ti sposti rimani' (max {max_ch} cambio/giorno) per la classe {cname}."
+            )
+
+        elif action_type == "set_all_succursale_campus_exceptions":
+            classes_to_set = set(payload.get("classes", []))
+            if not classes_to_set:
+                classes_to_set = {"1C", "2C", "3C", "4C", "5C", "3D", "4D", "5D", "3L", "4L", "5L"}
+
+            count = 0
+            for c in data.get("classes", []):
+                if c.get("name") in classes_to_set:
+                    c["building_change_policy"] = "move_and_stay"
+                    c["max_building_changes"] = 1
+                    count += 1
+
+            for sc in data.get("extra_space_constraints", []):
+                if sc.get("tag") == "ConstraintStudentsSetHomeRoom":
+                    m_cl = re.search(r"<Students>(.*?)</Students>", sc.get("xml", ""))
+                    if m_cl and m_cl.group(1) in classes_to_set:
+                        sc["xml"] = re.sub(r"<Weight_Percentage>\s*100\s*</Weight_Percentage>", "<Weight_Percentage>95</Weight_Percentage>", sc["xml"])
+
+            msg = (
+                f"Campus exception 'Move and stay' successfully applied to {count} Succursale classes."
+                if is_en else
+                f"Eccezione plesso 'Una volta che ti sposti rimani' applicata con successo a {count} classi di Succursale."
+            )
+
+        elif action_type == "relax_class_unavailability":
+            cname = payload.get("class")
+            slots_to_remove = set(payload.get("slots_to_remove", []))
+            if cname and "class_availability" in data:
+                curr = data["class_availability"].get(cname, [])
+                if not slots_to_remove:
+                    # Rimuovi di default 2 slot pomeridiani (7ª ora)
+                    slots_to_remove = set([s for s in curr if "|7" in s or "|8"][:2])
+                new_list = [s for s in curr if s not in slots_to_remove]
+                data["class_availability"][cname] = new_list
+                removed_count = len(curr) - len(new_list)
+                msg = (
+                    f"Opened {removed_count} hours of availability for class {cname}."
+                    if is_en else
+                    f"Aperte con successo {removed_count} ore di disponibilità per la classe {cname}."
+                )
+
+        elif action_type == "relax_class_teachers":
+            teachers_to_relax = payload.get("teachers", [])
+            cname = payload.get("class")
+            if not teachers_to_relax and cname:
+                acts = [a for a in data.get("activities", []) if cname in a.get("students", [])]
+                teachers_to_relax = sorted(list(set(t for a in acts for t in a.get("teachers", []))))[:3]
+
+            rel_count = 0
+            if "teacher_availability" in data:
+                for t in teachers_to_relax:
+                    curr = data["teacher_availability"].get(t, [])
+                    if curr:
+                        # Rimuovi 1 slot (non da giorno libero)
+                        cands = [s for s in curr if not (curr.count(s.split("|")[0]) >= 5)]
+                        target_s = cands[0] if cands else curr[0]
+                        curr.remove(target_s)
+                        data["teacher_availability"][t] = curr
+                        rel_count += 1
+
+            msg = (
+                f"Relaxed unavailabilities for {rel_count} teachers of class {cname}."
+                if is_en else
+                f"Allentata l'indisponibilità per {rel_count} docenti chiave della classe {cname}."
+            )
+
+        elif action_type == "resolve_class_deadlock_all":
+            # Applica in un colpo solo: Eccezione plesso classe + Aula base 95% + Pacchetto Livello 1
+            cname = payload.get("class")
+            policy = payload.get("policy", "move_and_stay")
+            max_ch = int(payload.get("max_changes", 1))
+
+            # 1. Eccezione classe
+            for c in data.get("classes", []):
+                if c.get("name") == cname:
+                    c["building_change_policy"] = policy
+                    c["max_building_changes"] = max_ch
+
+            # 2. Aula base 95%
+            for sc in data.get("extra_space_constraints", []):
+                if sc.get("tag") == "ConstraintStudentsSetHomeRoom" and f"<Students>{cname}</Students>" in sc.get("xml", ""):
+                    sc["xml"] = re.sub(r"<Weight_Percentage>\s*100\s*</Weight_Percentage>", "<Weight_Percentage>95</Weight_Percentage>", sc["xml"])
+
+            # 3. Pacchetto Livello 1 (Buche e Plessi)
+            gaps_d = int(payload.get("gaps_day", 2))
+            gaps_w = int(payload.get("gaps_week", 3))
+            bld_g = int(payload.get("building_gap", 0))
+
+            if "constraints" not in data:
+                data["constraints"] = {}
+            if "TEACHERS_MAX_GAPS_DAY" in data["constraints"]:
+                data["constraints"]["TEACHERS_MAX_GAPS_DAY"]["val"] = gaps_d
+                data["constraints"]["TEACHERS_MAX_GAPS_DAY"]["active"] = True
+            if "TEACHERS_MAX_GAPS_WEEK" in data["constraints"]:
+                data["constraints"]["TEACHERS_MAX_GAPS_WEEK"]["val"] = gaps_w
+                data["constraints"]["TEACHERS_MAX_GAPS_WEEK"]["active"] = True
+            if "TEACHERS_MIN_GAPS_BUILDING_CHANGES" in data["constraints"]:
+                data["constraints"]["TEACHERS_MIN_GAPS_BUILDING_CHANGES"]["val"] = bld_g
+                data["constraints"]["TEACHERS_MIN_GAPS_BUILDING_CHANGES"]["active"] = (bld_g > 0)
+
+            msg = (
+                f"Full Unlock applied for {cname}: Campus exception set to '{policy}' (max {max_ch}), "
+                f"Daily gaps={gaps_d}, Weekly gaps={gaps_w}, Building gap={bld_g}."
+                if is_en else
+                f"Sblocco completo applicato per {cname}: deroga plesso '{policy}' (max {max_ch} cambio), "
+                f"buche giornaliere={gaps_d}, buche settimanali={gaps_w}, gap plessi={bld_g}."
+            )
 
         return data, msg

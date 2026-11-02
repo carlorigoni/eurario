@@ -3921,6 +3921,12 @@
       <Active>true</Active>
       <Comments></Comments>
     </ConstraintTeachersMinGapsBetweenBuildingChanges>
+    <ConstraintStudentsMaxBuildingChangesPerDay>
+      <Weight_Percentage>100</Weight_Percentage>
+      <Max_Building_Changes_Per_Day>0</Max_Building_Changes_Per_Day>
+      <Active>true</Active>
+      <Comments>Classi non itineranti per default (0 cambi plesso al giorno)</Comments>
+    </ConstraintStudentsMaxBuildingChangesPerDay>
     <ConstraintActivityPreferredRooms>
       <Weight_Percentage>100</Weight_Percentage>
       <Activity_Id>70</Activity_Id>

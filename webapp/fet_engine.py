@@ -1779,7 +1779,29 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
                 lines.append('    </ConstraintActivityPreferredRooms>')
                 assigned_act_pref_rooms.add(comp_id)
 
+    # Mappa aule ed edifici per verificare coerenza di plesso
     succursale_classes = {"1C", "2C", "3C", "4C", "5C", "3D", "4D", "5D", "3L", "4L", "5L"}
+    rooms_buildings_map = {r["name"]: r.get("building", "Centrale") for r in data.get("rooms", [])}
+    classes_home_buildings = {}
+    for c in data.get("classes", []):
+        b_room = c.get("base_room")
+        bld = rooms_buildings_map.get(b_room) if b_room else c.get("building")
+        if not bld:
+            # Fallback per classi note di succursale
+            bld = "Succursale" if c.get("name") in succursale_classes else "Centrale"
+        classes_home_buildings[c.get("name", "")] = bld
+
+    # Rileva classi che hanno attività che richiedono spazi in altro plesso
+    classes_with_outside_acts = set()
+    for a in emitted_activities:
+        subj = (a.get("subject") or "").lower()
+        is_gym = ("motori" in subj or "sport" in subj) and gym_rooms
+        is_info = "informatic" in subj and info_rooms
+        for s in a.get("students", []):
+            home_bld = classes_home_buildings.get(s, "")
+            if "succ" in home_bld.lower() and (is_gym or is_info):
+                classes_with_outside_acts.add(s)
+
     for item in data.get("extra_space_constraints", []):
         xml_str = item.get("xml", "")
         # Se il vincolo contiene riferimenti ad Activity_Id, verifica che appartengano alle attività emesse in FET
@@ -1815,6 +1837,13 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
                     xml_str = xml_str.replace("<Room>Aula 2L</Room>", "<Room>Aula 41</Room>")
                 else:
                     continue
+            # Se è un vincolo aula base per una classe con attività fuori plesso, normalizza il peso al 95%
+            if tag == "ConstraintStudentsSetHomeRoom":
+                m_cl = re.search(r"<Students>(.*?)</Students>", xml_str)
+                if m_cl:
+                    cl_name = m_cl.group(1)
+                    if cl_name in classes_with_outside_acts:
+                        xml_str = re.sub(r"<Weight_Percentage>\s*100\s*</Weight_Percentage>", "<Weight_Percentage>95</Weight_Percentage>", xml_str)
 
         lines.append("    " + xml_str.replace("\n", "\n    "))
 
@@ -1833,15 +1862,7 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
             # Calcolo peso aula base: se la classe ha attività fisse in un altro plesso (es. Palestra in Centrale per una classe di Succursale),
             # usiamo peso 95% affinché FET possa usare aule di appoggio nel plesso ospite durante l'intera giornata in trasferta,
             # rispettando rigidamente il vincolo 100% di 0 cambi plesso al giorno (permanenza dalla prima all'ultima ora).
-            c_bld = c.get("building", "")
-            has_other_bld_acts = False
-            for a in emitted_activities:
-                if c["name"] in a.get("students", []):
-                    subj = (a.get("subject") or "").lower()
-                    if ("motori" in subj or "sport" in subj) and gym_rooms:
-                        if "succ" in c_bld.lower():
-                            has_other_bld_acts = True
-                            break
+            has_other_bld_acts = c["name"] in classes_with_outside_acts
             curr_home_weight = 95 if has_other_bld_acts and home_weight == 100 else home_weight
 
             lines.append('    <ConstraintStudentsSetHomeRoom>')

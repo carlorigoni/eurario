@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.42';
+let APP_VERSION = '1.9.43';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -6354,6 +6354,29 @@ function renderAdvisorCardHtml(recommendations, isSolverView = false, advisorRep
           desc = 'This activity is locked and part of the recursive swap cycle hindering convergence.';
           badge = 'Locked Period';
           btnText = `Unlock #${aid}`;
+        } else if (r.id && r.id.startsWith('resolve_class_all_')) {
+          const cls = r.action_payload?.class || '';
+          title = `⚡ Complete Unlock for Class ${cls} (Campus Exception + Tolerance)`;
+          desc = `Resolves the FET deadlock on class ${cls} in a single step: grants the 'Move and stay' campus exception (max 1 change/day), reduces home room weight to 95%, and applies soft teacher gap tolerance.`;
+          badge = `Unlock ${cls}`;
+          btnText = `Unlock Class ${cls}`;
+        } else if (r.id && r.id.startsWith('set_class_campus_exception_')) {
+          const cls = r.action_payload?.class || '';
+          title = `🏢 Campus Exception for ${cls}: 'Move and stay'`;
+          desc = `Allows class ${cls} to travel to Centrale for required activities (Gym / Lab) at the beginning or end of the day without binding the whole day.`;
+          badge = `Campus ${cls}`;
+          btnText = `Authorize Campus Exception`;
+        } else if (r.id === 'set_all_succursale_campus_exceptions') {
+          title = "🏢 Extend 'Move and stay' Campus Exception to all Succursale Classes";
+          desc = "Authorizes the 'Move and stay' exception for all branch classes with periods in the main campus, permanently eliminating home room conflicts.";
+          badge = 'All Branch Classes';
+          btnText = 'Unlock All Succursale Classes';
+        } else if (r.id && r.id.startsWith('relax_class_unavailability_')) {
+          const cls = r.action_payload?.class || '';
+          title = `🔓 Open Flexible Margin for Class ${cls}`;
+          desc = `Class ${cls} has 100% capacity (30h on 30 slots). Opening 7th period afternoon slots creates the necessary buffer to place 2-hour blocks.`;
+          badge = 'Zero Margin';
+          btnText = `Open slots for ${cls}`;
         } else if (r.id && r.id.startsWith('resolve_clash_')) {
           const aid = r.action_payload?.activity_id || '';
           title = `Resolve Overlap Conflict for #${aid}`;
@@ -6714,13 +6737,18 @@ function renderDiagnosticsContent() {
             : (iss.severity === 'warning' ? `<span class="badge badge-warn">${isEn ? '⚠️ WARNING' : '⚠️ AVVISO'}</span>` : `<span class="badge badge-info">${isEn ? '💡 SUGGESTION' : '💡 SUGGERIMENTO'}</span>`);
 
           let quickBtnLbl = '';
+          let isAdvisorApply = iss.quick_action && iss.quick_action.type === 'advisor_apply';
           if (iss.quick_action) {
-            if (iss.quick_action.target === 'availability') quickBtnLbl = isEn ? '📅 Go to Availability' : '📅 Vai a Disponibilità';
+            if (isAdvisorApply) quickBtnLbl = isEn ? '⚡ 1-Click Fix' : '⚡ Risolvi in 1 Click';
+            else if (iss.quick_action.target === 'availability') quickBtnLbl = isEn ? '📅 Go to Availability' : '📅 Vai a Disponibilità';
             else if (iss.quick_action.target === 'teachers') quickBtnLbl = isEn ? '👨‍🏫 Manage Teachers' : '👨‍🏫 Gestione Docente';
             else if (iss.quick_action.target === 'classes') quickBtnLbl = isEn ? '🎓 Manage Classes' : '🎓 Gestione Classe';
             else if (iss.quick_action.target === 'timetable') quickBtnLbl = isEn ? '🗓️ View in Timetable' : '🗓️ Vedi in Orario';
             else quickBtnLbl = isEn ? '⚡ Go to Constraints' : '⚡ Vai a Vincoli';
           }
+
+          const actionPayloadAttr = isAdvisorApply ? escapeHtml(JSON.stringify(iss.quick_action.payload || {})) : '';
+          const actionTarget = iss.quick_action ? iss.quick_action.target : '';
 
           return `
             <div class="diag-issue-card ${iss.severity}">
@@ -6730,11 +6758,17 @@ function renderDiagnosticsContent() {
                   <span class="badge badge-sec" style="font-size:11px;">${catLabel}</span>
                   <b style="font-size:14px;color:var(--text-main);">${escapeHtml(iss.title)}</b>
                 </div>
-                ${iss.quick_action ? `
-                  <button class="btn btn-sm btn-sec" onclick="navigate('${iss.quick_action.target}')" style="font-size:11.5px;">
-                    ${quickBtnLbl}
-                  </button>
-                ` : ''}
+                ${iss.quick_action ? (
+                  isAdvisorApply ? `
+                    <button class="btn btn-sm btn-primary" onclick="applyAdvisorRelaxation('${actionTarget}', JSON.parse(this.getAttribute('data-payload')), false, this)" data-payload="${actionPayloadAttr}" style="font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:5px;">
+                      ${quickBtnLbl}
+                    </button>
+                  ` : `
+                    <button class="btn btn-sm btn-sec" onclick="navigate('${actionTarget}')" style="font-size:11.5px;">
+                      ${quickBtnLbl}
+                    </button>
+                  `
+                ) : ''}
               </div>
               <div style="font-size:13px;color:var(--text-muted);line-height:1.45;margin-bottom:8px;">
                 ${escapeHtml(iss.description)}

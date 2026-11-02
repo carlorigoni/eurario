@@ -1885,6 +1885,14 @@
       "name": "Docenti: Max cambi plesso a settimana",
       "category": "Spostamenti",
       "desc": "Massimo numero complessivo di spostamenti tra plessi nell'arco della settimana."
+    },
+    "STUDENTS_MAX_BUILDING_CHANGES_DAY": {
+      "active": true,
+      "val": 0,
+      "weight": 100,
+      "name": "Classi: Max cambi plesso al giorno",
+      "category": "Spostamenti",
+      "desc": "Default 0 = Le classi e relative attività non sono itineranti: se una classe ha lezione in un altro plesso (es. palestra in Centrale), vi rimane per l'intera giornata dalla 1ª all'ultima ora."
     }
   },
   "extra_time_constraints": [],
@@ -2886,7 +2894,7 @@
     "L": "liceo"
   },
   "config_name": "Configurazione Corrente",
-  "data_version": 88,
-  "last_modified": "2026-11-01T18:01:29.825255+01:00",
+  "data_version": 90,
+  "last_modified": "2026-11-02T11:49:32.177390+01:00",
   "admin_messages": []
 }

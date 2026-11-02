@@ -76,10 +76,13 @@ class TimetablePreValidator:
         # 6. Spostamento tra Plessi / Sedi
         issues.extend(self._validate_building_switches())
 
+        # 7. Conflitti Plesso / Sede Specifici delle Classi
+        issues.extend(self._validate_class_campus_bottlenecks())
+
         # Calcolo Metriche e Health Score
-        critical_count = sum(1 for i in issues if i["severity"] == "critical")
-        warning_count = sum(1 for i in issues if i["severity"] == "warning")
-        info_count = sum(1 for i in issues if i["severity"] == "info")
+        critical_count = sum(1 for i in issues if i.get("severity") == "critical")
+        warning_count = sum(1 for i in issues if i.get("severity") in ("warning", "warn"))
+        info_count = sum(1 for i in issues if i.get("severity") == "info")
 
         # Health score: 100 base
         if critical_count > 0:
@@ -350,18 +353,34 @@ class TimetablePreValidator:
 
             # --- B. CHECK MARGINE ZERO (Saturazione 100%) ---
             elif effective_class_hours == avail_count and effective_class_hours > 0:
+                # Conta blocchi da 2 ore per valutare la rigidità strutturale della classe
+                class_acts = [
+                    a for a in self.activities
+                    if a.get("active", True) and (cname in a.get("students", []) or any(g in a.get("students", []) for g in subgroups))
+                ]
+                blocks_2h = sum(1 for a in class_acts if a.get("duration", 1) >= 2)
+                blocks_hours = sum(a.get("duration", 1) for a in class_acts if a.get("duration", 1) >= 2)
+
+                # Se la classe ha molti blocchi da 2 ore (>= 6) o ha attività fuori sede o margine zero
+                is_high_rigidity = blocks_2h >= 6
+
                 issues.append({
                     "id": f"class_zero_margin_{cname}",
                     "category": "classes",
-                    "severity": "info",
-                    "title": f"Saturazione Completa (100%): Classe {cname}",
+                    "severity": "warning" if is_high_rigidity else "info",
+                    "title": f"{'Elevata Rigidità Oraria' if is_high_rigidity else 'Saturazione Completa'} (100%): Classe {cname}",
                     "description": (
-                        f"La classe {cname} occupa esattamente tutti i {avail_count} slot aperti. "
+                        f"La classe {cname} occupa esattamente tutti i {avail_count} slot aperti (margine zero assoluto)"
+                        f"{f' con ben {blocks_2h} blocchi da 2 ore ({blocks_hours}h)' if is_high_rigidity else ''}. "
                         f"Ogni singola ora libera è vincolata e tutti i docenti devono combinarsi senza alcuna tolleranza."
                     ),
                     "entities": [{"type": "class", "id": cname, "name": cname}],
-                    "recommendation": "Nessuna azione richiesta a meno di deadlock nei docenti di questa classe.",
-                    "quick_action": {"type": "navigate", "target": "classes", "payload": {"class": cname}}
+                    "recommendation": (
+                        "Se il risolutore stalla su questa classe, apri la 7ª ora in 1 o 2 giorni di rientro per dare margine di manovra a FET."
+                        if is_high_rigidity else
+                        "Nessuna azione richiesta a meno di deadlock nei docenti di questa classe."
+                    ),
+                    "quick_action": {"type": "navigate", "target": "availability", "payload": {"class": cname}}
                 })
 
         return issues
@@ -799,7 +818,7 @@ class TimetablePreValidator:
                 issues.append({
                     "id": "unauthorized_class_building_switches",
                     "category": "buildings",
-                    "severity": "warn",
+                    "severity": "warning",
                     "title": f"Classi con Spostamenti Infra-giornalieri ({len(unauthorized_class_switches)} rilevati)",
                     "description": (
                         "Le classi non sono itineranti per default (0 cambi plesso al giorno). "
@@ -812,6 +831,111 @@ class TimetablePreValidator:
                     "entities": [{"type": "class", "id": x["class"], "name": x["class"]} for x in unauthorized_class_switches[:8]],
                     "recommendation": "Imposta l'eccezione 'Una volta che ti sposti rimani' sulla classe oppure rigenera l'orario con il vincolo rigido a 0 cambi plesso.",
                     "quick_action": {"type": "navigate", "target": "classes", "payload": {}}
+                })
+
+        return issues
+
+    def _validate_class_campus_bottlenecks(self) -> List[Dict[str, Any]]:
+        """
+        Analisi avanzata e predittiva dei conflitti plesso/sede delle classi.
+        Identifica situazioni ad alto rischio di blocco per FET, come classi con sede
+        in Succursale che hanno lezioni in Centrale (Palestra, Laboratori) con vincolo
+        predefinito '0 cambi plesso al giorno' senza eccezioni ('move_and_stay').
+        """
+        issues: List[Dict[str, Any]] = []
+        succursale_classes = {"1C", "2C", "3C", "4C", "5C", "3D", "4D", "5D", "3L", "4L", "5L"}
+        rooms_bld_map = {r["name"]: r.get("building", "Centrale") for r in self.rooms}
+
+        for c in self.classes:
+            cname = c.get("name", "")
+            base_room = c.get("base_room", "")
+            home_bld = rooms_bld_map.get(base_room) or c.get("building") or ("Succursale" if cname in succursale_classes else "Centrale")
+
+            # Verifica policy di mobilità della classe
+            policy = c.get("building_change_policy", "no_transfer")
+            max_ch = c.get("max_building_changes")
+            has_exception = (policy == "move_and_stay") or (max_ch is not None and int(max_ch) > 0)
+
+            # Raccoglie tutte le attività della classe
+            class_acts = [
+                a for a in self.activities
+                if a.get("active", True) and cname in a.get("students", [])
+            ]
+            class_hours = sum(a.get("duration", 1) for a in class_acts)
+            blocks_2h = sum(1 for a in class_acts if a.get("duration", 1) >= 2)
+
+            unavail = set(self.c_avail.get(cname, []))
+            avail_slots = [s for s in self.teaching_slots if s not in unavail]
+            margin = len(avail_slots) - class_hours
+
+            outside_acts = []
+            for a in class_acts:
+                subj = (a.get("subject") or "").lower()
+                is_gym = ("motori" in subj or "sport" in subj)
+                is_info = ("informatic" in subj)
+                act_room = a.get("room", "")
+                room_bld = rooms_bld_map.get(act_room, "")
+
+                is_outside = False
+                desc = a.get("subject", "")
+                if "succ" in home_bld.lower():
+                    if is_gym:
+                        is_outside = True
+                        desc += " (Palestra Centrale)"
+                    elif is_info:
+                        is_outside = True
+                        desc += " (Laboratorio Info Centrale)"
+                    elif room_bld and "centr" in room_bld.lower():
+                        is_outside = True
+                        desc += f" ({act_room} Centrale)"
+                elif "centr" in home_bld.lower():
+                    if room_bld and "succ" in room_bld.lower():
+                        is_outside = True
+                        desc += f" ({act_room} Succursale)"
+
+                if is_outside:
+                    outside_acts.append({
+                        "id": str(a.get("id")),
+                        "subject": a.get("subject", ""),
+                        "duration": a.get("duration", 1),
+                        "teachers": a.get("teachers", []),
+                        "desc": desc
+                    })
+
+            if outside_acts and not has_exception:
+                outside_h = sum(x["duration"] for x in outside_acts)
+                outside_labels = [f"{x['desc']} ({x['duration']}h)" for x in outside_acts]
+                involved_teachers = sorted(list(set(t for x in outside_acts for t in x["teachers"])))
+
+                # È critico se la classe ha margine zero (30h su 30) o molti blocchi da 2h
+                is_blocking = (margin <= 0) or (blocks_2h >= 6)
+
+                issues.append({
+                    "id": f"class_campus_bottleneck_{cname}",
+                    "category": "buildings",
+                    "severity": "critical" if is_blocking else "warning",
+                    "title": f"Stallo Plesso / Sede: Classe {cname} ({outside_h}h fuori sede)",
+                    "description": (
+                        f"La classe {cname} (sede principale: {home_bld}) ha {outside_h} ore di lezioni in Centrale "
+                        f"({', '.join(outside_labels)}), ma non ha alcuna deroga impostata (attualmente vige '0 cambi plesso al giorno'). "
+                        f"Per soddisfare il vincolo, FET dovrebbe svolgere TUTTE le lezioni di quei giorni in Centrale, "
+                        f"ma la classe occupa {class_hours} ore su {len(avail_slots)} slot disponibili (margine {margin}) "
+                        f"con {blocks_2h} blocchi da 2 ore, e i suoi docenti residenti in {home_bld} non possono spostarsi liberamente. "
+                        f"Questo provoca un blocco insuperabile per il solutore FET (noto su {cname})."
+                    ),
+                    "entities": (
+                        [{"type": "class", "id": cname, "name": cname}] +
+                        [{"type": "teacher", "id": t, "name": t} for t in involved_teachers]
+                    ),
+                    "recommendation": (
+                        f"Imposta per la classe {cname} l'eccezione 'Una volta che ti sposti rimani' (max 1 cambio al giorno) "
+                        f"per consentirle di andare in Centrale alla 4ª-5ª ora senza vincolare l'intera giornata."
+                    ),
+                    "quick_action": {
+                        "type": "advisor_apply",
+                        "target": "set_class_campus_exception",
+                        "payload": {"class": cname, "policy": "move_and_stay", "max_changes": 1, "relax_homeroom": True}
+                    }
                 })
 
         return issues
