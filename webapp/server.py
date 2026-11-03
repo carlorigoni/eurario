@@ -98,7 +98,7 @@ def fetch_google_doc_docx_bytes(url):
     except Exception as e:
         raise ValueError(f"Impossibile scaricare il Google Doc: {e}")
 
-APP_VERSION = "1.9.43"
+APP_VERSION = "1.9.44"
 FET_VERSION = "7.12.0"
 APP_AUTHOR = "Carlo Rigoni"
 APP_MENTOR = "Federico Rettore"
@@ -2249,6 +2249,9 @@ Questo messaggio è stato inviato dalla piattaforma Eurario.
 
                 restarted = False
                 if restart:
+                    target_sid = get_current_school_id()
+                    solver_state = get_solver_state(target_sid)
+                    solver_lock = get_solver_lock(target_sid)
                     with solver_lock:
                         old_proc = solver_state.get("process")
                         if old_proc and old_proc.poll() is None:
