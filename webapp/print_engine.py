@@ -1918,7 +1918,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
     total_transfers = stats.get("total_transfers_week", 0)
     anomalous_count = stats.get("anomalous_classes_count", 0)
 
-    def _fmt_timing(tr):
+    def _fmt_timing_parts(tr):
         try:
             from_h = int(tr.get("from_hour", 1))
             to_h = int(tr.get("to_hour", 2))
@@ -1928,14 +1928,28 @@ def generate_transfers_print_html(data, tm_data, options=None):
         if to_h == from_h + 1:
             inv = INTERVALLI_DOPO_ORA.get(from_h)
             if inv:
-                return f"Al termine {from_h}ª ora ({inv['inizio']} - {inv['fine']}, {inv['label']})" if not is_en else f"After Period {from_h} ({inv['inizio']} - {inv['fine']}, {inv['label']})"
-            time_info = ORARIO_ORE.get(from_h, {})
-            end_t = time_info.get("fine", "")
-            return f"Al termine {from_h}ª ora ({end_t})" if not is_en else f"After Period {from_h} ({end_t})"
+                main_t = f"Al termine {from_h}ª ora" if not is_en else f"After Period {from_h}"
+                sub_t = f"{inv['inizio']} - {inv['fine']}"
+                tag_t = inv['label']
+            else:
+                time_info = ORARIO_ORE.get(from_h, {})
+                end_t = time_info.get("fine", "")
+                main_t = f"Al termine {from_h}ª ora" if not is_en else f"After Period {from_h}"
+                sub_t = f"ore {end_t}" if end_t else ""
+                tag_t = ""
         else:
             gap_hours = list(range(from_h + 1, to_h))
             gap_str = ", ".join([f"{g}ª" for g in gap_hours])
-            return f"Tra {from_h}ª e {to_h}ª ora (buca alla {gap_str})" if not is_en else f"Between Periods {from_h} and {to_h} (gap: {gap_str})"
+            main_t = f"Tra {from_h}ª e {to_h}ª ora" if not is_en else f"Between Periods {from_h} & {to_h}"
+            sub_t = f"buca alla {gap_str}" if not is_en else f"gap: {gap_str}"
+            tag_t = "Buca oraria" if not is_en else "Schedule gap"
+
+        return {"main": main_t, "sub": sub_t, "tag": tag_t}
+
+    def _fmt_timing(tr):
+        p = _fmt_timing_parts(tr)
+        sub_str = f" ({p['sub']}{', ' + p['tag'] if p['tag'] else ''})" if p['sub'] else ""
+        return f"{p['main']}{sub_str}"
 
     doc_title = "Quadro Spostamenti Plessi & Docenti Itineranti" if not is_en else "Campus Transfers & Itinerant Faculty Board"
 
@@ -2124,8 +2138,11 @@ def generate_transfers_print_html(data, tm_data, options=None):
       border: 1px solid #cbd5e1;
       vertical-align: middle;
     }}
-    table.data-table tr:nth-child(even) td {{
+    .alert-box table.data-table tr:nth-child(even) td {{
       background: #f8fafc;
+    }}
+    .day-card table.data-table tr td {{
+      background: inherit;
     }}
 
     /* Cronoprogramma giorni */
@@ -2343,7 +2360,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
           </div>
           <div class="header-right">
             <div><b>{('Orario Ufficiale in vigore dal:' if not is_en else 'Schedule Valid From:')}</b> {escape(validity_date)}</div>
-            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.46</div>
+            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.47</div>
           </div>
         </div>
 """)
@@ -2420,35 +2437,68 @@ def generate_transfers_print_html(data, tm_data, options=None):
           </div>
 """)
             else:
+                timing_groups = []
+                for h, tr in day_transfers:
+                    timing_str = _fmt_timing(tr)
+                    if timing_groups and timing_groups[-1]["timing_str"] == timing_str:
+                        timing_groups[-1]["items"].append(tr)
+                    else:
+                        timing_groups.append({
+                            "timing_str": timing_str,
+                            "timing_parts": _fmt_timing_parts(tr),
+                            "items": [tr]
+                        })
+
                 html_parts.append(f"""
             <table class="data-table">
               <thead>
                 <tr>
                   <th style="width:28%;">{('Orario / Fascia' if not is_en else 'Time / Period')}</th>
-                  <th style="width:24%;">{('Docente' if not is_en else 'Faculty')}</th>
-                  <th style="width:24%;">{('Tragitto' if not is_en else 'Route')}</th>
+                  <th style="width:25%;">{('Docente' if not is_en else 'Faculty')}</th>
+                  <th style="width:23%;">{('Tragitto' if not is_en else 'Route')}</th>
                   <th style="width:24%;">{('Destinazione' if not is_en else 'Destination')}</th>
                 </tr>
               </thead>
               <tbody>
 """)
-                for h, tr in day_transfers:
-                    timing_str = _fmt_timing(tr)
-                    to_succ = "succ" in tr.get("to_building", "").lower()
-                    dest_room = tr.get("to_room") or tr.get("to_building", "")
-                    dest_class = tr.get("to_class") or ""
-                    html_parts.append(f"""
-                <tr>
-                  <td style="font-weight:700;white-space:nowrap;">{escape(timing_str)}</td>
-                  <td><b>Prof. {escape(tr.get("teacher", ""))}</b></td>
-                  <td>
+                for grp_idx, grp in enumerate(timing_groups):
+                    count = len(grp["items"])
+                    parts = grp["timing_parts"]
+                    bg_color = "#ffffff" if grp_idx % 2 == 0 else "#f8fafc"
+                    grp_border_top = "border-top:2px solid #64748b;" if grp_idx > 0 else "border-top:1px solid #cbd5e1;"
+
+                    for item_idx, tr in enumerate(grp["items"]):
+                        is_first = (item_idx == 0)
+                        to_succ = "succ" in tr.get("to_building", "").lower()
+                        dest_room = tr.get("to_room") or tr.get("to_building", "")
+                        dest_class = tr.get("to_class") or ""
+                        row_border_top = grp_border_top if is_first else "border-top:1px dashed #e2e8f0;"
+
+                        html_parts.append(f"""
+                <tr style="background:{bg_color};">
+""")
+                        if is_first:
+                            sub_html = f'<div style="font-size:9px;color:#475569;font-weight:600;margin-top:1px;">{escape(parts["sub"])}</div>' if parts["sub"] else ''
+                            tag_html = f'<div style="margin-top:2px;"><span style="font-size:8.5px;font-weight:700;padding:1px 5px;border-radius:3px;background:#e2e8f0;color:#334155;">{escape(parts["tag"])}</span></div>' if parts["tag"] else ''
+                            count_html = f'<div style="margin-top:3px;"><span style="font-size:8.5px;font-weight:700;padding:1px 5px;border-radius:8px;background:#dbeafe;color:#1e40af;">{count} {("docenti" if not is_en else "faculty")}</span></div>' if count > 1 else ''
+                            html_parts.append(f"""
+                  <td rowspan="{count}" style="vertical-align:top;background:#f1f5f9;{grp_border_top};border-right:2px solid #cbd5e1;padding:5px 6px;">
+                    <div style="font-weight:800;color:#0f172a;font-size:10px;line-height:1.25;">⏱️ {escape(parts['main'])}</div>
+                    {sub_html}
+                    {tag_html}
+                    {count_html}
+                  </td>
+""")
+                        html_parts.append(f"""
+                  <td style="{row_border_top};vertical-align:middle;"><b>Prof. {escape(tr.get("teacher", ""))}</b></td>
+                  <td style="{row_border_top};vertical-align:middle;">
                     <span class="node-highlight">{escape(tr.get("from_building", ""))}</span>
                     <span class="route-arrow">➔</span>
                     <span class="node-highlight" style="color:{('#7c3aed' if to_succ else '#2563eb')};font-weight:800;">{escape(tr.get("to_building", ""))}</span>
                   </td>
-                  <td>
+                  <td style="{row_border_top};vertical-align:middle;">
                     <b>{escape(dest_room)}</b>
-                    {f'<small style="color:#475569;">({escape(dest_class)})</small>' if dest_class else ''}
+                    {f'<small style="color:#475569;">({escape(dest_class)})</small>' if (dest_class and dest_class not in dest_room) else ''}
                   </td>
                 </tr>
 """)
@@ -2466,7 +2516,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
         # Footer Foglio 1
         html_parts.append(f"""
       <div class="sheet-footer">
-        <div><b>Eurario FET Suite v1.9.46</b> &mdash; {("Documento Ufficiale dell'Istituto per la gestione degli accessi e dei varchi" if not is_en else "Official Institutional Schedule for Access & Gate Management")}</div>
+        <div><b>Eurario FET Suite v1.9.47</b> &mdash; {("Documento Ufficiale dell'Istituto per la gestione degli accessi e dei varchi" if not is_en else "Official Institutional Schedule for Access & Gate Management")}</div>
         <div>{('Stampato il:' if not is_en else 'Printed on:')} {datetime.now().strftime('%d/%m/%Y %H:%M')}</div>
       </div>
     </div>
@@ -2486,7 +2536,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
           </div>
           <div class="header-right">
             <div><b>{('Orario Ufficiale in vigore dal:' if not is_en else 'Schedule Valid From:')}</b> {escape(validity_date)}</div>
-            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.46</div>
+            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.47</div>
           </div>
         </div>
 
@@ -2578,7 +2628,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
         html_parts.append(f"""
       </div>
       <div class="sheet-footer">
-        <div><b>Eurario FET Suite v1.9.46</b> &mdash; {("Documento Ufficiale dell'Istituto per la consultazione del corpo docente" if not is_en else "Official Institutional Schedule for Faculty Noticeboard")}</div>
+        <div><b>Eurario FET Suite v1.9.47</b> &mdash; {("Documento Ufficiale dell'Istituto per la consultazione del corpo docente" if not is_en else "Official Institutional Schedule for Faculty Noticeboard")}</div>
         <div>{('Stampato il:' if not is_en else 'Printed on:')} {datetime.now().strftime('%d/%m/%Y %H:%M')}</div>
       </div>
     </div>
