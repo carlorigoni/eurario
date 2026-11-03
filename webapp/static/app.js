@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.45';
+let APP_VERSION = '1.9.46';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -9323,7 +9323,6 @@ async function renderClasses() {
           </table>
         </div>
       `}
-    ` : ''}
   `;
 
   if (isClassesView) {
