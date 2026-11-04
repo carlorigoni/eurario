@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.47';
+let APP_VERSION = '1.9.48';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -5276,8 +5276,11 @@ function renderTimeMachineView() {
                         <span class="tm-route-arrow ${toSucc ? 'arrow-right' : 'arrow-left'}">➔</span>
                         <span class="tm-route-node highlight">${escapeHtml(tr.to_building)} <small>(${tr.to_hour}ª)</small></span>
                       </div>
-                      <div class="tm-transfer-dest">
-                        <b>${isEn ? 'Next:' : 'Arrivo:'}</b> ${escapeHtml(tr.to_class || 'Lezione')} &bull; ${escapeHtml(tr.to_room || tr.to_building)} <small>(${escapeHtml(tr.to_subject || '')})</small>
+                      <div class="tm-transfer-dest" style="font-size:11px;margin-bottom:3px;opacity:0.9;">
+                        <b>${isEn ? 'From:' : 'Partenza:'}</b> ${escapeHtml(tr.from_is_disp ? (isEn ? '🟡 On-call' : '🟡 Disposizione') : (tr.from_class || tr.from_room || tr.from_building))} ${tr.from_room && !tr.from_is_disp ? `&bull; ${escapeHtml(tr.from_room)}` : ''} <small>(${escapeHtml(tr.from_subject || '')})</small>
+                      </div>
+                      <div class="tm-transfer-dest" style="font-size:11px;">
+                        <b>${isEn ? 'To:' : 'Arrivo:'}</b> ${escapeHtml(tr.to_is_disp ? (isEn ? '🟡 On-call' : '🟡 Disposizione') : (tr.to_class || tr.to_room || tr.to_building))} ${tr.to_room && !tr.to_is_disp ? `&bull; ${escapeHtml(tr.to_room)}` : ''} <small>(${escapeHtml(tr.to_subject || '')})</small>
                       </div>
                     </div>
                   `;

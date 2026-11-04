@@ -2360,7 +2360,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
           </div>
           <div class="header-right">
             <div><b>{('Orario Ufficiale in vigore dal:' if not is_en else 'Schedule Valid From:')}</b> {escape(validity_date)}</div>
-            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.47</div>
+            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.48</div>
           </div>
         </div>
 """)
@@ -2453,10 +2453,10 @@ def generate_transfers_print_html(data, tm_data, options=None):
             <table class="data-table">
               <thead>
                 <tr>
-                  <th style="width:28%;">{('Orario / Fascia' if not is_en else 'Time / Period')}</th>
-                  <th style="width:25%;">{('Docente' if not is_en else 'Faculty')}</th>
-                  <th style="width:23%;">{('Tragitto' if not is_en else 'Route')}</th>
-                  <th style="width:24%;">{('Destinazione' if not is_en else 'Destination')}</th>
+                  <th style="width:25%;">{('Orario / Fascia' if not is_en else 'Time / Period')}</th>
+                  <th style="width:22%;">{('Docente' if not is_en else 'Faculty')}</th>
+                  <th style="width:26%;">{('Origine' if not is_en else 'Origin')}</th>
+                  <th style="width:27%;">{('Destinazione' if not is_en else 'Destination')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -2469,10 +2469,34 @@ def generate_transfers_print_html(data, tm_data, options=None):
 
                     for item_idx, tr in enumerate(grp["items"]):
                         is_first = (item_idx == 0)
-                        to_succ = "succ" in tr.get("to_building", "").lower()
-                        dest_room = tr.get("to_room") or tr.get("to_building", "")
+                        from_bld = tr.get("from_building", "")
+                        from_succ = "succ" in from_bld.lower()
+                        from_is_disp = tr.get("from_is_disp", False)
+                        from_room = tr.get("from_room") or ""
+                        from_class = tr.get("from_class") or ""
+                        from_loc = from_room or from_bld
+
+                        to_bld = tr.get("to_building", "")
+                        to_succ = "succ" in to_bld.lower()
+                        to_is_disp = tr.get("to_is_disp", False)
+                        dest_room = tr.get("to_room") or to_bld
                         dest_class = tr.get("to_class") or ""
+
                         row_border_top = grp_border_top if is_first else "border-top:1px dashed #e2e8f0;"
+
+                        # Formattazione Origine
+                        if from_is_disp:
+                            from_detail = f'<div style="font-size:9.5px;color:#d97706;font-weight:700;margin-top:1px;">🟡 {("Disposizione" if not is_en else "On-call")}</div>'
+                        else:
+                            cls_txt = f'<small style="color:#475569;">({escape(from_class)})</small>' if (from_class and from_class not in from_loc) else ''
+                            from_detail = f'<div style="font-size:9.5px;margin-top:1px;line-height:1.2;"><b>{escape(from_loc)}</b> {cls_txt}</div>'
+
+                        # Formattazione Destinazione
+                        if to_is_disp:
+                            to_detail = f'<div style="font-size:9.5px;color:#d97706;font-weight:700;margin-top:1px;">🟡 {("Disposizione" if not is_en else "On-call")}</div>'
+                        else:
+                            d_cls_txt = f'<small style="color:#475569;">({escape(dest_class)})</small>' if (dest_class and dest_class not in dest_room) else ''
+                            to_detail = f'<div style="font-size:9.5px;margin-top:1px;line-height:1.2;"><b>{escape(dest_room)}</b> {d_cls_txt}</div>'
 
                         html_parts.append(f"""
                 <tr style="background:{bg_color};">
@@ -2492,13 +2516,12 @@ def generate_transfers_print_html(data, tm_data, options=None):
                         html_parts.append(f"""
                   <td style="{row_border_top};vertical-align:middle;"><b>Prof. {escape(tr.get("teacher", ""))}</b></td>
                   <td style="{row_border_top};vertical-align:middle;">
-                    <span class="node-highlight">{escape(tr.get("from_building", ""))}</span>
-                    <span class="route-arrow">➔</span>
-                    <span class="node-highlight" style="color:{('#7c3aed' if to_succ else '#2563eb')};font-weight:800;">{escape(tr.get("to_building", ""))}</span>
+                    <div><span class="node-highlight" style="font-weight:700;color:{('#7c3aed' if from_succ else '#2563eb')};">{escape(from_bld)}</span></div>
+                    {from_detail}
                   </td>
                   <td style="{row_border_top};vertical-align:middle;">
-                    <b>{escape(dest_room)}</b>
-                    {f'<small style="color:#475569;">({escape(dest_class)})</small>' if (dest_class and dest_class not in dest_room) else ''}
+                    <div><span class="route-arrow">➔ </span><span class="node-highlight" style="color:{('#7c3aed' if to_succ else '#2563eb')};font-weight:800;">{escape(to_bld)}</span></div>
+                    {to_detail}
                   </td>
                 </tr>
 """)
@@ -2516,7 +2539,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
         # Footer Foglio 1
         html_parts.append(f"""
       <div class="sheet-footer">
-        <div><b>Eurario FET Suite v1.9.47</b> &mdash; {("Documento Ufficiale dell'Istituto per la gestione degli accessi e dei varchi" if not is_en else "Official Institutional Schedule for Access & Gate Management")}</div>
+        <div><b>Eurario FET Suite v1.9.48</b> &mdash; {("Documento Ufficiale dell'Istituto per la gestione degli accessi e dei varchi" if not is_en else "Official Institutional Schedule for Access & Gate Management")}</div>
         <div>{('Stampato il:' if not is_en else 'Printed on:')} {datetime.now().strftime('%d/%m/%Y %H:%M')}</div>
       </div>
     </div>
@@ -2536,7 +2559,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
           </div>
           <div class="header-right">
             <div><b>{('Orario Ufficiale in vigore dal:' if not is_en else 'Schedule Valid From:')}</b> {escape(validity_date)}</div>
-            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.47</div>
+            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.48</div>
           </div>
         </div>
 
@@ -2608,7 +2631,9 @@ def generate_transfers_print_html(data, tm_data, options=None):
 
                         tr_details = []
                         for tr in day_trs:
-                            tr_details.append(f"➔ {tr.get('to_building', '')[:4]}. ({tr.get('to_hour', '')}ª in {tr.get('to_room', '')})")
+                            from_loc = tr.get("from_room") or tr.get("from_building", "")[:4]
+                            to_loc = tr.get("to_room") or tr.get("to_building", "")[:4]
+                            tr_details.append(f"{tr.get('from_building', '')[:4]}. ({from_loc}) ➔ {tr.get('to_building', '')[:4]}. ({tr.get('to_hour', '')}ª {to_loc})")
 
                         html_parts.append(f"""
               <td>
@@ -2628,7 +2653,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
         html_parts.append(f"""
       </div>
       <div class="sheet-footer">
-        <div><b>Eurario FET Suite v1.9.47</b> &mdash; {("Documento Ufficiale dell'Istituto per la consultazione del corpo docente" if not is_en else "Official Institutional Schedule for Faculty Noticeboard")}</div>
+        <div><b>Eurario FET Suite v1.9.48</b> &mdash; {("Documento Ufficiale dell'Istituto per la consultazione del corpo docente" if not is_en else "Official Institutional Schedule for Faculty Noticeboard")}</div>
         <div>{('Stampato il:' if not is_en else 'Printed on:')} {datetime.now().strftime('%d/%m/%Y %H:%M')}</div>
       </div>
     </div>

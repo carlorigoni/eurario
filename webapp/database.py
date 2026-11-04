@@ -2998,6 +2998,67 @@ class Database:
             class_policy_map = {c["name"]: c.get("building_change_policy", "no_transfer") for c in self.data.get("classes", [])}
             class_max_changes_map = {c["name"]: int(c.get("max_building_changes", 0) or 0) for c in self.data.get("classes", [])}
 
+            # Mappa per la risoluzione dell'edificio effettivo di ogni docente per ciascun giorno e ora.
+            # Regola didattica: le ore a disposizione non innescano di per sé trasferimenti tra plessi:
+            # ereditano la sede della lezione didattica adiacente (precedente o successiva), a meno che
+            # l'ora successiva non sia effettivamente programmata in un'altra sede.
+            teacher_eff_by_day = defaultdict(dict)
+            for d in days:
+                for tname, grid in views.get("by_teacher", {}).items():
+                    day_lessons = grid.get(d, {})
+                    known_blds = {}
+                    disp_hours = set()
+                    for ch in clean_hours:
+                        c_slots = day_lessons.get(ch, [])
+                        if c_slots:
+                            s0 = c_slots[0]
+                            is_disp = s0.get("is_disposizione", False) or (s0.get("subject") or "").strip().lower().startswith("disposiz") or (s0.get("comments") or "").strip().startswith("FET_DISPOSIZIONE")
+                            if is_disp:
+                                disp_hours.add(ch)
+                                if s0.get("building"):
+                                    known_blds[ch] = s0.get("building")
+                            else:
+                                b = s0.get("building")
+                                if b:
+                                    known_blds[ch] = b
+                                else:
+                                    cls_list = s0.get("students", [])
+                                    cls_bld = class_base_buildings.get(cls_list[0]) if cls_list else None
+                                    known_blds[ch] = cls_bld or primary_bld
+
+                    eff_map = {}
+                    for ch_idx, ch in enumerate(clean_hours):
+                        c_slots = day_lessons.get(ch, [])
+                        if not c_slots:
+                            eff_map[ch] = None
+                            continue
+                        if ch in known_blds and ch not in disp_hours:
+                            eff_map[ch] = known_blds[ch]
+                        elif ch in known_blds and ch in disp_hours and known_blds[ch] != primary_bld:
+                            eff_map[ch] = known_blds[ch]
+                        else:
+                            prior_b = None
+                            for p_ch in reversed(clean_hours[:ch_idx]):
+                                if p_ch in known_blds:
+                                    prior_b = known_blds[p_ch]
+                                    break
+                            next_b = None
+                            for n_ch in clean_hours[ch_idx + 1:]:
+                                if n_ch in known_blds:
+                                    next_b = known_blds[n_ch]
+                                    break
+
+                            if prior_b and next_b:
+                                eff_map[ch] = prior_b
+                            elif prior_b:
+                                eff_map[ch] = prior_b
+                            elif next_b:
+                                eff_map[ch] = next_b
+                            else:
+                                eff_map[ch] = primary_bld
+
+                    teacher_eff_by_day[d][tname] = eff_map
+
             for d in days:
                 timeline[d] = {}
                 # Calcolo sequenza plessi per ciascuna classe nella giornata d
@@ -3090,19 +3151,20 @@ class Database:
                         slots = grid.get(d, {}).get(h, [])
                         if slots:
                             l = slots[0]
-                            curr_bld = l.get("building") or primary_bld
+                            curr_bld = teacher_eff_by_day[d][tname].get(h) or l.get("building") or primary_bld
                             if curr_bld not in bld_data:
                                 bld_data[curr_bld] = {
                                     "classes": [],
                                     "teachers": [],
                                     "stats": {"class_count": 0, "teacher_count": 0}
                                 }
+                            is_disp = l.get("is_disposizione", False) or (l.get("subject") or "").strip().lower().startswith("disposiz") or (l.get("comments") or "").strip().startswith("FET_DISPOSIZIONE")
                             bld_data[curr_bld]["teachers"].append({
                                 "teacher_name": tname,
                                 "room": l.get("room", ""),
                                 "subject": l.get("subject", ""),
                                 "classes": l.get("students", []),
-                                "is_disposizione": l.get("is_disposizione", False)
+                                "is_disposizione": bool(is_disp)
                             })
 
                     # Ordina
@@ -3118,20 +3180,20 @@ class Database:
                             day_lessons = grid.get(d, {})
                             curr_slots = day_lessons.get(h, [])
                             if curr_slots:
-                                curr_bld = curr_slots[0].get("building") or primary_bld
+                                curr_bld = teacher_eff_by_day[d][tname].get(h) or curr_slots[0].get("building") or primary_bld
                                 prev_h = None
                                 prev_bld = None
-                                prev_room = ""
+                                prev_slot = None
                                 for p_idx in range(h_idx - 1, -1, -1):
                                     ph = clean_hours[p_idx]
                                     p_slots = day_lessons.get(ph, [])
                                     if p_slots:
                                         prev_h = ph
-                                        prev_bld = p_slots[0].get("building") or primary_bld
-                                        prev_room = p_slots[0].get("room", "")
+                                        prev_bld = teacher_eff_by_day[d][tname].get(ph) or p_slots[0].get("building") or primary_bld
+                                        prev_slot = p_slots[0]
                                         break
 
-                                if prev_bld and prev_bld != curr_bld:
+                                if prev_bld and prev_bld != curr_bld and prev_slot:
                                     idx_prev_clean = clean_hours.index(prev_h)
                                     is_consec = (idx_prev_clean == h_idx - 1)
 
@@ -3153,16 +3215,23 @@ class Database:
                                     total_transfers_count += 1
                                     transfers_per_day[d] += 1
 
+                                    from_is_disp = prev_slot.get("is_disposizione", False) or (prev_slot.get("subject") or "").strip().lower().startswith("disposiz") or (prev_slot.get("comments") or "").strip().startswith("FET_DISPOSIZIONE")
+                                    to_is_disp = curr_slots[0].get("is_disposizione", False) or (curr_slots[0].get("subject") or "").strip().lower().startswith("disposiz") or (curr_slots[0].get("comments") or "").strip().startswith("FET_DISPOSIZIONE")
+
                                     tr_obj = {
                                         "teacher": tname,
                                         "from_building": prev_bld,
                                         "to_building": curr_bld,
                                         "from_hour": prev_h,
                                         "to_hour": h,
-                                        "from_room": prev_room,
+                                        "from_room": prev_slot.get("room", ""),
+                                        "from_class": ", ".join(prev_slot.get("students", [])),
+                                        "from_subject": prev_slot.get("subject", ""),
+                                        "from_is_disp": bool(from_is_disp),
                                         "to_room": curr_slots[0].get("room", ""),
                                         "to_class": ", ".join(curr_slots[0].get("students", [])),
                                         "to_subject": curr_slots[0].get("subject", ""),
+                                        "to_is_disp": bool(to_is_disp),
                                         "comfort": comfort,
                                         "comfort_label": comfort_lbl,
                                         "is_consecutive": is_consec
@@ -3187,14 +3256,16 @@ class Database:
                     for h in clean_hours:
                         slots = t_grid.get(d, {}).get(h, [])
                         if slots:
+                            eff_b = teacher_eff_by_day[d][tname].get(h) or slots[0].get("building") or primary_bld
+                            is_disp = slots[0].get("is_disposizione", False) or (slots[0].get("subject") or "").strip().lower().startswith("disposiz") or (slots[0].get("comments") or "").strip().startswith("FET_DISPOSIZIONE")
                             day_sched.append({
                                 "hour": h,
                                 "is_free": False,
-                                "building": slots[0].get("building") or primary_bld,
+                                "building": eff_b,
                                 "room": slots[0].get("room", ""),
                                 "subject": slots[0].get("subject", ""),
                                 "class_name": ", ".join(slots[0].get("students", [])),
-                                "is_disp": slots[0].get("is_disposizione", False)
+                                "is_disp": bool(is_disp)
                             })
                         else:
                             day_sched.append({
