@@ -799,7 +799,8 @@ def build_timetable_views(data):
                 if slots:
                     occupied_hours.append(h)
                     bld = slots[0].get("building", "")
-                    if bld:
+                    is_disp_item = any(it.get("is_disposizione") or (it.get("subject") or "").strip().lower().startswith("disposiz") or (it.get("comments") or "").strip().startswith("FET_DISPOSIZIONE") for it in slots)
+                    if bld and not is_disp_item:
                         buildings_seq.append(bld)
                     for item in slots:
                         subj_s = (item.get("subject") or "").strip().lower()

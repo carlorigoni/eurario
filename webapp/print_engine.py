@@ -1925,6 +1925,9 @@ def generate_transfers_print_html(data, tm_data, options=None):
         except (ValueError, TypeError):
             from_h, to_h = 1, 2
 
+        comfort = tr.get("comfort", "")
+        has_disp = tr.get("has_disposizione", False) or (comfort == "comodo_disposizione")
+
         if to_h == from_h + 1:
             inv = INTERVALLI_DOPO_ORA.get(from_h)
             if inv:
@@ -1941,8 +1944,12 @@ def generate_transfers_print_html(data, tm_data, options=None):
             gap_hours = list(range(from_h + 1, to_h))
             gap_str = ", ".join([f"{g}ª" for g in gap_hours])
             main_t = f"Tra {from_h}ª e {to_h}ª ora" if not is_en else f"Between Periods {from_h} & {to_h}"
-            sub_t = f"buca alla {gap_str}" if not is_en else f"gap: {gap_str}"
-            tag_t = "Buca oraria" if not is_en else "Schedule gap"
+            if has_disp:
+                sub_t = f"disposizione alla {gap_str}" if not is_en else f"on-call at {gap_str}"
+                tag_t = "Durante Disposizione" if not is_en else "During On-call"
+            else:
+                sub_t = f"buca alla {gap_str}" if not is_en else f"gap: {gap_str}"
+                tag_t = "Buca oraria" if not is_en else "Schedule gap"
 
         return {"main": main_t, "sub": sub_t, "tag": tag_t}
 
@@ -2360,7 +2367,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
           </div>
           <div class="header-right">
             <div><b>{('Orario Ufficiale in vigore dal:' if not is_en else 'Schedule Valid From:')}</b> {escape(validity_date)}</div>
-            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.48</div>
+            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.49</div>
           </div>
         </div>
 """)
@@ -2503,7 +2510,20 @@ def generate_transfers_print_html(data, tm_data, options=None):
 """)
                         if is_first:
                             sub_html = f'<div style="font-size:9px;color:#475569;font-weight:600;margin-top:1px;">{escape(parts["sub"])}</div>' if parts["sub"] else ''
-                            tag_html = f'<div style="margin-top:2px;"><span style="font-size:8.5px;font-weight:700;padding:1px 5px;border-radius:3px;background:#e2e8f0;color:#334155;">{escape(parts["tag"])}</span></div>' if parts["tag"] else ''
+                            tag_t = parts["tag"]
+                            if "disposiz" in tag_t.lower() or "on-call" in tag_t.lower():
+                                tag_bg = "#fef3c7"
+                                tag_color = "#92400e"
+                                tag_icon = "🟡 "
+                            elif "intervallo" in tag_t.lower() or "recess" in tag_t.lower():
+                                tag_bg = "#dcfce7"
+                                tag_color = "#166534"
+                                tag_icon = "☕ "
+                            else:
+                                tag_bg = "#e2e8f0"
+                                tag_color = "#334155"
+                                tag_icon = "⏳ "
+                            tag_html = f'<div style="margin-top:2px;"><span style="font-size:8.5px;font-weight:700;padding:1px 5px;border-radius:3px;background:{tag_bg};color:{tag_color};">{tag_icon}{escape(tag_t)}</span></div>' if tag_t else ''
                             count_html = f'<div style="margin-top:3px;"><span style="font-size:8.5px;font-weight:700;padding:1px 5px;border-radius:8px;background:#dbeafe;color:#1e40af;">{count} {("docenti" if not is_en else "faculty")}</span></div>' if count > 1 else ''
                             html_parts.append(f"""
                   <td rowspan="{count}" style="vertical-align:top;background:#f1f5f9;{grp_border_top};border-right:2px solid #cbd5e1;padding:5px 6px;">
@@ -2539,7 +2559,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
         # Footer Foglio 1
         html_parts.append(f"""
       <div class="sheet-footer">
-        <div><b>Eurario FET Suite v1.9.48</b> &mdash; {("Documento Ufficiale dell'Istituto per la gestione degli accessi e dei varchi" if not is_en else "Official Institutional Schedule for Access & Gate Management")}</div>
+        <div><b>Eurario FET Suite v1.9.49</b> &mdash; {("Documento Ufficiale dell'Istituto per la gestione degli accessi e dei varchi" if not is_en else "Official Institutional Schedule for Access & Gate Management")}</div>
         <div>{('Stampato il:' if not is_en else 'Printed on:')} {datetime.now().strftime('%d/%m/%Y %H:%M')}</div>
       </div>
     </div>
@@ -2559,7 +2579,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
           </div>
           <div class="header-right">
             <div><b>{('Orario Ufficiale in vigore dal:' if not is_en else 'Schedule Valid From:')}</b> {escape(validity_date)}</div>
-            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.48</div>
+            <div style="color:#64748b;margin-top:2px;">{('Generato con Eurario Suite' if not is_en else 'Generated with Eurario Suite')} &bull; v1.9.49</div>
           </div>
         </div>
 
@@ -2653,7 +2673,7 @@ def generate_transfers_print_html(data, tm_data, options=None):
         html_parts.append(f"""
       </div>
       <div class="sheet-footer">
-        <div><b>Eurario FET Suite v1.9.48</b> &mdash; {("Documento Ufficiale dell'Istituto per la consultazione del corpo docente" if not is_en else "Official Institutional Schedule for Faculty Noticeboard")}</div>
+        <div><b>Eurario FET Suite v1.9.49</b> &mdash; {("Documento Ufficiale dell'Istituto per la consultazione del corpo docente" if not is_en else "Official Institutional Schedule for Faculty Noticeboard")}</div>
         <div>{('Stampato il:' if not is_en else 'Printed on:')} {datetime.now().strftime('%d/%m/%Y %H:%M')}</div>
       </div>
     </div>

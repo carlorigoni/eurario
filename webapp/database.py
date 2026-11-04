@@ -3076,6 +3076,113 @@ class Database:
                             switches += 1
                     class_day_transfers[cname] = switches
 
+                # Calcolo trasferimenti docenti effettivi tra lezioni per la giornata d:
+                # Regola didattica:
+                # 1. Un trasferimento reale avviene SOLO se prima il docente ha svolto una lezione didattica reale in un plesso
+                #    e alla lezione didattica seguente è in un altro plesso (anche se di mezzo ci sono ore di buca o disposizioni).
+                # 2. Se un docente parte da una disposizione e prima non ha lezioni, NON è considerato trasferimento.
+                # 3. I trasferimenti che hanno una disposizione di mezzo NON sono considerati diretti/consecutivi,
+                #    poiché il docente ha a disposizione tutto il tempo per spostarsi agevolmente.
+                day_transfers_by_hour = defaultdict(list)
+                for tname, grid in views.get("by_teacher", {}).items():
+                    day_lessons = grid.get(d, {})
+                    teaching_lessons = []
+                    for h_idx, h in enumerate(clean_hours):
+                        c_slots = day_lessons.get(h, [])
+                        if c_slots:
+                            s0 = c_slots[0]
+                            is_disp = s0.get("is_disposizione", False) or (s0.get("subject") or "").strip().lower().startswith("disposiz") or (s0.get("comments") or "").strip().startswith("FET_DISPOSIZIONE")
+                            if not is_disp:
+                                bld = s0.get("building")
+                                if not bld:
+                                    cls_list = s0.get("students", [])
+                                    cls_bld = class_base_buildings.get(cls_list[0]) if cls_list else None
+                                    bld = cls_bld or primary_bld
+                                teaching_lessons.append({
+                                    "h_idx": h_idx,
+                                    "hour": h,
+                                    "slot": s0,
+                                    "building": bld
+                                })
+
+                    for k in range(len(teaching_lessons) - 1):
+                        prev_info = teaching_lessons[k]
+                        curr_info = teaching_lessons[k + 1]
+                        prev_bld = prev_info["building"]
+                        curr_bld = curr_info["building"]
+
+                        if prev_bld and curr_bld and prev_bld != curr_bld:
+                            prev_h = prev_info["hour"]
+                            curr_h = curr_info["hour"]
+                            prev_h_idx = prev_info["h_idx"]
+                            curr_h_idx = curr_info["h_idx"]
+                            prev_slot = prev_info["slot"]
+                            curr_slot = curr_info["slot"]
+
+                            is_consec = (curr_h_idx == prev_h_idx + 1)
+                            intermediate_hours = clean_hours[prev_h_idx + 1 : curr_h_idx]
+                            has_disp_between = any(
+                                day_lessons.get(ih) and (
+                                    day_lessons[ih][0].get("is_disposizione", False) or
+                                    (day_lessons[ih][0].get("subject") or "").strip().lower().startswith("disposiz") or
+                                    (day_lessons[ih][0].get("comments") or "").strip().startswith("FET_DISPOSIZIONE")
+                                )
+                                for ih in intermediate_hours
+                            )
+
+                            p_raw_idx = raw_hours.index(prev_h) if prev_h in raw_hours else 0
+                            c_raw_idx = raw_hours.index(curr_h) if curr_h in raw_hours else 0
+                            has_recess = any(raw_hours[idx].startswith("INT") for idx in range(p_raw_idx + 1, c_raw_idx))
+
+                            if is_consec:
+                                if has_recess:
+                                    comfort = "comodo_intervallo"
+                                    comfort_lbl = "Durante Intervallo"
+                                else:
+                                    comfort = "consecutivo"
+                                    comfort_lbl = "Cambio Diretto Consecutivo"
+                            else:
+                                if has_disp_between:
+                                    disp_h_list = [
+                                        ih for ih in intermediate_hours
+                                        if day_lessons.get(ih) and (
+                                            day_lessons[ih][0].get("is_disposizione", False) or
+                                            (day_lessons[ih][0].get("subject") or "").strip().lower().startswith("disposiz")
+                                        )
+                                    ]
+                                    disp_str = ", ".join([f"{dh}ª" for dh in disp_h_list])
+                                    comfort = "comodo_disposizione"
+                                    comfort_lbl = f"Durante Disposizione ({disp_str} ora)" if disp_str else "Durante Ora a Disposizione"
+                                else:
+                                    comfort = "comodo_buca"
+                                    comfort_lbl = f"Comodo (Buca di {curr_h_idx - prev_h_idx - 1}h)"
+
+                            itinerant_teachers_set.add(tname)
+                            total_transfers_count += 1
+                            transfers_per_day[d] += 1
+
+                            tr_obj = {
+                                "teacher": tname,
+                                "from_building": prev_bld,
+                                "to_building": curr_bld,
+                                "from_hour": prev_h,
+                                "to_hour": curr_h,
+                                "from_room": prev_slot.get("room", ""),
+                                "from_class": ", ".join(prev_slot.get("students", [])),
+                                "from_subject": prev_slot.get("subject", ""),
+                                "from_is_disp": False,
+                                "to_room": curr_slot.get("room", ""),
+                                "to_class": ", ".join(curr_slot.get("students", [])),
+                                "to_subject": curr_slot.get("subject", ""),
+                                "to_is_disp": False,
+                                "comfort": comfort,
+                                "comfort_label": comfort_lbl,
+                                "is_consecutive": is_consec,
+                                "has_disposizione": has_disp_between
+                            }
+                            day_transfers_by_hour[curr_h].append(tr_obj)
+                            teacher_transfers_map[tname][d].append(tr_obj)
+
                 for h_idx, h in enumerate(clean_hours):
                     bld_data = {
                         bname: {
@@ -3085,7 +3192,7 @@ class Database:
                         }
                         for bname in bld_names
                     }
-                    transfers = []
+                    transfers = day_transfers_by_hour.get(h, [])
                     anomalous_starts = []
 
                     # 1. Presenze Classi
@@ -3173,71 +3280,6 @@ class Database:
                         bld_data[bname]["teachers"].sort(key=lambda x: x["teacher_name"])
                         bld_data[bname]["stats"]["class_count"] = len(bld_data[bname]["classes"])
                         bld_data[bname]["stats"]["teacher_count"] = len(bld_data[bname]["teachers"])
-
-                    # 3. Trasferimenti docenti in ingresso in quest'ora
-                    if h_idx > 0:
-                        for tname, grid in views.get("by_teacher", {}).items():
-                            day_lessons = grid.get(d, {})
-                            curr_slots = day_lessons.get(h, [])
-                            if curr_slots:
-                                curr_bld = teacher_eff_by_day[d][tname].get(h) or curr_slots[0].get("building") or primary_bld
-                                prev_h = None
-                                prev_bld = None
-                                prev_slot = None
-                                for p_idx in range(h_idx - 1, -1, -1):
-                                    ph = clean_hours[p_idx]
-                                    p_slots = day_lessons.get(ph, [])
-                                    if p_slots:
-                                        prev_h = ph
-                                        prev_bld = teacher_eff_by_day[d][tname].get(ph) or p_slots[0].get("building") or primary_bld
-                                        prev_slot = p_slots[0]
-                                        break
-
-                                if prev_bld and prev_bld != curr_bld and prev_slot:
-                                    idx_prev_clean = clean_hours.index(prev_h)
-                                    is_consec = (idx_prev_clean == h_idx - 1)
-
-                                    p_raw_idx = raw_hours.index(prev_h) if prev_h in raw_hours else 0
-                                    c_raw_idx = raw_hours.index(h) if h in raw_hours else 0
-                                    has_recess = any(raw_hours[k].startswith("INT") for k in range(p_raw_idx + 1, c_raw_idx))
-
-                                    if not is_consec:
-                                        comfort = "comodo_buca"
-                                        comfort_lbl = f"Comodo (Buca di {h_idx - idx_prev_clean - 1}h)"
-                                    elif has_recess:
-                                        comfort = "comodo_intervallo"
-                                        comfort_lbl = "Durante Intervallo"
-                                    else:
-                                        comfort = "consecutivo"
-                                        comfort_lbl = "Cambio Diretto Consecutivo"
-
-                                    itinerant_teachers_set.add(tname)
-                                    total_transfers_count += 1
-                                    transfers_per_day[d] += 1
-
-                                    from_is_disp = prev_slot.get("is_disposizione", False) or (prev_slot.get("subject") or "").strip().lower().startswith("disposiz") or (prev_slot.get("comments") or "").strip().startswith("FET_DISPOSIZIONE")
-                                    to_is_disp = curr_slots[0].get("is_disposizione", False) or (curr_slots[0].get("subject") or "").strip().lower().startswith("disposiz") or (curr_slots[0].get("comments") or "").strip().startswith("FET_DISPOSIZIONE")
-
-                                    tr_obj = {
-                                        "teacher": tname,
-                                        "from_building": prev_bld,
-                                        "to_building": curr_bld,
-                                        "from_hour": prev_h,
-                                        "to_hour": h,
-                                        "from_room": prev_slot.get("room", ""),
-                                        "from_class": ", ".join(prev_slot.get("students", [])),
-                                        "from_subject": prev_slot.get("subject", ""),
-                                        "from_is_disp": bool(from_is_disp),
-                                        "to_room": curr_slots[0].get("room", ""),
-                                        "to_class": ", ".join(curr_slots[0].get("students", [])),
-                                        "to_subject": curr_slots[0].get("subject", ""),
-                                        "to_is_disp": bool(to_is_disp),
-                                        "comfort": comfort,
-                                        "comfort_label": comfort_lbl,
-                                        "is_consecutive": is_consec
-                                    }
-                                    transfers.append(tr_obj)
-                                    teacher_transfers_map[tname][d].append(tr_obj)
 
                     timeline[d][h] = {
                         "buildings": bld_data,
