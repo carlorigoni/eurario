@@ -102,7 +102,7 @@ def fetch_google_doc_docx_bytes(url):
     except Exception as e:
         raise ValueError(f"Impossibile scaricare il Google Doc: {e}")
 
-APP_VERSION = "1.9.50"
+APP_VERSION = "1.9.51"
 FET_VERSION = "7.12.0"
 APP_AUTHOR = "Carlo Rigoni"
 APP_MENTOR = "Federico Rettore"
@@ -144,17 +144,27 @@ def send_smtp_email(smtp_cfg, recipient, subject, body, html_body=None, attachme
         subtype = "html" if (attachment_type == "html" or attachment_filename.endswith(".html")) else (attachment_type or "octet-stream")
         msg.add_attachment(content_bytes, maintype=maintype, subtype=subtype, filename=attachment_filename)
 
-    context = ssl.create_default_context()
-    if port == 465:
-        with smtplib.SMTP_SSL(host, port, context=context, timeout=20) as server:
-            server.login(user, pwd)
-            server.send_message(msg)
-    else:
-        with smtplib.SMTP(host, port, timeout=20) as server:
-            server.starttls(context=context)
-            server.login(user, pwd)
-            server.send_message(msg)
-    return True
+    try:
+        context = ssl.create_default_context()
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port, context=context, timeout=20) as server:
+                server.login(user, pwd)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port, timeout=20) as server:
+                server.starttls(context=context)
+                server.login(user, pwd)
+                server.send_message(msg)
+        return True
+    except smtplib.SMTPAuthenticationError as auth_err:
+        hint = ""
+        user_lower = user.lower()
+        host_lower = host.lower()
+        if "gmail" in host_lower or "google" in host_lower or user_lower.endswith("@gmail.com") or "edu.it" in user_lower:
+            hint = " (Nota per account Google / Workspace: se hai la verifica in 2 passaggi attiva, devi generare e inserire una 'Password per le app' a 16 caratteri in Google Account -> Sicurezza -> Password per le app, non la normale password personale)."
+        raise ValueError(f"Autenticazione SMTP fallita: {auth_err}{hint}")
+    except Exception as e:
+        raise ValueError(f"Errore connessione SMTP ({host}:{port}): {e}")
 
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "8000"))
@@ -1519,23 +1529,44 @@ class EurarioHandler(BaseHTTPRequestHandler):
             if not sch:
                 self._json(404, {"error": "Istituto non trovato"})
                 return
-            smtp_in = (body or {}).get("smtp", {})
+            # Supporta sia oggetto annidato {"smtp": {...}} che parametri diretti a primo livello
+            if body and "smtp" in body and isinstance(body["smtp"], dict):
+                smtp_in = body["smtp"]
+            else:
+                smtp_in = body or {}
+
             cur_smtp = sch.get("smtp", {})
             pwd = smtp_in.get("password")
-            if pwd == "******" or not pwd:
+            if pwd is None or pwd == "" or pwd == "******" or "••••" in str(pwd):
                 pwd = cur_smtp.get("password", "")
+
+            # Host fallback intelligente
+            host_val = str(smtp_in.get("host") or cur_smtp.get("host") or "smtp.gmail.com").strip()
+            user_val = str(smtp_in.get("user") or cur_smtp.get("user") or "").strip()
+            notify_val = str(smtp_in.get("notify_to") or cur_smtp.get("notify_to") or "").strip()
+            port_val = int(smtp_in.get("port") or cur_smtp.get("port") or 587)
+
             smtp_save = {
-                "enabled": bool(smtp_in.get("enabled", False)),
-                "host": str(smtp_in.get("host", "smtp.gmail.com")).strip(),
-                "port": int(smtp_in.get("port") or 587),
-                "user": str(smtp_in.get("user", "")).strip(),
+                "enabled": bool(smtp_in.get("enabled", False) if "enabled" in smtp_in else cur_smtp.get("enabled", False)),
+                "host": host_val,
+                "port": port_val,
+                "user": user_val,
                 "password": pwd,
-                "notify_to": str(smtp_in.get("notify_to", "")).strip()
+                "notify_to": notify_val
             }
             updates = {"smtp": smtp_save}
-            if "contact_email" in body:
+            if "contact_email" in body and str(body["contact_email"]).strip():
                 updates["contact_email"] = str(body["contact_email"]).strip().lower()
+            elif notify_val:
+                updates["contact_email"] = notify_val.lower()
+
             school_manager.update_school_info(sid, **updates)
+
+            # Sincronizza anche auth_manager per default school o superadmin
+            if sid == "default" or is_super:
+                auth_manager.config["smtp"] = dict(smtp_save)
+                auth_manager._save()
+
             self._json(200, {"ok": True, "message": "Configurazione SMTP e contatto istituto salvati con successo!"})
             return
 

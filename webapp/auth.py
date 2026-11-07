@@ -964,13 +964,27 @@ Eurario Automated Security Notification
         msg.set_content(body)
 
         context = ssl.create_default_context()
-        with smtplib.SMTP(host, port, timeout=12) as server:
-            server.starttls(context=context)
-            server.login(user_smtp, pwd)
-            server.send_message(msg)
-
-        print(f"[AUTH EMAIL] Email di test inviata con successo a {to_email}")
-        return True
+        try:
+            if port == 465:
+                with smtplib.SMTP_SSL(host, port, context=context, timeout=15) as server:
+                    server.login(user_smtp, pwd)
+                    server.send_message(msg)
+            else:
+                with smtplib.SMTP(host, port, timeout=15) as server:
+                    server.starttls(context=context)
+                    server.login(user_smtp, pwd)
+                    server.send_message(msg)
+            print(f"[AUTH EMAIL] Email di test inviata con successo a {to_email}")
+            return True
+        except smtplib.SMTPAuthenticationError as auth_err:
+            hint = ""
+            user_lower = user_smtp.lower()
+            host_lower = host.lower()
+            if "gmail" in host_lower or "google" in host_lower or user_lower.endswith("@gmail.com") or "edu.it" in user_lower:
+                hint = " (Nota per account Google / Workspace: se hai la verifica in 2 passaggi attiva, devi generare e inserire una 'Password per le app' a 16 caratteri in Google Account -> Sicurezza -> Password per le app, non la normale password personale)."
+            raise ValueError(f"Autenticazione SMTP fallita: {auth_err}{hint}")
+        except Exception as e:
+            raise ValueError(f"Errore connessione SMTP ({host}:{port}): {e}")
 
     def approve_user(self, email, role="editor", admin_email=None, ip=None, target_school="default"):
         self._load()
@@ -1264,7 +1278,12 @@ Eurario Automated Security Notification
                 self.config["emergency_passcode"] = hash_emergency_passcode(raw_p)
                 self.config["must_change_passcode"] = False
         if "smtp" in new_cfg and isinstance(new_cfg["smtp"], dict):
-            self.config["smtp"].update(new_cfg["smtp"])
+            s_in = new_cfg["smtp"]
+            cur_s = self.config.get("smtp", {})
+            pwd = s_in.get("password")
+            if pwd is None or pwd == "" or pwd == "******" or "••••" in str(pwd):
+                s_in["password"] = cur_s.get("password", "")
+            self.config["smtp"].update(s_in)
         self._save()
         return {
             "google_client_id": self.config["google_client_id"],

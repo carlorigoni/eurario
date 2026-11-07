@@ -340,12 +340,26 @@ Eurario FET Suite & Timetable Management
         msg.set_content(body)
 
         context = ssl.create_default_context()
-        with smtplib.SMTP(host, port, timeout=12) as server:
-            server.starttls(context=context)
-            server.login(user, pwd)
-            server.send_message(msg)
-
-        return True
+        try:
+            if port == 465:
+                with smtplib.SMTP_SSL(host, port, context=context, timeout=15) as server:
+                    server.login(user, pwd)
+                    server.send_message(msg)
+            else:
+                with smtplib.SMTP(host, port, timeout=15) as server:
+                    server.starttls(context=context)
+                    server.login(user, pwd)
+                    server.send_message(msg)
+            return True
+        except smtplib.SMTPAuthenticationError as auth_err:
+            hint = ""
+            user_lower = user.lower()
+            host_lower = host.lower()
+            if "gmail" in host_lower or "google" in host_lower or user_lower.endswith("@gmail.com") or "edu.it" in user_lower:
+                hint = " (Nota per account Google / Workspace: se hai la verifica in 2 passaggi attiva, devi generare e inserire una 'Password per le app' a 16 caratteri in Google Account -> Sicurezza -> Password per le app, non la normale password personale)."
+            raise ValueError(f"Autenticazione SMTP fallita: {auth_err}{hint}")
+        except Exception as e:
+            raise ValueError(f"Errore connessione SMTP ({host}:{port}): {e}")
 
     def approve_school(self, school_id, admin_email=""):
         """Approva formalmente la scuola, sbloccando le stampe ufficiali ad alta risoluzione."""

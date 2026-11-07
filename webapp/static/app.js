@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.50';
+let APP_VERSION = '1.9.51';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -2150,7 +2150,7 @@ async function loadSchoolSmtpConfig() {
   }
 }
 
-async function saveSchoolSmtpConfig() {
+async function saveSchoolSmtpConfig(silent = false) {
   const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
   const sid = selectedAccessSchoolFilter || (currentUsersData && currentUsersData.school_id) || (window.currentSchool && window.currentSchool.id) || 'default';
 
@@ -2161,31 +2161,45 @@ async function saveSchoolSmtpConfig() {
   const rawPass = (document.getElementById('cfgSchoolSmtpPass')?.value || '').trim();
   const notify_to = (document.getElementById('cfgSchoolSmtpNotifyTo')?.value || '').trim();
 
-  const password = rawPass.includes('••••') ? undefined : rawPass;
+  const password = (rawPass.includes('••••') || rawPass === '******' || !rawPass) ? undefined : rawPass;
+
+  const payload = {
+    school_id: sid,
+    enabled: enabled,
+    host: host,
+    port: port,
+    user: user,
+    notify_to: notify_to,
+    contact_email: notify_to,
+    smtp: {
+      enabled: enabled,
+      host: host,
+      port: port,
+      user: user,
+      notify_to: notify_to
+    }
+  };
+  if (password !== undefined) {
+    payload.password = password;
+    payload.smtp.password = password;
+  }
 
   try {
     const res = await fetch('/api/schools/smtp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        school_id: sid,
-        enabled,
-        host,
-        port,
-        user,
-        password,
-        notify_to,
-        contact_email: notify_to
-      })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (!res.ok) {
-      showToast(data.error || (isEn ? 'Failed to save SMTP config' : 'Errore nel salvataggio SMTP'), 'error');
-      return;
+      if (!silent) showToast(data.error || (isEn ? 'Failed to save SMTP config' : 'Errore nel salvataggio SMTP'), 'error');
+      return false;
     }
-    showToast(isEn ? 'School SMTP configuration saved!' : 'Configurazione SMTP scuola salvata con successo!', 'ok');
+    if (!silent) showToast(isEn ? 'School SMTP configuration saved!' : 'Configurazione SMTP scuola salvata con successo!', 'ok');
+    return true;
   } catch (e) {
-    showToast(e.message, 'error');
+    if (!silent) showToast(e.message, 'error');
+    return false;
   }
 }
 
@@ -2193,10 +2207,30 @@ async function testSchoolSmtpEmail() {
   const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
   const sid = selectedAccessSchoolFilter || (currentUsersData && currentUsersData.school_id) || (window.currentSchool && window.currentSchool.id) || 'default';
 
+  const host = (document.getElementById('cfgSchoolSmtpHost')?.value || '').trim();
+  const user = (document.getElementById('cfgSchoolSmtpUser')?.value || '').trim();
   const notifyTo = (document.getElementById('cfgSchoolSmtpNotifyTo')?.value || '').trim();
-  showToast(isEn ? 'Sending test email...' : 'Invio email di test in corso...', 'info');
+
+  if (!host || !user) {
+    alert(isEn ? 'Please specify SMTP Server and Sender Email.' : 'Specifica prima il Server SMTP e l\'Email Mittente.');
+    return;
+  }
+  if (!notifyTo) {
+    alert(isEn ? 'Please specify Notification Recipient email address.' : 'Specifica l\'indirizzo email del Destinatario Notifiche.');
+    return;
+  }
+
+  showToast(isEn ? 'Saving and sending test email...' : 'Salvataggio e invio email di test in corso...', 'info');
 
   try {
+    // 1. Salva automaticamente le impostazioni del form corrente prima di testare
+    const saved = await saveSchoolSmtpConfig(true);
+    if (!saved) {
+      alert(isEn ? 'Failed to save SMTP configuration before test.' : 'Impossibile salvare la configurazione SMTP prima del test.');
+      return;
+    }
+
+    // 2. Invia la richiesta di test
     const res = await fetch('/api/schools/smtp/test', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2830,25 +2864,27 @@ async function testSmtpEmail() {
   const smtpUser = document.getElementById('cfgSmtpUser')?.value.trim();
   const smtpPass = document.getElementById('cfgSmtpPass')?.value.trim();
 
-  if (!smtpUser || !smtpPass) {
-    showToast('Inserisci prima l\'email mittente e la Password applicazione Google.', 'error');
+  if (!smtpUser) {
+    showToast('Inserisci prima l\'email mittente.', 'error');
     return;
   }
 
   showToast('Invio email di test in corso...', 'info');
   try {
+    const smtpPayload = {
+      enabled: true,
+      host: smtpHost || 'smtp.gmail.com',
+      port: smtpPort,
+      user: smtpUser
+    };
+    if (smtpPass && !smtpPass.includes('••••') && smtpPass !== '******') {
+      smtpPayload.password = smtpPass;
+    }
+
     await fetch('/api/auth/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        smtp: {
-          enabled: true,
-          host: smtpHost || 'smtp.gmail.com',
-          port: smtpPort,
-          user: smtpUser,
-          password: smtpPass
-        }
-      })
+      body: JSON.stringify({ smtp: smtpPayload })
     });
 
     const res = await fetch('/api/auth/smtp/test', { method: 'POST' });
@@ -2874,15 +2910,17 @@ async function saveAccessConfig() {
 
   const payload = {
     google_client_id: gClient,
-    emergency_passcode: pass || undefined,
+    emergency_passcode: (pass && !pass.includes('••••')) ? pass : undefined,
     smtp: {
       enabled: smtpEn,
       host: smtpHost || 'smtp.gmail.com',
       port: smtpPort,
-      user: smtpUser,
-      password: smtpPass
+      user: smtpUser
     }
   };
+  if (smtpPass && !smtpPass.includes('••••') && smtpPass !== '******') {
+    payload.smtp.password = smtpPass;
+  }
 
   try {
     const res = await fetch('/api/auth/config', {
@@ -7735,6 +7773,7 @@ async function openEmailTimetablesModal(preselectedTeachers = null) {
   const defaultAdminEmail = (window.currentUser ? window.currentUser.email : '') || (settings.contact_email || '') || (smtpRes.contact_email || '') || '';
 
   const preselectedSet = new Set(preselectedTeachers || []);
+  const isSmtpConfigured = Boolean(smtpRes && smtpRes.smtp && smtpRes.smtp.enabled && smtpRes.smtp.user);
 
   showModal(`
     <div class="modal-dialog" style="max-width:850px;">
@@ -7743,6 +7782,19 @@ async function openEmailTimetablesModal(preselectedTeachers = null) {
         <button class="modal-close" onclick="closeModal()">×</button>
       </div>
       <div class="modal-body" style="max-height:80vh;overflow-y:auto;">
+        <!-- Alert SMTP se disabilitato o non configurato -->
+        ${!isSmtpConfigured ? `
+          <div style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:12.5px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+            <div>
+              <b>⚠️ ${isEn ? 'SMTP Server is not configured or enabled for this school.' : 'Server SMTP non configurato o non abilitato per questo istituto.'}</b><br>
+              <span style="font-size:11.5px;">${isEn ? 'Configure your outgoing mail server in Access Management before sending timetables.' : 'Prima di inviare gli orari ai docenti, configura e testa i parametri del server di posta (Host, Utente e Password app).'}</span>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" onclick="closeModal(); openAccessManagementModal(); switchAccessTab('schoolsmtp');">
+              ⚙️ ${isEn ? 'Configure SMTP Now' : 'Configura SMTP Ora'}
+            </button>
+          </div>
+        ` : ''}
+
         <!-- Banner Privacy & Spiegazione -->
         <div class="info-banner" style="margin-top:0;margin-bottom:14px;">
           💡 <b>${isEn ? 'Maximum Faculty Privacy (No Timetable Comparisons):' : 'Massima Riservatezza Didattica (Nessun Confronto tra Docenti):'}</b><br>
