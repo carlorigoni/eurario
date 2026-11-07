@@ -135,7 +135,7 @@ Eurario is built to satisfy educational constraints and Italian collective barga
 ## 🖥️ User Interface
 
 <div class="doc-figure">
-  <img src="../assets/eurario-cattedre.png" alt="Eurario — Teaching Loads and Assignments" class="doc-screenshot">
+  <img src="../assets/eurario-cattedre.png?v=1.9.57" alt="Eurario — Teaching Loads and Assignments" class="doc-screenshot">
   <div class="doc-caption">Figure 1.1: Teaching loads management interface with automated didactic block breakdown.</div>
 </div>
 

@@ -135,7 +135,7 @@ Eurario è progettato sulle regole contrattuali e didattiche della scuola italia
 ## 🖥️ Interfaccia Web
 
 <div class="doc-figure">
-  <img src="assets/eurario-cattedre.png" alt="Eurario — Quadro Cattedre e Assegnazioni Insegnamenti" class="doc-screenshot">
+  <img src="assets/eurario-cattedre.png?v=1.9.57" alt="Eurario — Quadro Cattedre e Assegnazioni Insegnamenti" class="doc-screenshot">
   <div class="doc-caption">Figura 1.1: Schermata di gestione cattedre, assegnazione ore e scomposizione automatica in blocchi.</div>
 </div>
 

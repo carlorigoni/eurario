@@ -109,7 +109,7 @@ flowchart TD
 
 <img src="../assets/eurario-materie.png" alt="Eurario — Subjects and Didactic Color Palettes" class="doc-screenshot">
 
-<img src="../assets/eurario-cattedre.png" alt="Eurario — Teaching Assignments and Curriculum Blocks" class="doc-screenshot">
+<img src="../assets/eurario-cattedre.png?v=1.9.57" alt="Eurario — Teaching Assignments and Curriculum Blocks" class="doc-screenshot">
 
 <img src="../assets/eurario-regole-blocchi.png" alt="Eurario — Automatic Block Splitting Rules" class="doc-screenshot">
 

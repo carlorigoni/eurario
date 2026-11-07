@@ -109,7 +109,7 @@ flowchart TD
 
 <img src="assets/eurario-materie.png" alt="Eurario — Gestione Materie e Colori Didattici" class="doc-screenshot">
 
-<img src="assets/eurario-cattedre.png" alt="Eurario — Quadro Cattedre e Assegnazioni Didattiche" class="doc-screenshot">
+<img src="assets/eurario-cattedre.png?v=1.9.57" alt="Eurario — Quadro Cattedre e Assegnazioni Didattiche" class="doc-screenshot">
 
 <img src="assets/eurario-regole-blocchi.png" alt="Eurario — Regole di Scomposizione Blocchi Orari" class="doc-screenshot">
 

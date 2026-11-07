@@ -40,7 +40,7 @@ The FET engine schedules individual sub-activities. Eurario automatically decomp
 | **8 hours** | `2+2+2+2` | Vocational double laboratory courses |
 
 <div class="doc-figure">
-  <img src="../assets/eurario-cattedre.png" alt="Eurario — Teaching Loads and Hour Blocks" class="doc-screenshot">
+  <img src="../assets/eurario-cattedre.png?v=1.9.57" alt="Eurario — Teaching Loads and Hour Blocks" class="doc-screenshot">
   <div class="doc-caption">Figure 2.1: Teaching loads interface with automatic block decomposition and feasibility checks.</div>
 </div>
 

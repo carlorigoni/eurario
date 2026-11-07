@@ -211,7 +211,7 @@ Ensure every imported class has an assigned campus building and dedicated home r
 Verify that total weekly class hours match curriculum requirements and execute an initial solver run to confirm mathematical feasibility.
 
 <div class="doc-figure">
-  <img src="../assets/eurario-cattedre.png" alt="Eurario — Teaching Loads Board and Class Hour Totals" class="doc-screenshot">
+  <img src="../assets/eurario-cattedre.png?v=1.9.57" alt="Eurario — Teaching Loads Board and Class Hour Totals" class="doc-screenshot">
   <div class="doc-caption">Figure 1.8: Teaching loads board displaying column hour sums per class and automatic block decomposition.</div>
 </div>
 

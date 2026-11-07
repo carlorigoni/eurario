@@ -40,7 +40,7 @@ Il motore FET assegna singole sotto-attività (*Sub-activities*). Eurario scompo
 | **8 ore** | `2+2+2+2` | Discipline d'indirizzo professionale con doppio laboratorio |
 
 <div class="doc-figure">
-  <img src="assets/eurario-cattedre.png" alt="Eurario — Gestione Cattedre e Blocchi Orari" class="doc-screenshot">
+  <img src="assets/eurario-cattedre.png?v=1.9.57" alt="Eurario — Gestione Cattedre e Blocchi Orari" class="doc-screenshot">
   <div class="doc-caption">Figura 2.1: Schermata cattedre con scomposizione automatica in blocchi didattici e verifica di fattibilità.</div>
 </div>
 

@@ -211,7 +211,7 @@ Garantire che ogni classe importata disponga di un edificio fisico e di un'aula 
 Controllare che il monte ore delle classi sia didatticamente completo ed eseguire una prima risoluzione matematica per verificare l'assenza di incompatibilità.
 
 <div class="doc-figure">
-  <img src="assets/eurario-cattedre.png" alt="Eurario — Quadro Cattedre e Totali Ore per Classe" class="doc-screenshot">
+  <img src="assets/eurario-cattedre.png?v=1.9.57" alt="Eurario — Quadro Cattedre e Totali Ore per Classe" class="doc-screenshot">
   <div class="doc-caption">Figura 1.8: Quadro generale cattedre con totale ore per classe e scomposizione automatica blocchi.</div>
 </div>
 
