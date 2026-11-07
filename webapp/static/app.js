@@ -4143,6 +4143,7 @@ function getNavReturnBarHtml(contextDesc = '') {
 }
 
 async function navigate(view, pushHistory = true, customLabel = null) {
+  if (view === 'cattedre') view = 'activities';
   if (pushHistory && currentView && currentView !== view) {
     const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
     let lbl = customLabel || getViewShortLabel(currentView);
