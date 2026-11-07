@@ -110,6 +110,61 @@ def compute_short_name(name):
     return f'{" ".join(cogn).upper()} {iniziali}'.strip()
 
 
+def compute_teacher_email(name, domain="rolandodapiazzola.edu.it"):
+    """
+    Calcola l'indirizzo email istituzionale del docente secondo lo standard scolastico
+    nel formato nome.cognome@dominio (es. 'Lando Stefano' -> 'stefano.lando@rolandodapiazzola.edu.it').
+    Riconosce i cognomi composti (es. 'Dalla Riva Andrea' -> 'andrea.dallariva@...'),
+    rimuove titoli (Prof., Dott.), accenti, apostrofi e caratteri non conformi RFC.
+    """
+    n = (name or "").strip()
+    if not n:
+        return ""
+
+    clean_domain = str(domain or "rolandodapiazzola.edu.it").strip().lower().lstrip("@")
+    if not clean_domain:
+        clean_domain = "rolandodapiazzola.edu.it"
+
+    # Rimuovi prefissi onorifici
+    n_clean = re.sub(r"^(prof\.?(?:ssa)?|dott\.?(?:ssa)?|maestro|maestra)\s+", "", n, flags=re.IGNORECASE).strip()
+    if not n_clean:
+        return ""
+
+    parts = n_clean.split()
+    if len(parts) == 1:
+        local = parts[0]
+    else:
+        prefixes = {
+            "DA", "DE", "DI", "DEL", "DELLA", "DELLE", "DALLE",
+            "DEI", "DEGLI", "DAL", "DALLA", "LA", "LO", "LE", "LI",
+            "VAN", "VON", "AL", "EL", "SAN", "SANTA"
+        }
+        i = 0
+        cogn = [parts[0]]
+        while i < len(parts) - 1 and parts[i].upper() in prefixes:
+            i += 1
+            cogn.append(parts[i])
+
+        nomi = parts[i + 1:]
+        if not nomi:
+            local = "".join(cogn)
+        else:
+            nome_str = "".join(nomi)
+            cogn_str = "".join(cogn)
+            local = f"{nome_str}.{cogn_str}"
+
+    # Normalizzazione accenti (es. à -> a, è -> e)
+    local = unicodedata.normalize('NFKD', local).encode('ASCII', 'ignore').decode('utf-8')
+    # Pulizia caratteri non consentiti
+    local = re.sub(r"['`]", "", local)
+    local = re.sub(r"[^a-zA-Z0-9.]", "", local)
+    local = re.sub(r"\.+", ".", local).strip(".").lower()
+
+    if not local:
+        return ""
+    return f"{local}@{clean_domain}"
+
+
 def normalize_legacy_gym_rooms(data):
     """
     Rileva e converte automaticamente le vecchie configurazioni con palestre
@@ -963,6 +1018,34 @@ class Database:
             return True
 
     # --- IMPOSTAZIONI & VINCOLI ---
+    def get_teacher_email_domain(self):
+        with self.lock:
+            dom = self.data.get("teacher_email_domain")
+            if not dom:
+                dom = self.data.get("parameters", {}).get("Dominio email istituzionale docenti")
+            if not dom:
+                dom = "rolandodapiazzola.edu.it"
+            return str(dom).strip().lower().lstrip("@")
+
+    def batch_prefill_teacher_emails(self, overwrite=False):
+        """
+        Precompila in blocco le email istituzionali per tutti i docenti nel database.
+        Se overwrite=False, compila solo quelli con campo email vuoto o assente.
+        """
+        with self.lock:
+            dom = self.get_teacher_email_domain()
+            count = 0
+            for t in self.data.get("teachers", []):
+                cur = (t.get("email") or "").strip()
+                if not cur or overwrite:
+                    computed = compute_teacher_email(t.get("name", ""), dom)
+                    if computed and computed != cur:
+                        t["email"] = computed
+                        count += 1
+            if count > 0:
+                self._save_to_disk(self.data)
+            return count
+
     def get_settings(self):
         with self.lock:
             return {
@@ -973,6 +1056,7 @@ class Database:
                 "comments": self.data.get("comments", ""),
                 "meccanografico": self.data.get("meccanografico", ""),
                 "contact_email": self.data.get("contact_email", ""),
+                "teacher_email_domain": self.get_teacher_email_domain(),
                 "days": self.data.get("days", []),
                 "hours": self.data.get("hours", []),
                 "day_hours_limit": self.data.get("day_hours_limit", copy.deepcopy(DEFAULT_DAY_HOURS)),
@@ -1002,6 +1086,13 @@ class Database:
                 self.data["contact_email"] = (settings["contact_email"] or "").strip().lower()
             if "meccanografico" in settings:
                 self.data["meccanografico"] = (settings["meccanografico"] or "").strip().upper()
+            if "teacher_email_domain" in settings:
+                dom = (settings["teacher_email_domain"] or "").strip().lower().lstrip("@")
+                if dom:
+                    self.data["teacher_email_domain"] = dom
+                    if "parameters" not in self.data:
+                        self.data["parameters"] = copy.deepcopy(DEFAULT_PARAMETERS)
+                    self.data["parameters"]["Dominio email istituzionale docenti"] = dom
 
             try:
                 from webapp.schools import school_manager
@@ -1169,10 +1260,13 @@ class Database:
                 t_copy["min_daily_lessons"] = t.get("min_daily_lessons", None)
                 t_copy["max_gaps_per_day"] = t.get("max_gaps_per_day", None)
 
+                # Email istituzionale docente
+                t_copy["email"] = (t.get("email") or "").strip().lower() or compute_teacher_email(t.get("name", ""), self.get_teacher_email_domain())
+
                 result.append(t_copy)
             return result
 
-    def add_teacher(self, name, comments="", cdc="", target_hours=18, max_days=5, min_days=4, contract_type="intera", short_name="", is_coe=False, custom_disp_hours=None):
+    def add_teacher(self, name, comments="", cdc="", target_hours=18, max_days=5, min_days=4, contract_type="intera", short_name="", is_coe=False, custom_disp_hours=None, email=""):
         with self.lock:
             name = name.strip()
             if not any(t["name"].lower() == name.lower() for t in self.data["teachers"]):
@@ -1196,9 +1290,11 @@ class Database:
                             custom_disp = max(0, int(raw_disp))
                         except (ValueError, TypeError):
                             custom_disp = None
+                email_val = (email or "").strip().lower() or compute_teacher_email(name, self.get_teacher_email_domain())
                 self.data["teachers"].append({
                     "name": name,
                     "short_name": sn,
+                    "email": email_val,
                     "comments": comments,
                     "cdc": (cdc or "").strip(),
                     "target_hours": tar,
@@ -1232,6 +1328,8 @@ class Database:
                     if "short_name" in teacher_data:
                         sn = teacher_data["short_name"].strip().upper()
                         t["short_name"] = sn or compute_short_name(t["name"])
+                    if "email" in teacher_data:
+                        t["email"] = (teacher_data["email"] or "").strip().lower()
                     if "comments" in teacher_data:
                         t["comments"] = teacher_data["comments"]
                     if "cdc" in teacher_data:

@@ -217,10 +217,12 @@ DEFAULT_PARAMETERS = {
     "Peso delle preferenze dei docenti %": 60,
     "Docenti 'con D' per i limiti di ore buche: almeno N ore a disposizione": 3,
     "Ore a disposizione: tutte dopo FET (SI/NO)": "NO",
-    "Peso delle preferenze delle materie %": 70
+    "Peso delle preferenze delle materie %": 70,
+    "Dominio email istituzionale docenti": "rolandodapiazzola.edu.it"
 }
 
 PARAM_HELP = {
+    "Dominio email istituzionale docenti": "Dominio email dell'istituto (es. rolandodapiazzola.edu.it) utilizzato per generare e precompilare automaticamente le email dei docenti nel formato nome.cognome@dominio.",
     "Nome istituto": "Nome della scuola: compare nell'intestazione delle stampe di FET.",
     "Commenti": "Testo libero salvato nel file .fet (visibile in FET, Dati > Informazioni istituto).",
     "Nome file .fet": "Nome base del file esportato per FET CLI.",

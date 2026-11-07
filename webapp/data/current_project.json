@@ -2832,7 +2832,8 @@
     "Peso delle preferenze dei docenti %": 60,
     "Docenti 'con D' per i limiti di ore buche: almeno N ore a disposizione": 3,
     "Ore a disposizione: tutte dopo FET (SI/NO)": "NO",
-    "Peso delle preferenze delle materie %": 70
+    "Peso delle preferenze delle materie %": 70,
+    "Dominio email istituzionale docenti": "rolandodapiazzola.edu.it"
   },
   "accorpamenti_rules": [
     {
@@ -2894,7 +2895,7 @@
     "L": "liceo"
   },
   "config_name": "Configurazione Corrente",
-  "data_version": 90,
-  "last_modified": "2026-11-02T11:49:32.177390+01:00",
+  "data_version": 92,
+  "last_modified": "2026-11-07T08:54:04.740889+01:00",
   "admin_messages": []
 }

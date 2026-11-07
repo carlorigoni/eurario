@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.49';
+let APP_VERSION = '1.9.50';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -4175,6 +4175,12 @@ async function navigate(view, pushHistory = true, customLabel = null) {
     container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">Caricamento dati in corso...</div>';
   }
 
+  // Se si entra in Attività da un'altra vista senza un filtro esplicito (navigazione pulita da menu), azzera il filtro salvato
+  if (view === 'activities' && currentView !== 'activities' && !pendingActivityFilter) {
+    currentActivitySearchQuery = '';
+    currentActivityFilterLabel = '';
+  }
+
   try {
     if (view === 'dashboard') await renderDashboard();
     else if (view === 'timetable') await renderTimetable();
@@ -4444,6 +4450,14 @@ async function renderTimetable() {
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         ${statsHtml}
         ${lockedBadgeHtml}
+        ${activeTimetableView === 'teacher' && activeEntity ? `
+          <button class="btn btn-outline btn-sm" onclick="window.open('/api/print/teacher_timetable?teacher=' + encodeURIComponent('${escapeJs(activeEntity)}'), '_blank')" title="${isEn ? 'Print individual schedule sheet for ' + escapeHtml(activeEntity) : 'Stampa scheda individuale A4 per ' + escapeHtml(activeEntity)}" style="border:1.5px solid #2563eb;color:#2563eb;font-weight:700;">
+            🖨️ ${isEn ? 'Print Schedule' : 'Stampa Docente'}
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="openEmailTimetablesModal(['${escapeJs(activeEntity)}'])" title="${isEn ? 'Send individual timetable via email to ' + escapeHtml(activeEntity) : 'Invia l\'orario individuale via email a ' + escapeHtml(activeEntity)}" style="border:1.5px solid #059669;color:#059669;font-weight:700;">
+            📧 ${isEn ? 'Email Timetable' : 'Invia Email'}
+          </button>
+        ` : ''}
         <button class="btn btn-sec btn-sm" onclick="openDisposizioniOverviewModal()" title="${isEn ? 'View institute-wide on-duty distribution matrix per hour' : 'Visualizza la matrice d\'istituto di distribuzione delle disposizioni per verificare la copertura omogenea delle supplenze'}">📊 ${isEn ? 'On-Duty Board' : 'Quadro Disposizioni'}</button>
         <button class="btn btn-sec btn-sm" onclick="recalcDisposizioni()" title="${isEn ? 'Recalculate and place on-duty periods post-FET' : 'Colloca o ricalcola le ore a disposizione post-calcolo FET (copre buchi orari, preferisce 1ª ora)'}">📍 ${isEn ? 'Recalculate On-Duty' : 'Ricalcola Disposizioni'}</button>
         <button class="btn btn-primary btn-sm" onclick="navigate('timemachine')" title="${isEn ? 'Campus TimeMachine: Dynamic view of building occupancy and itinerant teachers' : 'TimeMachine Plessi: animazione e flussi dinamici delle sedi e docenti itineranti'}" style="background:linear-gradient(135deg, #1e3a8a, #2563eb);border:none;">⏳ ${isEn ? 'TimeMachine' : 'TimeMachine Plessi'}</button>
@@ -6122,6 +6136,8 @@ function updateSolverConsoleHtml(s) {
 // TOAST NOTIFICATIONS & CROSS-VIEW JUMP HELPERS
 // ============================================================================
 let pendingActivityFilter = null;
+let currentActivitySearchQuery = '';
+let currentActivityFilterLabel = '';
 
 function showToast(message, type = 'ok') {
   let cont = document.querySelector('.toast-container');
@@ -6147,6 +6163,17 @@ function showToast(message, type = 'ok') {
 
 function jumpToActivities(filter) {
   pendingActivityFilter = filter;
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+  if (filter.teacher) {
+    currentActivitySearchQuery = filter.teacher;
+    currentActivityFilterLabel = `${isEn ? 'Teacher' : 'Docente'}: ${filter.teacher}`;
+  } else if (filter.subject) {
+    currentActivitySearchQuery = filter.subject;
+    currentActivityFilterLabel = `${isEn ? 'Subject' : 'Materia'}: ${filter.subject}`;
+  } else if (filter.className) {
+    currentActivitySearchQuery = filter.className;
+    currentActivityFilterLabel = `${isEn ? 'Class' : 'Classe'}: ${filter.className}`;
+  }
   let sourceLabel = VIEW_SHORT_LABELS[currentView] || 'Precedente';
   if (filter.teacher) sourceLabel = `Docenti (${filter.teacher})`;
   else if (filter.className) sourceLabel = `Classi (${filter.className})`;
@@ -6926,6 +6953,15 @@ async function renderTeachers() {
         <button class="btn btn-outline" onclick="openAggiornaOrganicoModal()" title="${isEn ? 'Update faculty roster by comparing with a Word (.docx) or Google Doc' : 'Aggiorna l\'organico docenti confrontandolo con un file Word (.docx) o Google Doc'}" style="font-weight:700;border:1.5px solid var(--primary);color:var(--primary);background:var(--bg-main);white-space:nowrap;padding:7px 14px;">
           🔄 ${isEn ? 'Update Faculty (Docx / Google Doc)' : 'Aggiorna Organico (Docx / Google Doc)'}
         </button>
+        <button class="btn btn-outline" onclick="openEmailTimetablesModal()" title="${isEn ? 'Send individual timetable to teachers via email (privacy mode)' : 'Invia l\'orario individuale via email ai docenti (massima privacy, nessun confronto)'}" style="font-weight:700;border:1.5px solid #2563eb;color:#2563eb;background:var(--bg-main);white-space:nowrap;padding:7px 14px;">
+          📧 ${isEn ? 'Email Timetables' : 'Invia Orari Email'}
+        </button>
+        <button class="btn btn-outline" onclick="window.open('/api/print/teacher_timetable?teachers=all', '_blank')" title="${isEn ? 'Print individual timetables for all teachers (one per sheet)' : 'Stampa orari individuali di tutti i docenti (un foglio A4 per docente)'}" style="font-weight:700;border:1.5px solid #475569;color:#475569;background:var(--bg-main);white-space:nowrap;padding:7px 14px;">
+          🖨️ ${isEn ? 'Print All (Single Sheets)' : 'Stampa Orari (Fogli Singoli)'}
+        </button>
+        <button class="btn btn-sm btn-sec" onclick="batchPrefillTeacherEmails()" title="${isEn ? 'Prefill missing emails with name.surname@domain' : 'Precompila email mancanti nel formato nome.cognome@dominio'}" style="white-space:nowrap;">
+          ⚡ ${isEn ? 'Prefill Emails' : 'Precompila Email'}
+        </button>
       </div>
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
         <input type="text" id="newTeacherName" class="search-input" placeholder="${isEn ? 'Teacher name (e.g. John Doe)' : 'Nome docente (es. Rossi Mario)'}" style="width:175px;" oninput="onNewTeacherNameChange(this.value)">
@@ -7027,6 +7063,9 @@ async function renderTeachers() {
                 <b style="color:var(--text-main);font-size:13.5px;cursor:pointer;" onclick="openEditTeacherModal('${escapeJs(t.name)}')" title="Clicca per modificare parametri docente">
                   👨‍🏫 ${escapeHtml(t.name)}
                 </b>
+                <div style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono);margin-top:2px;">
+                  📧 ${escapeHtml(t.email || computeTeacherEmailJs(t.name, stateData.settings?.teacher_email_domain))}
+                </div>
               </td>
               <td>
                 <span class="item-chip" style="font-family:var(--font-mono);font-size:11.5px;font-weight:700;color:var(--primary);letter-spacing:0.5px;cursor:pointer;" onclick="openEditTeacherModal('${escapeJs(t.name)}')" title="Nome breve standard per le stampe dell'orario (clicca per modificare eccezioni)">
@@ -7101,9 +7140,10 @@ async function renderTeachers() {
               </td>
               <td style="color:var(--text-muted);font-size:12px;">${escapeHtml(t.comments || '-')}</td>
               <td style="text-align:right;white-space:nowrap;">
-                <button class="btn btn-sm btn-sec" onclick="openEditTeacherModal('${escapeJs(t.name)}')" title="Modifica CDC, ore cattedra, tipologia, nome breve e giorni">
+                <button class="btn btn-sm btn-sec" onclick="openEditTeacherModal('${escapeJs(t.name)}')" title="Modifica CDC, ore cattedra, tipologia, nome breve, email e giorni">
                   ✏️ Modifica
                 </button>
+                <button class="btn btn-sm btn-sec" onclick="window.open('/api/print/teacher_timetable?teacher=' + encodeURIComponent('${escapeJs(t.name)}'), '_blank')" title="Stampa orario individuale A4 di ${escapeHtml(t.name)}">🖨️</button>
                 <button class="btn btn-sm btn-primary" onclick="openNewCattedraModal({ teacher: '${escapeJs(t.name)}' })" title="Assegna nuova cattedra/attività a questo docente">
                   ➕ Cattedra
                 </button>
@@ -7248,6 +7288,14 @@ function openEditTeacherModal(name) {
           </div>
           <div style="font-size:11px;color:#1e40af;margin-top:3px;">
             🛡️ ${isEn ? 'Contractual typology and target hours are manually configured and protected from automatic file updates.' : 'Tipologia contrattuale e ore target sono gestite manualmente e protette dall\'aggiornamento del file organico.'}
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top:8px;">
+          <label class="form-label">📧 ${isEn ? 'Faculty Institutional Email' : 'Email Istituzionale Docente'}</label>
+          <input type="email" id="editTeacherEmail" class="form-input" value="${escapeHtml(teacher.email || computeTeacherEmailJs(name, stateData.settings?.teacher_email_domain))}" placeholder="nome.cognome@dominio.it">
+          <div style="font-size:11px;color:var(--text-muted);margin-top:3px;">
+            ${isEn ? 'Used for individual timetable automated delivery.' : 'Utilizzata per l\'invio automatico e riservato dell\'orario individuale via email.'}
           </div>
         </div>
 
@@ -7496,6 +7544,7 @@ async function submitEditTeacher(origName) {
   const contractType = contractRadio ? contractRadio.value : 'intera';
   const isCoe = (contractType === 'coe');
   const comments = document.getElementById('editTeacherComments').value.trim();
+  const email = (document.getElementById('editTeacherEmail')?.value || '').trim().toLowerCase();
 
   // Campi Preferenze
   const prefShift = document.getElementById('editTeacherPrefShift')?.value || 'none';
@@ -7531,6 +7580,7 @@ async function submitEditTeacher(origName) {
       contract_type: contractType,
       is_coe: isCoe,
       comments: comments,
+      email: email,
       pref_shift: prefShift,
       pref_shift_weight: prefWeight,
       free_day_1: freeDay1,
@@ -7546,7 +7596,11 @@ async function submitEditTeacher(origName) {
     closeModal();
     const msg = (origName !== newName) ? `Docente rinominato in "${newName}" con successo!` : `Parametri del docente "${origName}" aggiornati con successo!`;
     showToast(msg);
-    renderTeachers();
+    if (currentView === 'activities') {
+      renderActivities();
+    } else {
+      renderTeachers();
+    }
   } else {
     alert("Errore durante l'aggiornamento del docente.");
   }
@@ -7580,6 +7634,7 @@ async function addTeacher() {
       cdc: cdc,
       contract_type: ctype,
       target_hours: targetH,
+      email: computeTeacherEmailJs(name, stateData.settings?.teacher_email_domain),
       is_coe: (ctype === 'coe'),
       min_days: targetH <= 9 ? 2 : (targetH <= 12 ? 3 : 4),
       max_days: targetH <= 12 ? 4 : 5
@@ -7603,6 +7658,354 @@ async function deleteTeacher(name) {
     await fetch(`/api/teachers/${encodeURIComponent(name)}`, { method: 'DELETE' });
     showToast(isEn ? `Teacher "${name}" deleted.` : `Docente "${name}" eliminato.`, 'warn');
     renderTeachers();
+  }
+}
+
+// ============================================================================
+// 4.0 GESTIONE EMAIL DOCENTI & INVIO ORARIO AUTOMATIZZATO (ZERO-CONFRONTI PRIVACY)
+// ============================================================================
+
+function computeTeacherEmailJs(name, domain = 'rolandodapiazzola.edu.it') {
+  if (!name || !name.trim()) return '';
+  const dom = (domain || 'rolandodapiazzola.edu.it').trim().toLowerCase().replace(/^@/, '');
+  const cleanName = name.replace(/^(prof\.?(?:ssa)?|dott\.?(?:ssa)?|maestro|maestra)\s+/i, '').trim();
+  const parts = cleanName.split(/\s+/).filter(Boolean);
+  if (!parts.length) return '';
+  let local = '';
+  if (parts.length === 1) {
+    local = parts[0];
+  } else {
+    const prefixes = new Set([
+      "DA", "DE", "DI", "DEL", "DELLA", "DELLE", "DALLE",
+      "DEI", "DEGLI", "DAL", "DALLA", "LA", "LO", "LE", "LI",
+      "VAN", "VON", "AL", "EL", "SAN", "SANTA"
+    ]);
+    let i = 0;
+    const cogn = [parts[0]];
+    while (i < parts.length - 1 && prefixes.has(parts[i].toUpperCase())) {
+      i++;
+      cogn.push(parts[i]);
+    }
+    const nomi = parts.slice(i + 1);
+    if (!nomi.length) {
+      local = cogn.join('');
+    } else {
+      local = `${nomi.join('')}.${cogn.join('')}`;
+    }
+  }
+  local = local.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  local = local.replace(/['`]/g, '').replace(/[^a-zA-Z0-9.]/g, '').replace(/\.+/g, '.').replace(/^\.|\.$/g, '').toLowerCase();
+  return local ? `${local}@${dom}` : '';
+}
+
+async function batchPrefillTeacherEmails(overwrite = false) {
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+  if (!confirm(isEn ? 'Automatically prefill missing teacher emails using institutional domain (name.surname@domain)?' : 'Precompilare automaticamente le email dei docenti mancanti usando il dominio istituzionale (formato nome.cognome@dominio)?')) return;
+  try {
+    const res = await fetch('/api/teachers/prefill_emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ overwrite: overwrite })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(isEn ? `${data.updated_count} emails prefilled!` : `${data.updated_count} email docenti precompilate!`, 'ok');
+      renderTeachers();
+    } else {
+      alert(isEn ? 'Error prefilling emails.' : 'Errore durante la precompilazione delle email.');
+    }
+  } catch (err) {
+    alert('Errore: ' + (err.message || String(err)));
+  }
+}
+
+async function openEmailTimetablesModal(preselectedTeachers = null) {
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+  const [teachers, settings, smtpRes] = await Promise.all([
+    fetch('/api/teachers').then(r => r.json()).catch(() => []),
+    fetch('/api/settings').then(r => r.json()).catch(() => ({})),
+    fetch('/api/schools/smtp').then(r => r.json()).catch(() => ({}))
+  ]);
+  stateData.teachers = teachers;
+  stateData.settings = settings;
+
+  const emailDomain = settings.teacher_email_domain || 'rolandodapiazzola.edu.it';
+  const schoolName = settings.institution || (window.currentSchool ? window.currentSchool.name : 'I.I.S. "Rolando da Piazzola"');
+  const defaultSubject = `Orario Settimanale delle Lezioni - ${schoolName}`;
+  const defaultAdminEmail = (window.currentUser ? window.currentUser.email : '') || (settings.contact_email || '') || (smtpRes.contact_email || '') || '';
+
+  const preselectedSet = new Set(preselectedTeachers || []);
+
+  showModal(`
+    <div class="modal-dialog" style="max-width:850px;">
+      <div class="modal-header">
+        <div class="modal-title">📧 ${isEn ? 'Send Individual Timetables via Email' : 'Invia Orari Individuali via Email (Zero-Confronti Privacy)'}</div>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body" style="max-height:80vh;overflow-y:auto;">
+        <!-- Banner Privacy & Spiegazione -->
+        <div class="info-banner" style="margin-top:0;margin-bottom:14px;">
+          💡 <b>${isEn ? 'Maximum Faculty Privacy (No Timetable Comparisons):' : 'Massima Riservatezza Didattica (Nessun Confronto tra Docenti):'}</b><br>
+          ${isEn 
+            ? 'Each teacher receives <b>strictly their own individual timetable</b> directly in the body of the email and as an attached printable sheet. No teacher can view or compare other colleagues\' schedules, preventing friction.' 
+            : 'Ogni docente riceve <b>esclusivamente il proprio orario settimanale individuale</b> direttamente nel corpo dell\'email e come allegato stampabile A4. Nessun docente può vedere o confrontare l\'orario degli altri colleghi, azzerando sul nascere polemiche o confronti.'}
+        </div>
+
+        <!-- Sezione 1: Prova Invio Amministratore -->
+        <div style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:6px;padding:12px 14px;margin-bottom:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:gap;gap:6px;">
+            <b style="font-size:13px;color:#1e3a8a;">🧪 ${isEn ? 'Administrator Test Send (Check Layout & Delivery)' : 'Prova Preventiva Invio all\'Amministratore (Verifica Layout)'}</b>
+            <span class="badge badge-info" style="font-size:11px;">${isEn ? 'Safe Simulation' : 'Nessun invio ai docenti'}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">
+            ${isEn 
+              ? 'Send a real sample email containing a teacher\'s timetable to your admin email address to review formatting and verify SMTP settings before mass delivery.' 
+              : 'Invia una reale email di prova contenente l\'orario di un docente al tuo indirizzo amministratore per controllare la formattazione grafica e verificare la corretta connessione SMTP prima dell\'invio di massa.'}
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <input type="email" id="testEmailRecipient" class="form-input" style="flex:1;min-width:240px;" value="${escapeHtml(defaultAdminEmail)}" placeholder="${isEn ? 'Admin email (e.g. admin@school.edu)' : 'Email amministratore (es. admin@scuola.edu.it)'}">
+            <button type="button" class="btn btn-sec" style="font-weight:700;white-space:nowrap;" onclick="sendTestEmailTimetable()">
+              🧪 ${isEn ? 'Send Test Email' : 'Invia Prova all\'Amministratore'}
+            </button>
+          </div>
+          <div id="testEmailStatus" style="margin-top:6px;font-size:12px;display:none;"></div>
+        </div>
+
+        <!-- Sezione 2: Personalizzazione Messaggio -->
+        <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:14px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">📝 ${isEn ? 'Email Subject' : 'Oggetto dell\'Email'}</label>
+            <input type="text" id="emailTimetableSubject" class="form-input" value="${escapeHtml(defaultSubject)}">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">💬 ${isEn ? 'Introductory Message to Teachers' : 'Messaggio Introduttivo per i Docenti'}</label>
+            <textarea id="emailTimetableCustomMsg" class="form-input" rows="2" placeholder="${isEn ? 'e.g. Dear teacher, please find enclosed your definitive weekly timetable...' : 'es. Gentile docente, in allegato e di seguito visualizza il Suo orario settimanale definitivo delle lezioni per l\'Anno Scolastico in corso...'}">${escapeHtml('Gentile docente, in allegato e di seguito trova il Suo orario settimanale individuale delle lezioni.')}</textarea>
+          </div>
+        </div>
+
+        <!-- Sezione 3: Selezione Docenti -->
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+            <b style="font-size:13px;color:var(--text-main);">
+              👥 ${isEn ? 'Select Teachers to Receive Timetable' : 'Docenti Destinatari dell\'Orario'} (<span id="selectedTeachersCount">0</span> / ${teachers.length} ${isEn ? 'selected' : 'selezionati'})
+            </b>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button type="button" class="btn btn-sm btn-sec" onclick="selectAllTeachersForEmail(true)">☑️ ${isEn ? 'Select All' : 'Seleziona Tutti'}</button>
+              <button type="button" class="btn btn-sm btn-sec" onclick="selectAllTeachersForEmail(false)">⬜ ${isEn ? 'Deselect All' : 'Deseleziona'}</button>
+              <button type="button" class="btn btn-sm btn-sec" onclick="selectValidEmailTeachersOnly()">🎯 ${isEn ? 'Valid Emails Only' : 'Solo con Email Valida'}</button>
+            </div>
+          </div>
+
+          <div style="margin-bottom:8px;">
+            <input type="text" id="searchTeacherEmailList" class="search-input" placeholder="${isEn ? '🔍 Filter teachers by name, CDC or email...' : '🔍 Filtra docenti per nome, CDC o email...'}" oninput="filterTeacherEmailChecklist(this.value)" style="width:100%;">
+          </div>
+
+          <div id="teacherEmailChecklistContainer" style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;padding:6px;background:#fff;display:flex;flex-direction:column;gap:4px;">
+            ${teachers.map((t, idx) => {
+              const emailVal = (t.email || '').trim().toLowerCase() || computeTeacherEmailJs(t.name, emailDomain);
+              const hasEmail = Boolean(emailVal && emailVal.includes('@') && emailVal.includes('.'));
+              const isChecked = preselectedSet.size > 0 ? preselectedSet.has(t.name) : hasEmail;
+
+              return `
+                <label class="teacher-email-row" data-search="${escapeHtml((t.name + ' ' + (t.cdc || '') + ' ' + emailVal).toLowerCase())}" style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;border-radius:4px;cursor:pointer;border-bottom:1px solid #f1f5f9;background:${isChecked ? '#f8fafc' : '#fff'};">
+                  <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                    <input type="checkbox" class="teacher-email-cb" value="${escapeHtml(t.name)}" data-has-email="${hasEmail ? '1' : '0'}" ${isChecked ? 'checked' : ''} onchange="updateSelectedTeachersCounter()">
+                    <span style="font-weight:700;font-size:13px;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">👨‍🏫 ${escapeHtml(t.name)}</span>
+                    ${t.cdc ? `<span class="badge" style="font-size:10.5px;padding:1px 5px;">${escapeHtml(t.cdc)}</span>` : ''}
+                    <span style="font-size:11.5px;color:var(--text-muted);font-family:var(--font-mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">📧 ${escapeHtml(emailVal || 'Nessuna email')}</span>
+                  </div>
+                  <div>
+                    ${hasEmail ? `
+                      <span class="badge badge-ok" style="font-size:10px;padding:1px 6px;">🟢 OK</span>
+                    ` : `
+                      <span class="badge badge-warn" style="font-size:10px;padding:1px 6px;">⚠️ Mancante</span>
+                    `}
+                  </div>
+                </label>
+              `;
+            }).join('')}
+          </div>
+        </div>
+
+        <div id="emailSendingProgressBox" style="display:none;margin-top:14px;padding:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;text-align:center;">
+          <div style="font-weight:700;color:#1e40af;font-size:13px;margin-bottom:4px;">🚀 Invio email in corso tramite server SMTP...</div>
+          <div style="font-size:12px;color:#3b82f6;">Attendere il completamento della procedura di recapito.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sec" onclick="closeModal()">${_t('common.cancel', 'Annulla')}</button>
+        <button id="btnSubmitEmailTimetables" class="btn btn-primary" onclick="submitSendEmailTimetables()" style="font-weight:700;">
+          🚀 ${isEn ? 'Send Timetables to Selected Teachers' : 'Invia Orario ai Docenti Selezionati'}
+        </button>
+      </div>
+    </div>
+  `);
+
+  updateSelectedTeachersCounter();
+}
+
+function updateSelectedTeachersCounter() {
+  const cbs = document.querySelectorAll('.teacher-email-cb:checked');
+  const cntEl = document.getElementById('selectedTeachersCount');
+  if (cntEl) cntEl.innerText = cbs.length;
+}
+
+function selectAllTeachersForEmail(check) {
+  document.querySelectorAll('.teacher-email-row').forEach(row => {
+    if (row.style.display !== 'none') {
+      const cb = row.querySelector('.teacher-email-cb');
+      if (cb) cb.checked = check;
+    }
+  });
+  updateSelectedTeachersCounter();
+}
+
+function selectValidEmailTeachersOnly() {
+  document.querySelectorAll('.teacher-email-row').forEach(row => {
+    const cb = row.querySelector('.teacher-email-cb');
+    if (cb) {
+      cb.checked = (cb.getAttribute('data-has-email') === '1');
+    }
+  });
+  updateSelectedTeachersCounter();
+}
+
+function filterTeacherEmailChecklist(q) {
+  const query = (q || '').toLowerCase();
+  document.querySelectorAll('.teacher-email-row').forEach(row => {
+    const searchVal = row.getAttribute('data-search') || '';
+    row.style.display = searchVal.includes(query) ? 'flex' : 'none';
+  });
+}
+
+async function sendTestEmailTimetable() {
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+  const adminEmail = (document.getElementById('testEmailRecipient')?.value || '').trim();
+  const statusBox = document.getElementById('testEmailStatus');
+  if (!adminEmail || !adminEmail.includes('@')) {
+    alert(isEn ? 'Please provide a valid administrator email.' : 'Inserisci un indirizzo email valido per l\'amministratore.');
+    return;
+  }
+  const customSubject = (document.getElementById('emailTimetableSubject')?.value || '').trim();
+  const customMessage = (document.getElementById('emailTimetableCustomMsg')?.value || '').trim();
+
+  const checkedCbs = Array.from(document.querySelectorAll('.teacher-email-cb:checked'));
+  const sampleTeacher = checkedCbs.length ? checkedCbs[0].value : (stateData.teachers && stateData.teachers.length ? stateData.teachers[0].name : 'Docente');
+
+  if (statusBox) {
+    statusBox.style.display = 'block';
+    statusBox.style.color = '#2563eb';
+    statusBox.innerHTML = `⏳ ${isEn ? 'Sending test email to' : 'Invio email di prova a'} <b>${escapeHtml(adminEmail)}</b>...`;
+  }
+
+  try {
+    const res = await fetch('/api/teachers/email_timetables', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        is_test: true,
+        test_recipient: adminEmail,
+        teacher_names: [sampleTeacher],
+        custom_subject: customSubject,
+        custom_message: customMessage
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      if (statusBox) {
+        statusBox.style.color = '#059669';
+        statusBox.innerHTML = `✅ <b>${isEn ? 'Test Successful!' : 'Prova Riuscita!'}</b> ${escapeHtml(data.message || 'Email inviata con successo all\'amministratore.')}`;
+      }
+      showToast(isEn ? 'Test email sent successfully!' : 'Email di prova inviata con successo!', 'ok');
+    } else {
+      if (statusBox) {
+        statusBox.style.color = '#dc2626';
+        statusBox.innerHTML = `❌ <b>${isEn ? 'Test Failed:' : 'Invio Fallito:'}</b> ${escapeHtml(data.error || 'Errore SMTP')}`;
+      }
+    }
+  } catch (err) {
+    if (statusBox) {
+      statusBox.style.color = '#dc2626';
+      statusBox.innerHTML = `❌ <b>${isEn ? 'Error:' : 'Errore:'}</b> ${escapeHtml(err.message || String(err))}`;
+    }
+  }
+}
+
+async function submitSendEmailTimetables() {
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+  const checkedCbs = Array.from(document.querySelectorAll('.teacher-email-cb:checked'));
+  const selectedTeachers = checkedCbs.map(cb => cb.value);
+
+  if (!selectedTeachers.length) {
+    alert(isEn ? 'Please select at least one teacher.' : 'Seleziona almeno un docente destinatario.');
+    return;
+  }
+
+  const customSubject = (document.getElementById('emailTimetableSubject')?.value || '').trim();
+  const customMessage = (document.getElementById('emailTimetableCustomMsg')?.value || '').trim();
+
+  const confirmMsg = isEn 
+    ? `Send individual timetables to ${selectedTeachers.length} selected teachers?\n\nEach teacher will receive ONLY their own schedule.`
+    : `Inviare l'orario individuale via email a ${selectedTeachers.length} docenti selezionati?\n\nOgni docente riceverà ESCLUSIVAMENTE il proprio orario personale, garantendo la massima riservatezza didattica.`;
+
+  if (!confirm(confirmMsg)) return;
+
+  const btn = document.getElementById('btnSubmitEmailTimetables');
+  const progBox = document.getElementById('emailSendingProgressBox');
+  if (btn) btn.disabled = true;
+  if (progBox) progBox.style.display = 'block';
+
+  try {
+    const res = await fetch('/api/teachers/email_timetables', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        is_test: false,
+        teacher_names: selectedTeachers,
+        custom_subject: customSubject,
+        custom_message: customMessage
+      })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      closeModal();
+      showModal(`
+        <div class="modal-dialog" style="max-width:650px;">
+          <div class="modal-header">
+            <div class="modal-title">🎉 ${isEn ? 'Email Dispatch Completed' : 'Esito Invio Orari Docenti'}</div>
+            <button class="modal-close" onclick="closeModal()">×</button>
+          </div>
+          <div class="modal-body">
+            <div class="info-banner ${data.failed_count === 0 ? '' : 'info-banner-warn'}" style="margin-top:0;">
+              <b>${escapeHtml(data.message || '')}</b><br>
+              Inviate con successo: <b>${data.sent_count}</b> &bull; Fallite/Senza email: <b>${data.failed_count}</b>
+            </div>
+            ${data.details && data.details.length ? `
+              <div style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:4px;padding:6px;font-size:12px;">
+                ${data.details.map(d => `
+                  <div style="display:flex;justify-content:space-between;padding:4px 6px;border-bottom:1px solid #f1f5f9;">
+                    <span>👨‍🏫 <b>${escapeHtml(d.teacher)}</b> <span style="color:var(--text-muted);">(${escapeHtml(d.email || '-')})</span></span>
+                    <span class="badge ${d.status === 'sent' ? 'badge-ok' : 'badge-err'}">${d.status === 'sent' ? '✓ Inviata' : '✕ ' + escapeHtml(d.error || 'Errore')}</span>
+                  </div>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-primary" onclick="closeModal()">OK</button>
+          </div>
+        </div>
+      `);
+      showToast(isEn ? `${data.sent_count} timetables emailed!` : `${data.sent_count} orari inviati con successo!`, 'ok');
+    } else {
+      if (btn) btn.disabled = false;
+      if (progBox) progBox.style.display = 'none';
+      alert((isEn ? 'Error sending timetables: ' : 'Errore durante l\'invio degli orari: ') + (data.error || 'Operazione fallita'));
+    }
+  } catch (err) {
+    if (btn) btn.disabled = false;
+    if (progBox) progBox.style.display = 'none';
+    alert('Errore di connessione: ' + (err.message || String(err)));
   }
 }
 
@@ -11248,22 +11651,23 @@ async function renderActivities() {
     finalGrouped = cleanGrouped.filter(g => g.is_exception);
   }
 
-  let initialSearch = '';
-  let activeFilterLabel = '';
   const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
   if (pendingActivityFilter) {
     if (pendingActivityFilter.teacher) {
-      initialSearch = pendingActivityFilter.teacher;
-      activeFilterLabel = `${isEn ? 'Teacher' : 'Docente'}: ${pendingActivityFilter.teacher}`;
+      currentActivitySearchQuery = pendingActivityFilter.teacher;
+      currentActivityFilterLabel = `${isEn ? 'Teacher' : 'Docente'}: ${pendingActivityFilter.teacher}`;
     } else if (pendingActivityFilter.subject) {
-      initialSearch = pendingActivityFilter.subject;
-      activeFilterLabel = `${isEn ? 'Subject' : 'Materia'}: ${pendingActivityFilter.subject}`;
+      currentActivitySearchQuery = pendingActivityFilter.subject;
+      currentActivityFilterLabel = `${isEn ? 'Subject' : 'Materia'}: ${pendingActivityFilter.subject}`;
     } else if (pendingActivityFilter.className) {
-      initialSearch = pendingActivityFilter.className;
-      activeFilterLabel = `${isEn ? 'Class' : 'Classe'}: ${pendingActivityFilter.className}`;
+      currentActivitySearchQuery = pendingActivityFilter.className;
+      currentActivityFilterLabel = `${isEn ? 'Class' : 'Classe'}: ${pendingActivityFilter.className}`;
     }
     pendingActivityFilter = null;
   }
+
+  let initialSearch = currentActivitySearchQuery || '';
+  let activeFilterLabel = currentActivityFilterLabel || '';
 
   container.innerHTML = `
     ${getGlobalFilterBannerHtml()}
@@ -12507,6 +12911,8 @@ async function resetAllCattedreToDefault() {
 
 
 function clearActivityFilter() {
+  currentActivitySearchQuery = '';
+  currentActivityFilterLabel = '';
   const inp = document.getElementById('activitySearchInput');
   if (inp) {
     inp.value = '';
@@ -12522,7 +12928,13 @@ function switchActivityView(mode) {
 }
 
 function filterActivities(query) {
-  const q = query.toLowerCase();
+  currentActivitySearchQuery = query || '';
+  if (!currentActivitySearchQuery) {
+    currentActivityFilterLabel = '';
+    const pill = document.getElementById('activeFilterPill');
+    if (pill) pill.remove();
+  }
+  const q = (query || '').toLowerCase();
   const rows = document.querySelectorAll('#actTable tbody tr');
   rows.forEach(r => {
     const text = r.innerText.toLowerCase();
@@ -14862,7 +15274,7 @@ async function renderParameters() {
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1.2fr 1.5fr 1.5fr 1.2fr;gap:14px;margin-top:10px;">
+      <div style="display:grid;grid-template-columns:1.2fr 1.5fr 1.5fr 1.5fr 1.2fr;gap:14px;margin-top:10px;">
         <div class="form-group">
           <label class="form-label">${isEn ? 'School Code (MIM / Unique)' : 'Codice Meccanografico'}</label>
           <input type="text" id="cfgMeccanografico" class="form-input" value="${escapeHtml(cfg.meccanografico || (currentSchool ? currentSchool.meccanografico : ''))}" placeholder="${isEn ? 'e.g. PDIS017007' : 'es. PDIS017007'}" style="text-transform:uppercase;font-weight:600;letter-spacing:0.5px;">
@@ -14870,6 +15282,10 @@ async function renderParameters() {
         <div class="form-group">
           <label class="form-label">📧 ${isEn ? 'Official Contact / Notification Email' : 'Email Contatto / Notifiche Ufficiale'}</label>
           <input type="email" id="cfgContactEmail" class="form-input" value="${escapeHtml(cfg.contact_email || (currentSchool ? currentSchool.contact_email : ''))}" placeholder="${isEn ? 'e.g. info@school.edu' : 'es. pdis017007@istruzione.it'}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">🌐 ${isEn ? 'Teacher Email Domain' : 'Dominio Email Docenti'}</label>
+          <input type="text" id="cfgTeacherEmailDomain" class="form-input" value="${escapeHtml(cfg.teacher_email_domain || params['Dominio email istituzionale docenti'] || 'rolandodapiazzola.edu.it')}" placeholder="es. rolandodapiazzola.edu.it">
         </div>
         <div class="form-group">
           <label class="form-label">${isEn ? 'Notes / Timetable Committee Contact' : 'Note / Referente Commissione'}</label>
@@ -15216,12 +15632,16 @@ async function saveParametersSettings() {
     }
   });
 
+  const teacherEmailDomain = (document.getElementById('cfgTeacherEmailDomain')?.value || '').trim() || 'rolandodapiazzola.edu.it';
+  updatedParams['Dominio email istituzionale docenti'] = teacherEmailDomain;
+
   const payload = {
     institution: instName,
     city: city,
     country: country,
     meccanografico: meccanografico,
     contact_email: contactEmail,
+    teacher_email_domain: teacherEmailDomain,
     notes: notes,
     comments: comments,
     days: activeDays,

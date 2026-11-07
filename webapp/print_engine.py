@@ -1669,6 +1669,744 @@ function copyTableForGoogleDocs() {{
 
 
 # =====================================================================
+# PROCEDURA SPECIALE: ORARIO SETTIMANALE DEL SINGOLO DOCENTE (A4 LANDSCAPE)
+# & GENERATORE TEMPLATE EMAIL INDIVIDUALE (Zero-Confronti Privacy)
+# =====================================================================
+
+def generate_single_teacher_print_html(data, teacher_names=None, options=None):
+    """
+    Genera il documento HTML pronto per la stampa o PDF (A4 Landscape) dell'orario
+    settimanale individuale per singolo docente (o lista di docenti con salto pagina).
+    Garantisce privacy assoluta: ogni docente visualizza esclusivamente il proprio orario
+    senza raffronti con altri colleghi.
+    """
+    options = options or {}
+    validity_date = options.get("validity_date") or get_default_validity_date()
+    color_mode = options.get("color_mode", "color")
+    raw_lang = options.get("lang", "it") if options else "it"
+    is_en = str(raw_lang).strip().lower() in ("en", "eng", "english")
+    lang = "en" if is_en else "it"
+    is_trial = bool(options.get("is_trial", False))
+
+    institution = data.get("institution", 'I.I.S. "Rolando da Piazzola"')
+    school_year = data.get("school_year") or "2026/2027"
+    days = data.get("days", ["Lun", "Mar", "Mer", "Gio", "Ven"])
+    hours = [h for h in data.get("hours", []) if not h.startswith("INT")]
+
+    from webapp.fet_engine import build_timetable_views
+    views = build_timetable_views(data)
+    by_teacher = views["by_teacher"]
+    teacher_stats = views["teacher_stats"]
+
+    # Mappa anagrafica docenti per email, cdc e note
+    from webapp.database import compute_teacher_email
+    email_domain = data.get("teacher_email_domain") or data.get("parameters", {}).get("Dominio email istituzionale docenti") or "rolandodapiazzola.edu.it"
+    teachers_meta = {}
+    for t in data.get("teachers", []):
+        t_name = t.get("name", "").strip()
+        if not t_name:
+            continue
+        teachers_meta[t_name] = {
+            "cdc": (t.get("cdc") or "").strip(),
+            "email": (t.get("email") or "").strip().lower() or compute_teacher_email(t_name, email_domain),
+            "free_day_1": t.get("free_day_1", ""),
+            "free_day_2": t.get("free_day_2", ""),
+            "target_hours": t.get("target_hours", 18),
+            "short_name": t.get("short_name", "")
+        }
+
+    # Determinazione docenti da elaborare
+    all_teachers_sorted = sorted(list(by_teacher.keys()), key=lambda x: x.lower())
+    target_teachers = []
+    if teacher_names:
+        if isinstance(teacher_names, str):
+            if teacher_names.strip().lower() in ("all", "*"):
+                target_teachers = all_teachers_sorted
+            else:
+                target_teachers = [t.strip() for t in teacher_names.split(",") if t.strip() and t.strip() in by_teacher]
+        elif isinstance(teacher_names, (list, tuple, set)):
+            target_teachers = [t for t in teacher_names if t in by_teacher]
+    if not target_teachers:
+        target_teachers = all_teachers_sorted
+
+    subjects_list = [s["name"] for s in data.get("subjects", [])]
+    color_map = build_subject_color_map(subjects_list) if color_mode == "color" else {}
+
+    # Struttura ore fissa: 8 ore massime con intervalli campana standard
+    FIXED_MAX_HOURS = 8
+
+    html_out = []
+    html_out.append(f"""<!DOCTYPE html>
+<html lang="{lang}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{'Teacher Timetable' if is_en else 'Orario Settimanale Docente'} &mdash; {escape(institution)}</title>
+<style>
+  @page {{
+    size: A4 landscape;
+    margin: 8mm 10mm 12mm 10mm;
+  }}
+  * {{
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }}
+  body {{
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #525659;
+    color: #0f172a;
+    -webkit-font-smoothing: antialiased;
+  }}
+  .no-print {{
+    background: #0f172a;
+    color: #fff;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+  }}
+  .no-print h2 {{
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }}
+  .btn-tb {{
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 12px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    text-decoration: none;
+    transition: background 0.15s;
+  }}
+  .btn-tb:hover {{ background: #1d4ed8; }}
+  .btn-tb-sec {{
+    background: #475569;
+    color: #fff;
+  }}
+  .btn-tb-sec:hover {{ background: #334155; }}
+  .select-tb {{
+    background: #1e293b;
+    color: #fff;
+    border: 1px solid #475569;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 12px;
+  }}
+  .pages-wrapper {{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 0 40px;
+    gap: 24px;
+  }}
+  .teacher-sheet {{
+    width: 277mm;
+    min-height: 184mm;
+    max-height: 188mm;
+    background: #ffffff;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.14);
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    padding: 8mm 10mm 10mm 10mm;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    page-break-after: always;
+    break-after: page;
+  }}
+  .teacher-sheet:last-child {{
+    page-break-after: auto;
+    break-after: auto;
+  }}
+  .header-box {{
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2px solid #0f172a;
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+    width: 100%;
+  }}
+  .inst-title {{
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }}
+  .doc-sub {{
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+    margin-top: 2px;
+  }}
+  .header-right {{
+    text-align: right;
+    font-size: 10.5px;
+    color: #475569;
+    line-height: 1.3;
+  }}
+  .teacher-banner {{
+    display: grid;
+    grid-template-columns: 2fr 1.6fr 1.6fr;
+    align-items: center;
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-radius: 5px;
+    padding: 6px 12px;
+    margin-bottom: 6px;
+    gap: 10px;
+  }}
+  .tb-left {{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }}
+  .tb-name {{
+    font-size: 15px;
+    font-weight: 800;
+    color: #1e3a8a;
+  }}
+  .tb-badge {{
+    background: #e0e7ff;
+    color: #3730a3;
+    padding: 2px 7px;
+    border-radius: 12px;
+    font-size: 10.5px;
+    font-weight: 700;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }}
+  .tb-mid {{
+    font-size: 11px;
+    color: #334155;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }}
+  .tb-right {{
+    text-align: right;
+    font-size: 11px;
+    color: #0f172a;
+    font-weight: 700;
+  }}
+  table.grid {{
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    border: 1.5px solid #0f172a;
+    background: #fff;
+    flex-grow: 1;
+  }}
+  table.grid th {{
+    background: #0f172a;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 4px 6px;
+    border: 1px solid #334155;
+    text-align: center;
+    line-height: 1.15;
+  }}
+  table.grid th.col-ora {{
+    width: 60px;
+  }}
+  .col-ora-cell {{
+    background: #f8fafc;
+    width: 60px;
+    padding: 2px 1px !important;
+    text-align: center;
+    border: 1px solid #cbd5e1;
+  }}
+  .ora-num {{
+    font-weight: 800;
+    font-size: 11px;
+    color: #0f172a;
+    line-height: 1.1;
+  }}
+  .ora-time {{
+    font-size: 8.5px;
+    color: #64748b;
+    font-weight: 600;
+    margin-top: 1px;
+  }}
+  tr.intervallo-row td {{
+    background: #f1f5f9 !important;
+    border-top: 1px dashed #94a3b8;
+    border-bottom: 1px dashed #94a3b8;
+    padding: 0 4px !important;
+    height: 11px;
+    font-size: 8px;
+    font-weight: 600;
+    color: #475569;
+    letter-spacing: 0.03em;
+    text-align: center;
+  }}
+  td.col-lesson-cell {{
+    height: 48px;
+    padding: 1px 2px !important;
+    border: 1px solid #cbd5e1;
+    vertical-align: middle;
+  }}
+  .cell-content {{
+    width: 100%;
+    height: 46px;
+    min-height: 46px;
+    max-height: 46px;
+    border-radius: 3px;
+    padding: 2px 4px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    box-sizing: border-box;
+    overflow: hidden;
+  }}
+  .riga-classe {{
+    font-weight: 800;
+    font-size: 13px;
+    color: #0f172a;
+    line-height: 1.15;
+  }}
+  .riga-materia {{
+    font-weight: 600;
+    font-size: 9.5px;
+    line-height: 1.15;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+  }}
+  .riga-aula {{
+    font-size: 8.5px;
+    color: #475569;
+    font-weight: 700;
+    margin-top: 1px;
+    line-height: 1.1;
+  }}
+  .riga-compresenza {{
+    font-size: 7.5px;
+    color: #0369a1;
+    font-weight: 600;
+    line-height: 1.05;
+  }}
+  .cell-disp {{
+    background: #fef3c7 !important;
+    border: 1.5px solid #f59e0b !important;
+    color: #92400e !important;
+  }}
+  .disp-title {{
+    font-weight: 800;
+    font-size: 11.5px;
+    color: #b45309;
+    letter-spacing: 0.02em;
+  }}
+  .disp-desc {{
+    font-size: 8.5px;
+    font-weight: 600;
+    color: #92400e;
+    margin-top: 1px;
+  }}
+  .free-day-cell {{
+    background: repeating-linear-gradient(45deg, #f8fafc, #f8fafc 10px, #f1f5f9 10px, #f1f5f9 20px);
+    color: #94a3b8;
+    text-align: center;
+    font-size: 8px;
+    font-weight: 600;
+  }}
+  .footer-box {{
+    margin-top: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-top: 1px solid #cbd5e1;
+    padding-top: 4px;
+    font-size: 9px;
+    color: #64748b;
+  }}
+  .signature-line {{
+    border-top: 1px dotted #64748b;
+    min-width: 170px;
+    text-align: center;
+    padding-top: 2px;
+    font-size: 8.5px;
+    color: #334155;
+  }}
+  @media print {{
+    body {{ background: transparent !important; }}
+    .no-print {{ display: none !important; }}
+    .pages-wrapper {{ padding: 0 !important; gap: 0 !important; }}
+    .teacher-sheet {{
+      box-shadow: none !important;
+      border: none !important;
+      border-radius: 0 !important;
+      margin: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      padding: 0 !important;
+    }}
+  }}
+</style>
+</head>
+<body>
+<div class="no-print">
+  <h2>👨‍🏫 {'Individual Teacher Timetables' if is_en else 'Stampe Individuali Orario Docente'} &mdash; <span style="font-size:12px;opacity:0.85;">({len(target_teachers)} {'teachers' if is_en else 'docenti'})</span></h2>
+  <div style="display:flex;gap:10px;align-items:center;">
+    {f'''
+    <select class="select-tb" onchange="const el = document.getElementById(this.value); if (el) el.scrollIntoView({{behavior:'smooth'}});">
+      <option value="">{'-- Jump to Teacher --' if is_en else '-- Salta al Docente --'}</option>
+      {"".join(f'<option value="teacher_sheet_{i}">{escape(t)}</option>' for i, t in enumerate(target_teachers))}
+    </select>
+    ''' if len(target_teachers) > 1 else ''}
+    <button class="btn-tb" onclick="window.print()">🖨️ {'Print / Save PDF' if is_en else 'Stampa / Salva in PDF'}</button>
+    <button class="btn-tb btn-tb-sec" onclick="window.close()">✕ {'Close' if is_en else 'Chiudi'}</button>
+  </div>
+</div>
+
+<div class="pages-wrapper">
+""")
+
+    for t_idx, t in enumerate(target_teachers):
+        meta = teachers_meta.get(t, {})
+        stats = teacher_stats.get(t, {})
+        tot_h = stats.get("total_hours", meta.get("target_hours", 0))
+        disp_h = stats.get("disp_hours", 0)
+        teach_h = stats.get("teaching_hours", max(0, tot_h - disp_h))
+        cdc = meta.get("cdc") or ("Docente" if not is_en else "Faculty")
+        email = meta.get("email") or ""
+        t_matrix = by_teacher.get(t, {})
+
+        # Identifica giorni completamente liberi
+        free_days = set()
+        for d in days:
+            day_has_act = any(t_matrix.get(d, {}).get(str(h_num)) for h_num in range(1, FIXED_MAX_HOURS + 1))
+            if not day_has_act:
+                free_days.add(d)
+
+        html_out.append(f"""
+  <div class="teacher-sheet" id="teacher_sheet_{t_idx}">
+    <div>
+      <div class="header-box">
+        <div>
+          <div class="inst-title">🏫 {escape(institution)}</div>
+          <div class="doc-sub">{'OFFICIAL INDIVIDUAL TEACHER TIMETABLE' if is_en else 'ORARIO SETTIMANALE INDIVIDUALE DELLE LEZIONI'} &bull; {'A.S.' if not is_en else 'S.Y.'} {escape(school_year)}</div>
+        </div>
+        <div class="header-right">
+          <div>{'Valid from' if is_en else 'In vigore dal'}: <b>{escape(validity_date)}</b></div>
+          <div style="color:#64748b;font-size:9.5px;">{'CONFIDENTIAL &bull; Individual faculty use only' if is_en else 'STRETTAMENTE RISERVATO &bull; Ad uso esclusivo del docente'}</div>
+        </div>
+      </div>
+
+      <div class="teacher-banner">
+        <div class="tb-left">
+          <span style="font-size:18px;">👨‍🏫</span>
+          <span class="tb-name">Prof. {escape(t)}</span>
+          <span class="tb-badge">{escape(cdc)}</span>
+        </div>
+        <div class="tb-mid">
+          📧 {escape(email) if email else '<span style="color:#94a3b8;">Email non presente</span>'}
+        </div>
+        <div class="tb-right">
+          {'Weekly Hours' if is_en else 'Ore Cattedra'}: <span style="color:#1d4ed8;font-size:12.5px;">{tot_h}h</span> <span style="font-weight:400;font-size:9.5px;color:#475569;">({teach_h}h {'teaching' if is_en else 'lez'}{f", {disp_h}h disp" if disp_h else ""})</span>
+        </div>
+      </div>
+
+      <table class="grid">
+        <thead>
+          <tr>
+            <th class="col-ora">{'Period' if is_en else 'Ora'}</th>
+""")
+
+        for d in days:
+            d_name = get_day_name(d, lang=lang, full=True)
+            is_free = (d in free_days)
+            html_out.append(f'            <th>{escape(d_name)}{"<div style=\"font-size:8px;font-weight:400;color:#93c5fd;\">(" + ("GIORNO LIBERO" if not is_en else "FREE DAY") + ")</div>" if is_free else ""}</th>\n')
+
+        html_out.append("""          </tr>
+        </thead>
+        <tbody>
+""")
+
+        for h_num in range(1, FIXED_MAX_HOURS + 1):
+            h_str = str(h_num)
+            h_info = ORARIO_ORE.get(h_num, {"inizio": "", "fine": "", "label": f"{h_num}ª ora"})
+            h_time_str = f"{h_info['inizio']} - {h_info['fine']}" if h_info.get("inizio") else ""
+
+            html_out.append(f"""          <tr>
+            <td class="col-ora-cell">
+              <div class="ora-num">{h_num}ª</div>
+              <div class="ora-time">{h_time_str}</div>
+            </td>
+""")
+
+            for d in days:
+                slots = t_matrix.get(d, {}).get(h_str, [])
+                is_free_day = (d in free_days)
+
+                if is_free_day:
+                    html_out.append('            <td class="col-lesson-cell free-day-cell"></td>\n')
+                    continue
+
+                if not slots:
+                    html_out.append('            <td class="col-lesson-cell"></td>\n')
+                    continue
+
+                slot = slots[0]
+                is_disp = slot.get("is_disposizione", False) or "disposiz" in (slot.get("subject") or "").lower()
+
+                if is_disp:
+                    custom_desc = (slot.get("custom_desc") or "").strip()
+                    desc_label = custom_desc if custom_desc else ("Sede Centrale" if not is_en else "Campus")
+                    html_out.append(f"""            <td class="col-lesson-cell">
+              <div class="cell-content cell-disp">
+                <div class="disp-title">🟡 {'ON-CALL' if is_en else 'DISPOSIZIONE'}</div>
+                <div class="disp-desc">{escape(desc_label)}</div>
+              </div>
+            </td>
+""")
+                else:
+                    students = slot.get("students", [])
+                    cls_str = " + ".join(students) if students else ""
+                    subj = slot.get("subject", "")
+                    room = slot.get("room", "")
+                    bld = slot.get("building", "")
+                    room_badge = f"{room}{f' ({bld})' if bld and bld != 'Centrale' else ''}" if room else ""
+                    co_teachers = [other for other in slot.get("teachers", []) if other != t]
+                    co_str = f"👥 con {', '.join(co_teachers)}" if co_teachers else ""
+
+                    # Palette colore materia
+                    bg_col, txt_col = color_map.get(subj, ("#f1f5f9", "#0f172a"))
+                    border_style = f"background:{bg_col}; border:1px solid #cbd5e1;"
+
+                    html_out.append(f"""            <td class="col-lesson-cell">
+              <div class="cell-content" style="{border_style}">
+                <div class="riga-classe" style="color:{txt_col};">{escape(cls_str)}</div>
+                <div class="riga-materia" style="color:{txt_col};" title="{escape(subj)}">{escape(subj)}</div>
+                {f'<div class="riga-aula">{escape(room_badge)}</div>' if room_badge else ''}
+                {f'<div class="riga-compresenza" title="{escape(co_str)}">{escape(co_str)}</div>' if co_str else ''}
+              </div>
+            </td>
+""")
+
+            html_out.append("          </tr>\n")
+
+            # Inserimento intervallo campana
+            if h_num in INTERVALLI_DOPO_ORA:
+                interv = INTERVALLI_DOPO_ORA[h_num]
+                tot_cols = len(days) + 1
+                html_out.append(f"""          <tr class="intervallo-row">
+            <td colspan="{tot_cols}">🔔 {escape(interv['label'])} ({escape(interv['inizio'])} - {escape(interv['fine'])}) &bull; {escape(interv['durata'])}</td>
+          </tr>
+""")
+
+        html_out.append(f"""        </tbody>
+      </table>
+    </div>
+
+    <div class="footer-box">
+      <div>
+        <b>Eurario Suite v1.9.50</b> &mdash; {escape(institution)} &bull; {'Timetable Committee' if is_en else 'Commissione Orario'}<br>
+        <span style="font-size:8px;color:#94a3b8;">{'Generated automatically on' if is_en else 'Documento generato telematicamente il'} {datetime.now().strftime('%d/%m/%Y ore %H:%M')} &bull; {'Personal copy of Prof.' if is_en else 'Copia personale riservata del Prof.'} {escape(t)}</span>
+      </div>
+      <div style="display:flex;gap:30px;">
+        <div class="signature-line">
+          {'Faculty Signature' if is_en else 'Firma del Docente per presa visione'}<br>
+          <span style="font-size:8px;color:#94a3b8;">(Prof. {escape(t)})</span>
+        </div>
+        <div class="signature-line">
+          {'Principal / Headmaster Signature' if is_en else 'Il Dirigente Scolastico'}<br>
+          <span style="font-size:8px;color:#94a3b8;">({escape(institution)})</span>
+        </div>
+      </div>
+    </div>
+  </div>
+""")
+
+    html_out.append("""</div>
+</body>
+</html>""")
+
+    return "".join(html_out)
+
+
+def generate_single_teacher_email_html(data, teacher_name, custom_message=None):
+    """
+    Genera il corpo HTML di un'email reattiva ed elegante per trasmettere al singolo docente
+    il proprio orario settimanale. Compatibile al 100% con tutti i client email
+    (Outlook, Gmail, Apple Mail, Thunderbird) grazie all'uso di tabelle con stili inline.
+    """
+    institution = data.get("institution", 'I.I.S. "Rolando da Piazzola"')
+    school_year = data.get("school_year") or "2026/2027"
+    days = data.get("days", ["Lun", "Mar", "Mer", "Gio", "Ven"])
+    validity_date = get_default_validity_date()
+
+    from webapp.fet_engine import build_timetable_views
+    views = build_timetable_views(data)
+    by_teacher = views["by_teacher"]
+    teacher_stats = views["teacher_stats"]
+
+    t_matrix = by_teacher.get(teacher_name, {})
+    stats = teacher_stats.get(teacher_name, {})
+    tot_h = stats.get("total_hours", 18)
+    disp_h = stats.get("disp_hours", 0)
+    teach_h = stats.get("teaching_hours", max(0, tot_h - disp_h))
+
+    intro_p = custom_message.strip() if custom_message and custom_message.strip() else f"in allegato e di seguito Le trasmettiamo il Suo orario settimanale individuale delle lezioni per l'Anno Scolastico {escape(school_year)}, valido a decorrere da <b>{escape(validity_date)}</b>."
+
+    html = []
+    html.append(f"""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Orario Settimanale - Prof. {escape(teacher_name)}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f1f5f9;padding:20px 0;">
+  <tr>
+    <td align="center">
+      <table width="680" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+        <!-- Header -->
+        <tr>
+          <td style="background-color:#1e3a8a;color:#ffffff;padding:20px 24px;">
+            <div style="font-size:18px;font-weight:800;letter-spacing:-0.01em;">🏫 {escape(institution)}</div>
+            <div style="font-size:12.5px;color:#93c5fd;margin-top:3px;font-weight:500;">Orario Settimanale delle Lezioni &bull; A.S. {escape(school_year)}</div>
+          </td>
+        </tr>
+        <!-- Banner Docente -->
+        <tr>
+          <td style="background-color:#f8fafc;padding:14px 24px;border-bottom:1px solid #e2e8f0;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="font-size:15px;font-weight:700;color:#0f172a;">
+                  👨‍🏫 Gentile Prof.ssa / Prof. <b>{escape(teacher_name)}</b>,
+                </td>
+                <td align="right" style="font-size:12px;font-weight:600;color:#2563eb;">
+                  Ore settimanali: {tot_h}h ({teach_h}h lez{f", {disp_h}h disp" if disp_h else ""})
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <!-- Testo Intro -->
+        <tr>
+          <td style="padding:18px 24px 12px;font-size:13.5px;line-height:1.55;color:#334155;">
+            {intro_p}
+          </td>
+        </tr>
+        <!-- Griglia Oraria Email -->
+        <tr>
+          <td style="padding:0 24px 20px;">
+            <table width="100%" cellpadding="4" cellspacing="0" border="1" style="border-collapse:collapse;border:1px solid #cbd5e1;font-size:11px;text-align:center;">
+              <tr style="background-color:#0f172a;color:#ffffff;font-size:11.5px;font-weight:700;">
+                <th width="48" style="padding:6px 2px;">Ora</th>
+""")
+
+    for d in days:
+        d_name = get_day_name(d, full=False)
+        html.append(f'                <th style="padding:6px 2px;">{escape(d_name)}</th>\n')
+
+    html.append("""              </tr>
+""")
+
+    for h_num in range(1, 9):
+        h_str = str(h_num)
+        h_info = ORARIO_ORE.get(h_num, {"inizio": "", "fine": ""})
+        time_lbl = f"<div style='font-size:8px;color:#64748b;'>{h_info['inizio']}</div>" if h_info.get("inizio") else ""
+
+        html.append(f"""              <tr>
+                <td style="background-color:#f8fafc;font-weight:700;padding:5px 2px;color:#0f172a;">
+                  {h_num}ª{time_lbl}
+                </td>
+""")
+
+        for d in days:
+            slots = t_matrix.get(d, {}).get(h_str, [])
+            if not slots:
+                html.append('                <td style="background-color:#ffffff;padding:4px 2px;">&nbsp;</td>\n')
+                continue
+
+            slot = slots[0]
+            is_disp = slot.get("is_disposizione", False) or "disposiz" in (slot.get("subject") or "").lower()
+
+            if is_disp:
+                html.append("""                <td style="background-color:#fef3c7;color:#92400e;padding:4px 2px;font-weight:700;border:1px solid #f59e0b;">
+                  🟡 DISP
+                </td>
+""")
+            else:
+                students = slot.get("students", [])
+                cls_str = "+".join(students) if students else ""
+                subj = slot.get("subject", "")
+                room = slot.get("room", "")
+                html.append(f"""                <td style="background-color:#f0f9ff;color:#0369a1;padding:4px 2px;border:1px solid #bae6fd;">
+                  <b style="font-size:12px;color:#0f172a;">{escape(cls_str)}</b><br>
+                  <span style="font-size:9.5px;color:#334155;">{escape(subj[:18])}</span>
+                  {f"<br><span style='font-size:8.5px;color:#64748b;'>🚪 {escape(room)}</span>" if room else ""}
+                </td>
+""")
+
+        html.append("              </tr>\n")
+
+    html.append(f"""            </table>
+          </td>
+        </tr>
+        <!-- Note e Disclaimer Privacy -->
+        <tr>
+          <td style="padding:0 24px 20px;">
+            <div style="background-color:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:12px;font-size:11.5px;color:#92400e;line-height:1.45;">
+              🔒 <b>Informativa sulla Riservatezza:</b><br>
+              Il presente messaggio e il relativo orario settimanale sono inviati ad uso <b>strettamente personale ed esclusivo</b> del docente destinatario.
+              Si prega di non diffondere né condividere il documento con terzi al fine di tutelare la riservatezza dell'organizzazione scolastica.
+            </div>
+          </td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="background-color:#f8fafc;padding:16px 24px;border-top:1px solid #e2e8f0;font-size:11px;color:#64748b;line-height:1.4;">
+            Cordiali saluti,<br>
+            <b>La Commissione Orario &bull; {escape(institution)}</b><br>
+            <span style="font-size:10px;color:#94a3b8;">Email generata automaticamente dalla piattaforma Eurario FET Suite. Si prega di non rispondere direttamente a questo indirizzo.</span>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
+""")
+
+    return "".join(html)
+
+
+
+# =====================================================================
 # PROCEDURA 12: GENERATORE DOCUMENTO GOOGLE DOCS / WORD (.DOCX A3)
 # =====================================================================
 

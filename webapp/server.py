@@ -41,7 +41,8 @@ from webapp.database import (
     get_current_school_id,
     ConcurrentModificationError,
     set_request_context,
-    clear_request_context
+    clear_request_context,
+    compute_teacher_email
 )
 from webapp.schools import school_manager
 from webapp.fet_engine import generate_fet_xml
@@ -54,7 +55,10 @@ from webapp.print_engine import (
     generate_teachers_master_print_html,
     generate_teachers_master_docx,
     generate_transfers_print_html,
-    generate_organico_template_docx
+    generate_organico_template_docx,
+    generate_single_teacher_print_html,
+    generate_single_teacher_email_html,
+    get_default_validity_date
 )
 from webapp import updater
 
@@ -98,11 +102,59 @@ def fetch_google_doc_docx_bytes(url):
     except Exception as e:
         raise ValueError(f"Impossibile scaricare il Google Doc: {e}")
 
-APP_VERSION = "1.9.49"
+APP_VERSION = "1.9.50"
 FET_VERSION = "7.12.0"
 APP_AUTHOR = "Carlo Rigoni"
 APP_MENTOR = "Federico Rettore"
 APP_CREDITS = "Autore: Carlo Rigoni • Mentore dell'Orario: Federico Rettore • FET Free Software (Liviu Lalescu) • Google DeepMind Antigravity"
+
+def send_smtp_email(smtp_cfg, recipient, subject, body, html_body=None, attachment_filename=None, attachment_content=None, attachment_type=None):
+    """
+    Invia un'email tramite server SMTP con supporto crittografia STARTTLS o SSL.
+    Zero dipendenze esterne: sfrutta smtplib, ssl ed email.message dalla libreria standard di Python.
+    """
+    if not smtp_cfg or not smtp_cfg.get("enabled"):
+        raise ValueError("Server SMTP non abilitato o non configurato.")
+
+    host = (smtp_cfg.get("host") or "").strip()
+    port = int(smtp_cfg.get("port") or 587)
+    user = (smtp_cfg.get("user") or "").strip()
+    pwd = (smtp_cfg.get("password") or "").strip()
+    from_addr = user or (smtp_cfg.get("notify_to") or "eurario@scuola.it").strip()
+
+    if not host or not user or not pwd:
+        raise ValueError("Configurazione SMTP incompleta: specifica Host, Utente e Password.")
+
+    import smtplib
+    import ssl
+    from email.message import EmailMessage
+
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = from_addr
+    msg["To"] = recipient
+    msg.set_content(body)
+
+    if html_body:
+        msg.add_alternative(html_body, subtype="html")
+
+    if attachment_filename and attachment_content:
+        content_bytes = attachment_content.encode("utf-8") if isinstance(attachment_content, str) else attachment_content
+        maintype = "text" if (attachment_type == "html" or attachment_filename.endswith(".html")) else "application"
+        subtype = "html" if (attachment_type == "html" or attachment_filename.endswith(".html")) else (attachment_type or "octet-stream")
+        msg.add_attachment(content_bytes, maintype=maintype, subtype=subtype, filename=attachment_filename)
+
+    context = ssl.create_default_context()
+    if port == 465:
+        with smtplib.SMTP_SSL(host, port, context=context, timeout=20) as server:
+            server.login(user, pwd)
+            server.send_message(msg)
+    else:
+        with smtplib.SMTP(host, port, timeout=20) as server:
+            server.starttls(context=context)
+            server.login(user, pwd)
+            server.send_message(msg)
+    return True
 
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "8000"))
@@ -808,6 +860,28 @@ class EurarioHandler(BaseHTTPRequestHandler):
             }
             tm_data = db.get_timemachine_data()
             html_content = generate_transfers_print_html(db.get_all(), tm_data, options)
+            html_bytes = html_content.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(html_bytes)))
+            self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+            self.send_header("Pragma", "no-cache")
+            self.send_header("Expires", "0")
+            self._send_cors()
+            self.end_headers()
+            self.wfile.write(html_bytes)
+            return
+
+        elif path == "/api/print/teacher_timetable":
+            req_lang = self._get_request_lang(query)
+            teacher_param = query.get("teacher", [None])[0] or query.get("teachers", [None])[0]
+            options = {
+                "validity_date": query.get("validity_date", [""])[0],
+                "color_mode": query.get("color_mode", ["color"])[0],
+                "lang": req_lang,
+                "is_trial": self._is_current_school_trial()
+            }
+            html_content = generate_single_teacher_print_html(db.get_all(), teacher_param, options)
             html_bytes = html_content.encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -1676,7 +1750,8 @@ class EurarioHandler(BaseHTTPRequestHandler):
                 min_days=body.get("min_days", 4),
                 contract_type=body.get("contract_type", "intera"),
                 short_name=body.get("short_name", ""),
-                is_coe=body.get("is_coe", False)
+                is_coe=body.get("is_coe", False),
+                email=body.get("email", "")
             )
             self._json(200 if ok else 400, {"success": ok})
 
@@ -1686,6 +1761,141 @@ class EurarioHandler(BaseHTTPRequestHandler):
                 return
             ok = db.update_teacher(body["name"], body)
             self._json(200 if ok else 400, {"success": ok})
+
+        elif path == "/api/teachers/email_timetables":
+            admin = self._require_admin()
+            if not admin:
+                return
+
+            teacher_names = body.get("teacher_names", []) if body else []
+            is_test = bool(body.get("is_test", False)) if body else False
+            test_recipient = (body.get("test_recipient") or "").strip().lower() if body else ""
+            custom_subject = (body.get("custom_subject") or "").strip() if body else ""
+            custom_message = (body.get("custom_message") or "").strip() if body else ""
+
+            # Risolvi configurazione SMTP attiva (prima istituto, poi fallback piattaforma)
+            sid = self._resolve_school_id()
+            sch = school_manager.get_school(sid) if sid and sid != "none" else None
+            smtp_cfg = sch.get("smtp", {}) if sch else {}
+            if not smtp_cfg or not smtp_cfg.get("enabled"):
+                smtp_cfg = auth_manager.config.get("smtp", {})
+
+            if not smtp_cfg or not smtp_cfg.get("enabled") or not smtp_cfg.get("host"):
+                self._json(400, {
+                    "error": "Server SMTP non abilitato o non configurato. Configura i parametri SMTP nelle impostazioni dell'istituto prima di inviare le email."
+                })
+                return
+
+            data = db.get_all()
+            all_teachers = data.get("teachers", [])
+            teachers_map = {t["name"]: t for t in all_teachers}
+            email_domain = db.get_teacher_email_domain()
+
+            if is_test:
+                if not test_recipient:
+                    test_recipient = (admin.get("email") or (sch.get("contact_email") if sch else None) or smtp_cfg.get("notify_to") or "").strip().lower()
+                if not test_recipient:
+                    self._json(400, {"error": "Indirizzo email per la prova non specificato."})
+                    return
+
+                sample_teacher = teacher_names[0] if teacher_names and teacher_names[0] in teachers_map else (all_teachers[0]["name"] if all_teachers else "Docente Esempio")
+                subject = f"[TEST Eurario] {custom_subject or f'Orario Settimanale delle Lezioni - Prof. {sample_teacher}'}"
+                html_body = generate_single_teacher_email_html(data, sample_teacher, custom_message)
+                text_body = f"TEST INVIO ORARIO:\nGentile Amministratore,\nin allegato e di seguito visualizza l'anteprima dell'orario individuale per {sample_teacher}.\n"
+
+                att_html = generate_single_teacher_print_html(data, sample_teacher, {"validity_date": get_default_validity_date()})
+                att_name = f"Orario_{sample_teacher.replace(' ', '_')}.html"
+
+                try:
+                    send_smtp_email(
+                        smtp_cfg,
+                        recipient=test_recipient,
+                        subject=subject,
+                        body=text_body,
+                        html_body=html_body,
+                        attachment_filename=att_name,
+                        attachment_content=att_html,
+                        attachment_type="html"
+                    )
+                    self._json(200, {
+                        "ok": True,
+                        "is_test": True,
+                        "recipient": test_recipient,
+                        "sample_teacher": sample_teacher,
+                        "message": f"Email di test inviata con successo all'indirizzo {test_recipient} con l'orario di {sample_teacher}!"
+                    })
+                except Exception as ex:
+                    self._json(500, {
+                        "error": f"Errore durante l'invio dell'email di test: {str(ex)}"
+                    })
+                return
+
+            if not teacher_names:
+                self._json(400, {"error": "Nessun docente selezionato per l'invio."})
+                return
+
+            sent_count = 0
+            failed_count = 0
+            results = []
+
+            for t_name in teacher_names:
+                t_record = teachers_map.get(t_name)
+                if not t_record:
+                    failed_count += 1
+                    results.append({"teacher": t_name, "status": "failed", "error": "Docente non trovato in anagrafica"})
+                    continue
+
+                t_email = (t_record.get("email") or "").strip().lower() or compute_teacher_email(t_name, email_domain)
+                if not t_email or "@" not in t_email:
+                    failed_count += 1
+                    results.append({"teacher": t_name, "status": "failed", "error": f"Indirizzo email non valido ({t_email or 'vuoto'})"})
+                    continue
+
+                subject = custom_subject or f"Orario Settimanale delle Lezioni - Prof. {t_name}"
+                html_body = generate_single_teacher_email_html(data, t_name, custom_message)
+                text_body = f"Gentile Prof.ssa / Prof. {t_name},\nin allegato trova il Suo orario settimanale individuale delle lezioni.\n"
+                att_html = generate_single_teacher_print_html(data, t_name, {"validity_date": get_default_validity_date()})
+                att_name = f"Orario_{t_name.replace(' ', '_')}.html"
+
+                try:
+                    send_smtp_email(
+                        smtp_cfg,
+                        recipient=t_email,
+                        subject=subject,
+                        body=text_body,
+                        html_body=html_body,
+                        attachment_filename=att_name,
+                        attachment_content=att_html,
+                        attachment_type="html"
+                    )
+                    sent_count += 1
+                    results.append({"teacher": t_name, "email": t_email, "status": "sent"})
+                except Exception as ex:
+                    failed_count += 1
+                    results.append({"teacher": t_name, "email": t_email, "status": "failed", "error": str(ex)})
+
+            self._json(200, {
+                "ok": True,
+                "sent_count": sent_count,
+                "failed_count": failed_count,
+                "total": len(teacher_names),
+                "details": results,
+                "message": f"Completato: {sent_count} email inviate con successo, {failed_count} non riuscite."
+            })
+            return
+
+        elif path == "/api/teachers/prefill_emails":
+            admin = self._require_admin()
+            if not admin:
+                return
+            overwrite = bool(body.get("overwrite", False)) if body else False
+            count = db.batch_prefill_teacher_emails(overwrite=overwrite)
+            self._json(200, {
+                "ok": True,
+                "updated_count": count,
+                "message": f"{count} email di docenti precompilate con successo!"
+            })
+            return
 
         elif path == "/api/teachers/align_cattedre/analyze":
             if not body:
