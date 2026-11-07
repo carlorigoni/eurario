@@ -2833,7 +2833,8 @@
     "Docenti 'con D' per i limiti di ore buche: almeno N ore a disposizione": 3,
     "Ore a disposizione: tutte dopo FET (SI/NO)": "NO",
     "Peso delle preferenze delle materie %": 70,
-    "Dominio email istituzionale docenti": "rolandodapiazzola.edu.it"
+    "Dominio email istituzionale docenti": "rolandodapiazzola.edu.it",
+    "Data termine lezioni (fine anno scolastico)": "08/06/2027"
   },
   "accorpamenti_rules": [
     {
@@ -2895,7 +2896,7 @@
     "L": "liceo"
   },
   "config_name": "Configurazione Corrente",
-  "data_version": 100,
-  "last_modified": "2026-11-07T14:05:23.721506+01:00",
+  "data_version": 104,
+  "last_modified": "2026-11-07T15:17:52.342497+01:00",
   "admin_messages": []
 }

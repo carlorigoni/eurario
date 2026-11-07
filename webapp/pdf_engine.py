@@ -496,6 +496,30 @@ def _escape_ics_text(text):
     text = text.replace("\r\n", "\\n").replace("\n", "\\n")
     return text
 
+def _fold_line(line, limit=75):
+    """
+    RFC 5545 Section 3.1: Lines of text SHOULD NOT be longer than 75 octets.
+    Long lines are folded by inserting CRLF followed by a single space.
+    """
+    encoded = line.encode("utf-8")
+    if len(encoded) <= limit:
+        return line
+    out_lines = []
+    curr = b""
+    first = True
+    for ch in line:
+        ch_enc = ch.encode("utf-8")
+        max_bytes = limit if first else (limit - 1)
+        if len(curr) + len(ch_enc) > max_bytes:
+            out_lines.append(curr.decode("utf-8") if first else (" " + curr.decode("utf-8")))
+            curr = ch_enc
+            first = False
+        else:
+            curr += ch_enc
+    if curr:
+        out_lines.append(curr.decode("utf-8") if first else (" " + curr.decode("utf-8")))
+    return "\r\n".join(out_lines)
+
 def generate_teacher_timetable_ical(data, teacher_name, options=None):
     """
     Genera il file standard iCalendar (.ics) RFC 5545 per l'orario del singolo docente.
@@ -654,6 +678,5 @@ def generate_teacher_timetable_ical(data, teacher_name, options=None):
             event_count += 1
 
     lines.append("END:VCALENDAR")
-    lines.append("") # newline finale
-
-    return "\r\n".join(lines)
+    folded = [_fold_line(line) for line in lines]
+    return "\r\n".join(folded) + "\r\n"

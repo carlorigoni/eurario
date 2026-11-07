@@ -102,7 +102,7 @@ def fetch_google_doc_docx_bytes(url):
     except Exception as e:
         raise ValueError(f"Impossibile scaricare il Google Doc: {e}")
 
-APP_VERSION = "1.9.55"
+APP_VERSION = "1.9.56"
 FET_VERSION = "7.12.0"
 APP_AUTHOR = "Carlo Rigoni"
 APP_MENTOR = "Federico Rettore"
@@ -675,6 +675,15 @@ class EurarioHandler(BaseHTTPRequestHandler):
         # --- STATIC FILES ---
         if path == "/" or path == "/index.html":
             self._serve_file(os.path.join(STATIC_DIR, "index.html"), "text/html; charset=utf-8")
+            return
+
+        if path == "/robots.txt":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", "26")
+            self._send_cors()
+            self.end_headers()
+            self._write_body(b"User-agent: *\nAllow: /\n")
             return
         
         # Gestione generica file statici in STATIC_DIR (css, js, favicon ico/svg/png, apple-touch-icon)
@@ -3424,8 +3433,10 @@ Questo messaggio è stato inviato dalla piattaforma Eurario.
         return True, total_act
 
     def log_message(self, format, *args):
-        # Disabilita log verbosi
-        pass
+        try:
+            print(f"[REQ] {self.command} {self.path} - Status: {args[1] if len(args)>1 else ''} - UA: {self.headers.get('User-Agent')}", flush=True)
+        except Exception:
+            pass
 
 
 def main():

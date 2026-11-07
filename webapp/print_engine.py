@@ -2271,11 +2271,10 @@ def generate_single_teacher_email_html(data, teacher_name, custom_message=None, 
     safe_file_name = teacher_name.replace(" ", "_")
     # Clean direct .ics URL without query parameters (fully compatible with Google Calendar and Webcal)
     ical_http_url = f"{base_url}/api/teachers/timetable/Orario_{safe_file_name}.ics"
-    encoded_ical_url = urllib.parse.quote(ical_http_url, safe="")
-    gcal_link = f"https://calendar.google.com/calendar/render?cid={encoded_ical_url}"
-
     webcal_base = base_url.split("://", 1)[-1]
     webcal_link = f"webcal://{webcal_base}/api/teachers/timetable/Orario_{safe_file_name}.ics"
+    # Google Calendar render parameter MUST be webcal://, NOT https://
+    gcal_link = f"https://calendar.google.com/calendar/render?cid={urllib.parse.quote(webcal_link, safe='')}"
 
     from webapp.fet_engine import build_timetable_views
     views = build_timetable_views(data)
