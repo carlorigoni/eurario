@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.52';
+let APP_VERSION = '1.9.53';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -4490,7 +4490,13 @@ async function renderTimetable() {
         ${lockedBadgeHtml}
         ${activeTimetableView === 'teacher' && activeEntity ? `
           <button class="btn btn-outline btn-sm" onclick="window.open('/api/print/teacher_timetable?teacher=' + encodeURIComponent('${escapeJs(activeEntity)}'), '_blank')" title="${isEn ? 'Print individual schedule sheet for ' + escapeHtml(activeEntity) : 'Stampa scheda individuale A4 per ' + escapeHtml(activeEntity)}" style="border:1.5px solid #2563eb;color:#2563eb;font-weight:700;">
-            🖨️ ${isEn ? 'Print Schedule' : 'Stampa Docente'}
+            🖨️ ${isEn ? 'Print' : 'Stampa A4'}
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="window.open('/api/print/teacher_timetable/pdf?teacher=' + encodeURIComponent('${escapeJs(activeEntity)}'), '_blank')" title="${isEn ? 'Download vector PDF timetable for ' + escapeHtml(activeEntity) : 'Scarica PDF vettoriale A4 per ' + escapeHtml(activeEntity)}" style="border:1.5px solid #dc2626;color:#dc2626;font-weight:700;">
+            📄 PDF
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="window.open('/api/teachers/timetable/ical?teacher=' + encodeURIComponent('${escapeJs(activeEntity)}'), '_blank')" title="${isEn ? 'Download iCalendar (.ics) for Google/Apple/Outlook for ' + escapeHtml(activeEntity) : 'Scarica calendario .ics (Google/Apple/Outlook) per ' + escapeHtml(activeEntity)}" style="border:1.5px solid #0284c7;color:#0284c7;font-weight:700;">
+            📅 iCal (.ics)
           </button>
           <button class="btn btn-outline btn-sm" onclick="openEmailTimetablesModal(['${escapeJs(activeEntity)}'])" title="${isEn ? 'Send individual timetable via email to ' + escapeHtml(activeEntity) : 'Invia l\'orario individuale via email a ' + escapeHtml(activeEntity)}" style="border:1.5px solid #059669;color:#059669;font-weight:700;">
             📧 ${isEn ? 'Email Timetable' : 'Invia Email'}
@@ -7182,6 +7188,9 @@ async function renderTeachers() {
                   ✏️ Modifica
                 </button>
                 <button class="btn btn-sm btn-sec" onclick="window.open('/api/print/teacher_timetable?teacher=' + encodeURIComponent('${escapeJs(t.name)}'), '_blank')" title="Stampa orario individuale A4 di ${escapeHtml(t.name)}">🖨️</button>
+                <button class="btn btn-sm btn-sec" onclick="window.open('/api/print/teacher_timetable/pdf?teacher=' + encodeURIComponent('${escapeJs(t.name)}'), '_blank')" title="Scarica orario in PDF vettoriale A4 di ${escapeHtml(t.name)}" style="color:#dc2626;">📄</button>
+                <button class="btn btn-sm btn-sec" onclick="window.open('/api/teachers/timetable/ical?teacher=' + encodeURIComponent('${escapeJs(t.name)}'), '_blank')" title="Scarica orario in formato calendario .ics (Google/Apple/Outlook) di ${escapeHtml(t.name)}" style="color:#0284c7;">📅</button>
+                <button class="btn btn-sm btn-sec" onclick="openEmailTimetablesModal(['${escapeJs(t.name)}'])" title="Invia orario individuale via email a ${escapeHtml(t.name)}" style="color:#059669;">📧</button>
                 <button class="btn btn-sm btn-primary" onclick="openNewCattedraModal({ teacher: '${escapeJs(t.name)}' })" title="Assegna nuova cattedra/attività a questo docente">
                   ➕ Cattedra
                 </button>
@@ -7797,10 +7806,10 @@ async function openEmailTimetablesModal(preselectedTeachers = null) {
 
         <!-- Banner Privacy & Spiegazione -->
         <div class="info-banner" style="margin-top:0;margin-bottom:14px;">
-          💡 <b>${isEn ? 'Maximum Faculty Privacy (No Timetable Comparisons):' : 'Massima Riservatezza Didattica (Nessun Confronto tra Docenti):'}</b><br>
+          💡 <b>${isEn ? 'Maximum Faculty Privacy & Formats (No Timetable Comparisons):' : 'Massima Riservatezza Didattica & Formati (Nessun Confronto tra Docenti):'}</b><br>
           ${isEn 
-            ? 'Each teacher receives <b>strictly their own individual timetable</b> directly in the body of the email and as an attached printable sheet. No teacher can view or compare other colleagues\' schedules, preventing friction.' 
-            : 'Ogni docente riceve <b>esclusivamente il proprio orario settimanale individuale</b> direttamente nel corpo dell\'email e come allegato stampabile A4. Nessun docente può vedere o confrontare l\'orario degli altri colleghi, azzerando sul nascere polemiche o confronti.'}
+            ? 'Each teacher receives <b>strictly their own individual timetable</b> in the body of the email, plus two official attachments: a vector <b>PDF printable timetable (A4)</b> and an <b>iCalendar (.ics)</b> file repeating weekly until the end of the school year for automatic import into Google Calendar, Apple Calendar, or Outlook. No other teacher schedules can be viewed.' 
+            : 'Ogni docente riceve <b>esclusivamente il proprio orario settimanale individuale</b> sia nel corpo dell\'email, sia con due allegati ufficiali: la <b>scheda PDF vettoriale stampabile (A4)</b> e il file calendario <b>iCalendar (.ics)</b> con ricorrenza settimanale fino a fine anno scolastico (per l\'import automatico su Google Calendar, Apple Calendar e Outlook). Nessun file HTML allegato e nessun confronto con gli altri docenti.'}
         </div>
 
         <!-- Sezione 1: Prova Invio Amministratore -->
@@ -15326,13 +15335,13 @@ async function renderParameters() {
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1.2fr 1.5fr 1.5fr 1.5fr 1.2fr;gap:14px;margin-top:10px;">
+      <div style="display:grid;grid-template-columns:1.2fr 1.5fr 1.5fr 1.3fr 1.5fr 1.2fr;gap:14px;margin-top:10px;">
         <div class="form-group">
           <label class="form-label">${isEn ? 'School Code (MIM / Unique)' : 'Codice Meccanografico'}</label>
           <input type="text" id="cfgMeccanografico" class="form-input" value="${escapeHtml(cfg.meccanografico || (currentSchool ? currentSchool.meccanografico : ''))}" placeholder="${isEn ? 'e.g. PDIS017007' : 'es. PDIS017007'}" style="text-transform:uppercase;font-weight:600;letter-spacing:0.5px;">
         </div>
         <div class="form-group">
-          <label class="form-label">📧 ${isEn ? 'Official Contact / Notification Email' : 'Email Contatto / Notifiche Ufficiale'}</label>
+          <label class="form-label">📧 ${isEn ? 'Official Contact / Notification Email' : 'Email Contatto / Notifiche'}</label>
           <input type="email" id="cfgContactEmail" class="form-input" value="${escapeHtml(cfg.contact_email || (currentSchool ? currentSchool.contact_email : ''))}" placeholder="${isEn ? 'e.g. info@school.edu' : 'es. pdis017007@istruzione.it'}">
         </div>
         <div class="form-group">
@@ -15340,7 +15349,11 @@ async function renderParameters() {
           <input type="text" id="cfgTeacherEmailDomain" class="form-input" value="${escapeHtml(cfg.teacher_email_domain || params['Dominio email istituzionale docenti'] || 'rolandodapiazzola.edu.it')}" placeholder="es. rolandodapiazzola.edu.it">
         </div>
         <div class="form-group">
-          <label class="form-label">${isEn ? 'Notes / Timetable Committee Contact' : 'Note / Referente Commissione'}</label>
+          <label class="form-label">📅 ${isEn ? 'End of School Year Date' : 'Fine Lezioni (Anno Scolastico)'}</label>
+          <input type="text" id="cfgSchoolYearEndDate" class="form-input" value="${escapeHtml(cfg.school_year_end_date || params['Data termine lezioni (fine anno scolastico)'] || '08/06/2027')}" placeholder="08/06/2027" title="${isEn ? 'End date of lessons for calendar exports (.ics recurrence)' : 'Data termine lezioni per ricorrenza settimanale calendari .ics'}">
+        </div>
+        <div class="form-group">
+          <label class="form-label">${isEn ? 'Notes / Committee Contact' : 'Note / Referente Commissione'}</label>
           <input type="text" id="cfgNotes" class="form-input" value="${escapeHtml(cfg.notes || (currentSchool ? currentSchool.notes : ''))}" placeholder="${isEn ? 'Contact or setup notes...' : 'Recapiti o note di configurazione...'}">
         </div>
         <div class="form-group">
@@ -15686,6 +15699,8 @@ async function saveParametersSettings() {
 
   const teacherEmailDomain = (document.getElementById('cfgTeacherEmailDomain')?.value || '').trim() || 'rolandodapiazzola.edu.it';
   updatedParams['Dominio email istituzionale docenti'] = teacherEmailDomain;
+  const schoolYearEndDate = (document.getElementById('cfgSchoolYearEndDate')?.value || '').trim() || '08/06/2027';
+  updatedParams['Data termine lezioni (fine anno scolastico)'] = schoolYearEndDate;
 
   const payload = {
     institution: instName,
@@ -15694,6 +15709,7 @@ async function saveParametersSettings() {
     meccanografico: meccanografico,
     contact_email: contactEmail,
     teacher_email_domain: teacherEmailDomain,
+    school_year_end_date: schoolYearEndDate,
     notes: notes,
     comments: comments,
     days: activeDays,

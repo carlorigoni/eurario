@@ -2376,6 +2376,16 @@ def generate_single_teacher_email_html(data, teacher_name, custom_message=None):
     html.append(f"""            </table>
           </td>
         </tr>
+        <!-- Allegati Inclusi: PDF e Calendario -->
+        <tr>
+          <td style="padding:0 24px 16px;">
+            <div style="background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:12px 14px;font-size:12px;color:#166534;line-height:1.5;">
+              📎 <b>Allegati a questa email:</b><br>
+              • 📄 <b>PDF Ufficiale Stampabile:</b> Scheda A4 orizzontale del tuo orario individuale completa di intestazione, dettagli cattedra e visto dirigenziale.<br>
+              • 📅 <b>File Calendario (.ics):</b> Apri o tocca l'allegato <code>.ics</code> per importare automaticamente tutte le tue lezioni settimanali nel tuo calendario (Google Calendar, Apple Calendar, Outlook) con ricorrenza valida fino al termine delle lezioni.
+            </div>
+          </td>
+        </tr>
         <!-- Note e Disclaimer Privacy -->
         <tr>
           <td style="padding:0 24px 20px;">

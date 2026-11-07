@@ -1018,6 +1018,15 @@ class Database:
             return True
 
     # --- IMPOSTAZIONI & VINCOLI ---
+    def get_school_year_end_date(self):
+        with self.lock:
+            val = self.data.get("school_year_end_date")
+            if not val:
+                val = self.data.get("parameters", {}).get("Data termine lezioni (fine anno scolastico)")
+            if not val:
+                val = "08/06/2027"
+            return str(val).strip()
+
     def get_teacher_email_domain(self):
         with self.lock:
             dom = self.data.get("teacher_email_domain")
@@ -1057,6 +1066,7 @@ class Database:
                 "meccanografico": self.data.get("meccanografico", ""),
                 "contact_email": self.data.get("contact_email", ""),
                 "teacher_email_domain": self.get_teacher_email_domain(),
+                "school_year_end_date": self.get_school_year_end_date(),
                 "days": self.data.get("days", []),
                 "hours": self.data.get("hours", []),
                 "day_hours_limit": self.data.get("day_hours_limit", copy.deepcopy(DEFAULT_DAY_HOURS)),
@@ -1093,6 +1103,13 @@ class Database:
                     if "parameters" not in self.data:
                         self.data["parameters"] = copy.deepcopy(DEFAULT_PARAMETERS)
                     self.data["parameters"]["Dominio email istituzionale docenti"] = dom
+            if "school_year_end_date" in settings:
+                ed = (settings["school_year_end_date"] or "").strip()
+                if ed:
+                    self.data["school_year_end_date"] = ed
+                    if "parameters" not in self.data:
+                        self.data["parameters"] = copy.deepcopy(DEFAULT_PARAMETERS)
+                    self.data["parameters"]["Data termine lezioni (fine anno scolastico)"] = ed
 
             try:
                 from webapp.schools import school_manager

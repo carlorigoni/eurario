@@ -102,15 +102,16 @@ def fetch_google_doc_docx_bytes(url):
     except Exception as e:
         raise ValueError(f"Impossibile scaricare il Google Doc: {e}")
 
-APP_VERSION = "1.9.52"
+APP_VERSION = "1.9.53"
 FET_VERSION = "7.12.0"
 APP_AUTHOR = "Carlo Rigoni"
 APP_MENTOR = "Federico Rettore"
 APP_CREDITS = "Autore: Carlo Rigoni • Mentore dell'Orario: Federico Rettore • FET Free Software (Liviu Lalescu) • Google DeepMind Antigravity"
 
-def send_smtp_email(smtp_cfg, recipient, subject, body, html_body=None, attachment_filename=None, attachment_content=None, attachment_type=None):
+def send_smtp_email(smtp_cfg, recipient, subject, body, html_body=None, attachment_filename=None, attachment_content=None, attachment_type=None, attachments=None):
     """
     Invia un'email tramite server SMTP con supporto crittografia STARTTLS o SSL.
+    Supporta uno o più allegati (PDF, iCalendar .ics, ecc.).
     Zero dipendenze esterne: sfrutta smtplib, ssl ed email.message dalla libreria standard di Python.
     """
     if not smtp_cfg or not smtp_cfg.get("enabled"):
@@ -138,11 +139,38 @@ def send_smtp_email(smtp_cfg, recipient, subject, body, html_body=None, attachme
     if html_body:
         msg.add_alternative(html_body, subtype="html")
 
-    if attachment_filename and attachment_content:
-        content_bytes = attachment_content.encode("utf-8") if isinstance(attachment_content, str) else attachment_content
-        maintype = "text" if (attachment_type == "html" or attachment_filename.endswith(".html")) else "application"
-        subtype = "html" if (attachment_type == "html" or attachment_filename.endswith(".html")) else (attachment_type or "octet-stream")
-        msg.add_attachment(content_bytes, maintype=maintype, subtype=subtype, filename=attachment_filename)
+    # Gestione allegati multipli o singolo
+    all_att = []
+    if attachments and isinstance(attachments, list):
+        all_att.extend(attachments)
+    elif attachment_filename and attachment_content:
+        all_att.append({
+            "filename": attachment_filename,
+            "content": attachment_content,
+            "type": attachment_type
+        })
+
+    for att in all_att:
+        att_fn = att.get("filename", "allegato")
+        att_cnt = att.get("content")
+        att_tp = (att.get("type") or "").lower()
+        if not att_cnt:
+            continue
+        content_bytes = att_cnt.encode("utf-8") if isinstance(att_cnt, str) else att_cnt
+        if att_tp == "pdf" or att_fn.endswith(".pdf"):
+            maintype = "application"
+            subtype = "pdf"
+        elif att_tp in ("calendar", "ics") or att_fn.endswith(".ics"):
+            maintype = "text"
+            subtype = "calendar"
+        elif att_tp == "html" or att_fn.endswith(".html"):
+            maintype = "text"
+            subtype = "html"
+        else:
+            maintype = "application"
+            subtype = att_tp or "octet-stream"
+
+        msg.add_attachment(content_bytes, maintype=maintype, subtype=subtype, filename=att_fn)
 
     try:
         context = ssl.create_default_context()
@@ -902,6 +930,55 @@ class EurarioHandler(BaseHTTPRequestHandler):
             self._send_cors()
             self.end_headers()
             self.wfile.write(html_bytes)
+            return
+
+        elif path == "/api/print/teacher_timetable/pdf":
+            req_lang = self._get_request_lang(query)
+            teacher_param = query.get("teacher", [None])[0] or query.get("teachers", [None])[0]
+            if not teacher_param:
+                self._json(400, {"error": "Nome docente mancante"})
+                return
+            options = {
+                "validity_date": query.get("validity_date", [""])[0],
+                "lang": req_lang
+            }
+            from webapp.pdf_engine import generate_teacher_timetable_pdf
+            try:
+                pdf_bytes = generate_teacher_timetable_pdf(db.get_all(), teacher_param, options)
+                safe_name = teacher_param.replace(" ", "_")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/pdf")
+                self.send_header("Content-Disposition", f'inline; filename="Orario_{safe_name}.pdf"')
+                self.send_header("Content-Length", str(len(pdf_bytes)))
+                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+                self._send_cors()
+                self.end_headers()
+                self.wfile.write(pdf_bytes)
+            except Exception as e:
+                self._json(400, {"error": str(e)})
+            return
+
+        elif path == "/api/teachers/timetable/ical":
+            teacher_param = query.get("teacher", [None])[0] or query.get("teachers", [None])[0]
+            if not teacher_param:
+                self._json(400, {"error": "Nome docente mancante"})
+                return
+            from webapp.pdf_engine import generate_teacher_timetable_ical
+            try:
+                end_date = db.get_school_year_end_date()
+                ical_str = generate_teacher_timetable_ical(db.get_all(), teacher_param, {"school_year_end_date": end_date})
+                safe_name = teacher_param.replace(" ", "_")
+                ical_bytes = ical_str.encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "text/calendar; charset=utf-8")
+                self.send_header("Content-Disposition", f'attachment; filename="Orario_{safe_name}.ics"')
+                self.send_header("Content-Length", str(len(ical_bytes)))
+                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
+                self._send_cors()
+                self.end_headers()
+                self.wfile.write(ical_bytes)
+            except Exception as e:
+                self._json(400, {"error": str(e)})
             return
 
         elif path == "/api/organico/template_docx":
@@ -1832,10 +1909,20 @@ class EurarioHandler(BaseHTTPRequestHandler):
                 sample_teacher = teacher_names[0] if teacher_names and teacher_names[0] in teachers_map else (all_teachers[0]["name"] if all_teachers else "Docente Esempio")
                 subject = f"[TEST Eurario] {custom_subject or f'Orario Settimanale delle Lezioni - Prof. {sample_teacher}'}"
                 html_body = generate_single_teacher_email_html(data, sample_teacher, custom_message)
-                text_body = f"TEST INVIO ORARIO:\nGentile Amministratore,\nin allegato e di seguito visualizza l'anteprima dell'orario individuale per {sample_teacher}.\n"
+                text_body = f"TEST INVIO ORARIO:\nGentile Amministratore,\nin allegato trovi l'orario in formato PDF e il file calendario (.ics) con ricorrenza settimanale per {sample_teacher}.\n"
 
-                att_html = generate_single_teacher_print_html(data, sample_teacher, {"validity_date": get_default_validity_date()})
-                att_name = f"Orario_{sample_teacher.replace(' ', '_')}.html"
+                from webapp.pdf_engine import generate_teacher_timetable_pdf, generate_teacher_timetable_ical
+                val_date = get_default_validity_date()
+                end_date = db.get_school_year_end_date()
+                safe_name = sample_teacher.replace(' ', '_')
+
+                pdf_bytes = generate_teacher_timetable_pdf(data, sample_teacher, {"validity_date": val_date})
+                ical_str = generate_teacher_timetable_ical(data, sample_teacher, {"school_year_end_date": end_date})
+
+                attachments = [
+                    {"filename": f"Orario_{safe_name}.pdf", "content": pdf_bytes, "type": "pdf"},
+                    {"filename": f"Orario_{safe_name}.ics", "content": ical_str.encode("utf-8"), "type": "calendar"}
+                ]
 
                 try:
                     send_smtp_email(
@@ -1844,16 +1931,14 @@ class EurarioHandler(BaseHTTPRequestHandler):
                         subject=subject,
                         body=text_body,
                         html_body=html_body,
-                        attachment_filename=att_name,
-                        attachment_content=att_html,
-                        attachment_type="html"
+                        attachments=attachments
                     )
                     self._json(200, {
                         "ok": True,
                         "is_test": True,
                         "recipient": test_recipient,
                         "sample_teacher": sample_teacher,
-                        "message": f"Email di test inviata con successo all'indirizzo {test_recipient} con l'orario di {sample_teacher}!"
+                        "message": f"Email di test inviata con successo a {test_recipient} con allegati PDF e Calendario .ics per {sample_teacher}!"
                     })
                 except Exception as ex:
                     self._json(500, {
@@ -1868,6 +1953,10 @@ class EurarioHandler(BaseHTTPRequestHandler):
             sent_count = 0
             failed_count = 0
             results = []
+
+            from webapp.pdf_engine import generate_teacher_timetable_pdf, generate_teacher_timetable_ical
+            val_date = get_default_validity_date()
+            end_date = db.get_school_year_end_date()
 
             for t_name in teacher_names:
                 t_record = teachers_map.get(t_name)
@@ -1884,9 +1973,20 @@ class EurarioHandler(BaseHTTPRequestHandler):
 
                 subject = custom_subject or f"Orario Settimanale delle Lezioni - Prof. {t_name}"
                 html_body = generate_single_teacher_email_html(data, t_name, custom_message)
-                text_body = f"Gentile Prof.ssa / Prof. {t_name},\nin allegato trova il Suo orario settimanale individuale delle lezioni.\n"
-                att_html = generate_single_teacher_print_html(data, t_name, {"validity_date": get_default_validity_date()})
-                att_name = f"Orario_{t_name.replace(' ', '_')}.html"
+                text_body = f"Gentile Prof.ssa / Prof. {t_name},\nin allegato trova il Suo orario in formato PDF e il file calendario (.ics) da sincronizzare nel Suo smartphone o PC.\n"
+
+                safe_name = t_name.replace(' ', '_')
+                try:
+                    pdf_bytes = generate_teacher_timetable_pdf(data, t_name, {"validity_date": val_date})
+                    ical_str = generate_teacher_timetable_ical(data, t_name, {"school_year_end_date": end_date})
+                    attachments = [
+                        {"filename": f"Orario_{safe_name}.pdf", "content": pdf_bytes, "type": "pdf"},
+                        {"filename": f"Orario_{safe_name}.ics", "content": ical_str.encode("utf-8"), "type": "calendar"}
+                    ]
+                except Exception as gen_err:
+                    failed_count += 1
+                    results.append({"teacher": t_name, "status": "failed", "error": f"Errore generazione allegati: {gen_err}"})
+                    continue
 
                 try:
                     send_smtp_email(
@@ -1895,9 +1995,7 @@ class EurarioHandler(BaseHTTPRequestHandler):
                         subject=subject,
                         body=text_body,
                         html_body=html_body,
-                        attachment_filename=att_name,
-                        attachment_content=att_html,
-                        attachment_type="html"
+                        attachments=attachments
                     )
                     sent_count += 1
                     results.append({"teacher": t_name, "email": t_email, "status": "sent"})
