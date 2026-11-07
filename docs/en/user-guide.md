@@ -1,13 +1,13 @@
 ---
 title: User Guide & Real-World Use Cases
-description: Step-by-step comprehensive operational user guide for the school timetabling committee with real-world scenarios from secondary education.
+description: Step-by-step comprehensive operational user guide conforming to ASD-STE100 principles for secondary school timetabling committees.
 ---
 
 # 📖 Comprehensive User Guide & Real-World Use Cases
 
-Drafting the official master timetable for secondary schools is one of the most demanding operational challenges for school principals and timetabling committees. It requires harmonizing strict contractual guidelines, educational requirements for students, physical resource limitations (laboratories, gymnasiums, campus annexes), and teachers split across multiple locations or working on part-time contracts.
+Drafting secondary school timetables requires balancing contractual requirements, educational goals, and physical facility limits. This guide provides direct, action-oriented instructions following Simplified Technical English (ASD-STE100) principles.
 
-This guide outlines the **chronological end-to-end operational workflow** and explores **10 concrete real-world use cases**, detailing how to model and resolve them inside Eurario.
+All screenshots in this guide use the educational demo dataset **Scuola di Atene** (School of Athens).
 
 ---
 
@@ -29,160 +29,210 @@ flowchart TD
     F11 --> F12["12. Typographic Word (.docx A3) & PDF Export"]
 ```
 
+<img src="../assets/eurario-dashboard.png" alt="Eurario — Control Dashboard (School of Athens)" class="doc-screenshot">
+
 ---
 
 ### Step 1: Institutional Time Grid Setup
-Before adding staff or students, configure the school's weekly time parameters:
-1. Navigate to **Timetable Settings**.
-2. **School Days**: Choose between a 5-day week (Monday–Friday) or a 6-day week (Monday–Saturday).
-3. **Daily Lesson Periods**: Define the standard daily periods (e.g., 6 regular periods: $08:00 - 14:00$).
-4. **Afternoon Sessions (Optional)**: If the school operates on a 5-day week with afternoon returns for technical tracks or senior high schools, enable periods 7 and 8.
-5. **School Recesses**: Specify after which period recess takes place (e.g., after period 3) to compile the `<ConstraintBreakTimes>` tag in FET.
+
+**Purpose:** Configure the weekly grid structure before adding staff or student data.
+
+1. Open **Timetable Settings**.
+2. Select **School Days**:
+   * Choose *5-Day Week* (Monday–Friday).
+   * Or choose *6-Day Week* (Monday–Saturday).
+3. Set **Daily Lesson Periods** (e.g., 6 periods: 08:00–14:00).
+4. Enable **Afternoon Sessions** (Periods 7 and 8) if required by the curriculum.
+5. Set the **School Recess** period (e.g., after Period 3) to apply the institutional break.
 
 ---
 
 ### Step 2: Staffing Ingestion & Allocation Alignment
-Instead of manually typing hundreds of teacher names and subjects:
-1. Under **Snapshots & Staffing**, select **Upload Staffing File**.
-2. Upload the Excel (`.xlsx`), CSV, or official Word (`.docx`) template prepared by the administration.
-3. The alignment engine (`analyze_cattedre_alignment`) runs a diff check against the active database:
-   * 🟢 **Green**: Newly added teachers and course allocations.
+
+**Purpose:** Ingest teacher assignments from external files without manual data entry.
+
+1. Open **Snapshots & Staffing**.
+2. Click **Upload Staffing File**.
+3. Select your Excel (`.xlsx`), CSV, or official Word (`.docx`) file.
+4. Review the Visual Diff modal:
+   * 🟢 **Green**: New teachers or assignments.
    * 🟡 **Yellow**: Allocations with modified weekly hours.
    * 🔴 **Red**: Removed allocations.
-4. Click **Apply Changes with Snapshot**: Eurario automatically creates a pre-import rollback snapshot before updating the school database.
+5. Click **Apply Changes with Snapshot**. The system creates a rollback checkpoint before updating data.
 
 ---
 
 ### Step 3: Physical Facilities & Campus Logistics
-1. **Campuses (Buildings)**: For multi-site schools (e.g., *Main Campus* and *Branch Annex*), define both entities and set the **road travel time** (e.g., 15 minutes).
-2. **Standard Classrooms**: Add regular classrooms and assign them to their respective campus buildings.
-3. **Capacity-Restricted Spaces**: Add gymnasiums, computer labs, and science laboratories with the **Lab or Gym** flag (`is_lab_or_gym`) enabled so FET treats them as scarce, contested resources.
+
+**Purpose:** Register campuses, rooms, and specialized labs with logistic limits.
+
+1. Register **Campus Buildings**:
+   * Create campuses (e.g., *Main Campus* and *Branch Annex*).
+   * Set road travel time between locations (e.g., 15 minutes).
+2. Add **Standard Classrooms** and assign each room to its campus building.
+3. Add **Specialized Facilities** (gymnasiums, computer labs, science labs).
+4. Enable the **Lab or Gym** flag (`is_lab_or_gym`) for resources shared across cohorts.
+
+<img src="../assets/eurario-spazi.png" alt="Eurario — Facilities and Rooms Management" class="doc-screenshot">
 
 ---
 
 ### Step 4: Classes, Tracks & Articulated Groups
-1. Define standard classes (e.g., `1A`, `2B`, `3CSA`) specifying:
-   * Student headcount (validated against room seating capacities).
-   * **Home Room**: The classroom permanently assigned to that cohort.
-2. For classes that split into elective subjects (such as bilingual language groups or technical specializations), Eurario generates linked sub-entities (`3A_FRA`, `3A_SPA`).
+
+**Purpose:** Create student cohorts and configure elective or language splits.
+
+1. Register regular classes (e.g., `1A`, `2B`, `3CSA`).
+2. Enter student headcount to validate room seating capacity.
+3. Select the **Home Room** permanently assigned to each class.
+4. For articulated groups (e.g., foreign language splits), create linked sub-entities (`3A_FRA`, `3A_SPA`).
+
+<img src="../assets/eurario-classi.png" alt="Eurario — Classes and Articulated Groups" class="doc-screenshot">
 
 ---
 
 ### Step 5: Allocations, Pedagogical Blocks & Merging
-1. Assign the teacher (or multiple teachers for co-teaching), student class, subject, and weekly hours to each allocation.
-2. Eurario immediately computes the optimal sub-activity block split (`compute_fallback_blocks`):
-   * 4 hours of Mathematics $\rightarrow$ `2+1+1` (one 2-hour block and two 1-hour lectures).
-   * 6 hours of Humanities $\rightarrow$ `2+2+1+1`.
-   * 2 hours of Physical Education $\rightarrow$ `2` (consecutive double period in the gym).
-3. **Merging Rules**: In the *Merging Rules* module, combine compatible subjects taught by the same teacher in the same class (e.g., *Mathematics and Physics* 7h $\rightarrow$ `2+2+2+1`).
+
+**Purpose:** Connect teachers, subjects, and classes, defining weekly lesson blocks.
+
+1. Assign the teacher, class, subject, and weekly hours to each allocation.
+2. Verify the automatic block distribution:
+   * 4 hours $\rightarrow$ `2+1+1` block.
+   * 6 hours $\rightarrow$ `2+2+1+1` block.
+   * 2 hours of Physical Education $\rightarrow$ single `2` block in the gym.
+3. Open **Merging Rules** to merge related disciplines taught by the same teacher (e.g., *Math & Physics* 7h $\rightarrow$ `2+2+2+1`).
+
+<img src="../assets/eurario-cattedre.png" alt="Eurario — Teaching Assignments and Curriculum Blocks" class="doc-screenshot">
 
 ---
 
-### Step 6: Teacher Contractual Constraints & Availability
-1. Verify each teacher's target hours (`target_hours`: 18h full-time, or part-time).
-2. Set minimum and maximum active days (`min_days` and `max_days`).
-3. In the **weekly availability grid**, mark with a click:
-   * The contractual **day off**.
-   * Hourly unavailabilities for special duties, nursing leave, or administrative commitments.
-4. For teachers shared with external schools, enable the **COE** toggle and designate external hours and days.
+### Step 6: Teacher Contractual Constraints & Privacy
+
+**Purpose:** Configure contractual hours, days off, time slot preferences, and private calendar feeds.
+
+1. Verify contractual target hours (`target_hours`: 18h full-time, or reduced for part-time).
+2. Set minimum and maximum active teaching days (`min_days` and `max_days`).
+3. In the **weekly availability grid**, click to mark unavailabilities and contractual days off in red.
+4. For shared faculty, enable the **COE** toggle and enter external school hours.
+5. In the teacher modal, inspect the **Private Calendar Feed & Cryptographic Token** panel to copy the link or revoke/regenerate the security key.
+
+<img src="../assets/eurario-docenti.png" alt="Eurario — Faculty Roster and Contractual Hours" class="doc-screenshot">
+
+<img src="../assets/eurario-modale-docente.png" alt="Eurario — Teacher Parameters, Shift Preferences, and Private Calendar Token" class="doc-screenshot">
 
 ---
 
 ### Step 7: Mathematical Timetable Solving with FET
-1. Open the **Timetable Solver** view.
-2. Set the desired timeout (e.g., 300 seconds or unlimited).
-3. Click **Start FET Solver**:
-   * The native C++ binary `fet-cl` launches asynchronously in the background.
-   * The live SSE progress stream reports placed activities, attempts per second, and elapsed time in real time.
-   * You can stop the run at any point to save the best partial schedule generated so far.
+
+**Purpose:** Execute algorithmic solving of all scheduling constraints.
+
+1. Open **Timetable Solver**.
+2. Set the desired timeout limit (e.g., 300 seconds or unlimited).
+3. Click **Start FET Solver**.
+4. Monitor live progress and conflict reports streamed via Server-Sent Events (SSE).
+5. Stop execution at any time to save the best partial schedule.
+
+<img src="../assets/eurario-attivita.png" alt="Eurario — Didactic Activities and FET Constraints" class="doc-screenshot">
 
 ---
 
 ### Step 8: Conflict Diagnosis with the Relaxation Engine
-If the timetable is mathematically over-constrained:
-1. FET halts when unable to place all activities.
-2. Eurario's **Relaxation Engine** initiates a 4-level hierarchical conflict diagnosis.
-3. The report isolates the bottleneck (e.g., *"Prof. Neri and Prof. Gialli both request a day off on Wednesday in class 4B, depleting available hours"*).
-4. Apply the recommended adjustment and re-run the solver.
+
+**Purpose:** Isolate conflicting rules when a schedule is mathematically unsolvable.
+
+1. When the solver stops without a complete solution, open the **Relaxation Engine** report.
+2. Read the hierarchical conflict level (Level 1: total hours, Level 2: facilities, Level 3: gaps and active days).
+3. Apply the recommended minimal adjustment in the teacher or class profile.
+4. Re-run the FET solver.
 
 ---
 
 ### Step 9: Smart On-Duty Placement & Monitoring ("D")
-Once all curricular lessons are successfully scheduled by the solver:
-1. Teachers with fewer than 18 teaching hours have reserve hours designated for substitution duty and support.
-2. Click **Place On-Duty Automatically**:
-   * The proprietary algorithm finds schedule gaps ("holes") in the teacher's day and plugs them first, eliminating dead time.
-   * It balances the overall presence of on-duty teachers across all periods of the week.
 
-#### Period Density Badges in Timetable Cells
-In the teacher timetable grid, every empty cell displays a real-time badge (`👥 X D`) indicating how many staff members are on reserve duty during that period:
-* **`0 D` (Gray / Alert)**: Zero teachers on duty during this period. Indicates an unstaffed slot for substitution coverage.
-* **`1-2 D` (Emerald Green)**: Balanced and optimal staffing for substitution coverage.
-* **`3+ D` (Purple / Blue)**: High density of on-duty staff.
-* **Interactive Tooltip**: Hovering over the badge lists the names of colleagues assigned to reserve duty in that hour.
+**Purpose:** Place on-duty reserve hours to plug schedule gaps and guarantee substitute coverage.
 
-#### Interactive Matrix: On-Duty Reserve Distribution Board
-Accessible via the **`⚖️ Disposizioni Matrix`** button on the Solved Timetable toolbar:
-* **Full Weekly Matrix**: Displays a two-dimensional grid (Days × Periods) with the exact headcount and roster of teachers on duty.
-* **One-Click Navigation**: Clicking on any teacher chip instantly opens that teacher's weekly schedule for fine-tuned adjustments.
-* **Statistical Summary**: Tracks total on-duty hours scheduled, unstaffed periods, and high-density slots.
+1. Click **Place On-Duty Automatically**. The algorithm fills gaps and balances substitution readiness.
+2. Monitor density badges (`👥 X D`) displayed in every empty timetable cell:
+   * **`0 D` (Gray)**: Zero teachers on duty (critical unstaffed period).
+   * **`1-2 D` (Green)**: Optimal substitute coverage.
+   * **`3+ D` (Purple)**: High density of reserve staff.
+3. Click **📊 On-Duty Board** to open the full weekly reserve matrix.
+4. Click any teacher chip to jump directly to their individual schedule.
+
+<img src="../assets/eurario-disposizioni.png" alt="Eurario — Institute-Wide On-Duty Reserve Board" class="doc-screenshot">
 
 ---
 
-### Step 10: Interactive Drag & Drop Refinement & Snapshots
-1. On the master timetable grid, drag and drop any period to fine-tune placement:
-   * **Visual Drag & Drop Guidance**: When dragging an on-duty period ("D"), target empty slots highlight their current staffing levels, steering the operator to place hours into underserved slots (`0 D`).
-   * If an adjustment causes a collision (e.g., room double-booking), Eurario alerts you instantly.
-2. **Permanent Activity Pinning (`locked`)**:
-   * Clicking the lock icon (`🔒`) on any lesson card pins it permanently.
-   * Locked activities are styled with a **thicker solid blue border** (`.lesson-card.is-locked`), making them immediately identifiable and preserving them across solver re-runs.
-3. Save a **Named Snapshot** (e.g., *"Fall Baseline - Approved"*).
+### Step 10: Interactive Drag & Drop Refinement & Timetable Board
+
+**Purpose:** Manually reposition periods, lock verified assignments, and access export options.
+
+1. Open the **Solved Timetable** view.
+2. Drag and drop any lesson card to change its time or room.
+3. Click the lock icon (`🔒`) to **permanently pin** an activity (`locked="true"`). Pinned lessons show a thicker blue border and remain untouched during solver recalculations.
+4. Click **Save Snapshot** to archive the approved version.
+5. Use header toolbar actions:
+   * **🖨️ Print**: View the printable A4 sheet.
+   * **📄 PDF**: Download vector A4 printable timetable.
+   * **📅 iCal (.ics)**: Download RFC 5545 iCalendar file.
+   * **➕ Google Calendar**: Subscribe to the schedule in Google Calendar with 1 click.
+   * **📧 Email Timetable**: Open the individual delivery modal.
+
+<img src="../assets/eurario-tabellone.png" alt="Eurario — Solved Master Timetable Board with Action Shortcuts" class="doc-screenshot">
 
 ---
 
 ### Step 11: Spatiotemporal Validation with Campus TimeMachine
-Before finalizing and publishing schedules for multi-campus schools:
-1. Open **⏳ TimeMachine Plessi** from the sidebar or via the shortcut button in the Timetable toolbar.
-2. **Period-by-Period Flow Inspection**:
-   * Use the keyboard arrow keys or the **▶ Play** button to animate the progression of each day.
-   * Check the **Transit Highway** to ensure no itinerant teachers have hazardous transfers without a gap or break (marked with red ⚠️ *Consecutive Periods*).
-3. **Monitor Off-Site Beginnings**:
-   * Check **🌅 Off-Site Start** badges: flags branch campus classes scheduled at the main building for Period 1 (e.g., for sports center or science lab access).
-4. **Subway Journey View**:
-   * Click **🚇 Metro Map** to inspect the complete weekly line for each traveling teacher and jump directly to any period by clicking on the transit flag 🚗.
+
+**Purpose:** Verify physical student flows and travel comfort for itinerant faculty.
+
+1. Open **⏳ TimeMachine Plessi**.
+2. Use keyboard arrow keys or click **▶ Play** to simulate the school day period by period.
+3. Check the **Transit Highway**: ensure traveling teachers have an intermediate gap or recess between campuses (flags red ⚠️ *Consecutive Periods*).
+4. Review **🌅 Off-Site Start** badges for classes starting at a secondary facility.
+5. Click **🚇 Metro Map** to inspect weekly journeys for itinerant teachers.
+
+<img src="../assets/eurario-timemachine.png" alt="Eurario — Campus TimeMachine and Travel Flow Simulation" class="doc-screenshot">
 
 ---
 
 ### Step 12: Official Word (.docx) & PDF Export
-1. Click **Official Printouts**.
-2. Export **Master Teacher Board (.docx)**:
-   * Generated in **A3 Landscape** format compliant with institutional inspection standards.
-   * Repeated table header rows across all printed pages.
-   * Highlighted amber styling for on-duty reserve hours ("D").
-3. Export **Class Timetables (PDF)**:
-   * Rendered with high-contrast pastel subject palettes or monochrome *Toner-Save* format for student noticeboards.
+
+**Purpose:** Produce formal documentation for noticeboards, staff, and classes.
+
+1. Open **Official Printouts**.
+2. Select **Master Faculty Board (.docx)**:
+   * Generates an **A3 Landscape** Word document conforming to Procedure 12 standards.
+   * Repeats table headers across pages automatically.
+   * Highlights on-duty reserve hours ("D") in amber.
+3. Select **Class Timetables (PDF)**:
+   * Generates A4 class schedules in color-coded or toner-safe format.
 
 ---
 
-### Step 13: Privacy-Preserving Faculty Timetable Email Delivery & Calendar Sync (Google & iCal)
-Eurario includes a dedicated, privacy-first email delivery system (*Zero-Comparison Privacy Mode*), preventing disputes or comparisons between colleagues:
-1. **Targeted Individual Email Delivery**:
-   * Each teacher receives **strictly their own personal schedule** formatted in a clean, responsive HTML email body.
-   * Supports selective batch delivery (single teacher, multi-select, or the entire faculty).
-2. **Administrator Safety Simulation**:
-   * Test SMTP delivery and inspect layout by sending a sample email directly to the administrator address before bulk delivery.
+### Step 13: Faculty Timetable Email Delivery & Calendar Sync (Google & iCal)
+
+**Purpose:** Deliver individual timetables directly to each teacher under strict Zero-Comparison privacy.
+
+1. **Targeted Email Delivery**:
+   * Each teacher receives **strictly their own personal schedule** in the email body.
+   * Send to individual staff members, selected cohorts, or the entire school.
+2. **Administrator Test Delivery**:
+   * Send a test message to your admin address to inspect layout, styling, and SMTP delivery before bulk mailing.
 3. **Official A4 Landscape Vector PDF Attachment**:
-   * Attaches `Orario_{Surname_Name}.pdf` generated via a zero-dependency vector engine.
-   * Includes institution header, CDC codes, bell schedule with breaks, and approval signatures.
-4. **Weekly Recurring iCalendar (`.ics`) Attachment**:
-   * RFC 5545 compliant `.ics` calendar file with weekly recurrence (`RRULE:FREQ=WEEKLY`) valid until the end of the school year (configurable parameter, defaults to June 8th).
-5. **1-Click Google Calendar & Apple/Outlook Sync**:
-   * Prominent **`➕ Add to Google Calendar (1-Click)`** button opens Google Calendar to instantly subscribe to the schedule in a dedicated layer.
-   * Dedicated **`🍏 Apple Calendar / Outlook (Webcal)`** protocol link for iPhone, iPad, Mac, and desktop Outlook.
-   * Clean endpoint without query parameters: `https://app.eurario.it/api/teachers/timetable/Orario_{Teacher}.ics` with full HTTP `HEAD` and `GET` compliance.
-6. **Cryptographic Feed Privacy Protection (Anti-Tamper & Zero-Confronti)**:
-   * To prevent unauthorized schedule inspection and comparisons among colleagues, each calendar subscription link is protected by an unguessable 128-bit secret token (`?token=...`).
-   * Any external request missing the token or using an invalid token (such as guessing another teacher's URL) is rejected with `403 Forbidden`.
+   * Each email attaches `Orario_{Surname_Name}.pdf` ready for printing.
+4. **Weekly Recurring iCalendar (.ics) Attachment**:
+   * Each email attaches `Orario_{Surname_Name}.ics` conforming to RFC 5545 with weekly recurrence until the end of the school year (configurable parameter, defaults to June 8th).
+5. **1-Click Synchronization (Google Calendar / Apple / Outlook)**:
+   * Click **➕ Add to Google Calendar** in the email to subscribe immediately.
+   * Click **🍏 Apple Calendar / Outlook (Webcal)** to sync iOS, macOS, and Outlook.
+6. **Cryptographic Feed Privacy Protection**:
+   * Each calendar subscription URL includes an unguessable 128-bit secret token (`?token=...`).
+   * Unauthorized requests without a valid token are rejected with **`403 Forbidden`**.
+   * Administrators can view the private feed URL and regenerate keys in the teacher profile.
+
+<img src="../assets/eurario-email-modal.png" alt="Eurario — Individual Timetable Email Delivery Modal with Privacy Protection" class="doc-screenshot">
+
+---
    * Administrators can view the private feed URL and regenerate the cryptographic token in the teacher edit modal, immediately revoking outdated links.
 
 ---

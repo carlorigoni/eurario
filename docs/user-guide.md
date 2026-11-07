@@ -1,13 +1,13 @@
 ---
 title: Guida Utente & Casi d'Uso
-description: Guida operativa dettagliata passo-passo per la commissione orario con scenari reali della scuola secondaria italiana.
+description: Guida operativa passo-passo conforme ai principi ASD-STE100 per la commissione orario della scuola secondaria italiana.
 ---
 
 # 📖 Guida Utente Completa & Casi d'Uso Reali
 
-La redazione dell'orario scolastico negli istituti secondari italiani è una delle sfide organizzative più complesse per la dirigenza scolastica e la commissione orario. È necessario coniugare vincoli contrattuali stringenti (CCNL Scuola), esigenze didattiche degli studenti, limitazioni logistiche (aule, palestre, laboratori) e gestione del personale in servizio su più sedi o su contratti part-time.
+La redazione dell'orario scolastico richiede il rispetto di vincoli contrattuali (CCNL Scuola), esigenze didattiche e limiti logistici. Questa guida fornisce istruzioni operative dirette, con periodi brevi e orientati all'azione secondo i principi di scrittura tecnica controllata (ASD-STE100).
 
-Questa guida presenta il **flusso operativo cronologico end-to-end** e approfondisce **10 casi d'uso concreti**, illustrando come modellarli e risolverli con Eurario.
+Tutte le schermate illustrate in questa guida utilizzano il dataset demo didattico **Scuola di Atene**.
 
 ---
 
@@ -29,162 +29,208 @@ flowchart TD
     F11 --> F12["12. Esportazione Ufficiale Word (.docx A3) & PDF"]
 ```
 
+<img src="assets/eurario-dashboard.png" alt="Eurario — Dashboard di Controllo Scuola di Atene" class="doc-screenshot">
+
 ---
 
 ### Fase 1: Configurazione Temporale dell'Istituto
-Prima di inserire persone o classi, si stabilisce la griglia settimanale della scuola:
-1. Accedere al menu **Impostazioni Orario**.
-2. **Giorni della Settimana**: Selezionare tra settimana corta (5 giorni, Lunedì–Venerdì) o settimana tradizionale (6 giorni, Lunedì–Sabato).
-3. **Ore di Lezione Giornaliere**: Impostare il numero standard di ore al giorno (es. 6 ore ordinarie: $08:00 - 14:00$).
-4. **Rientri Pomeridiani (Opzionali)**: Se l'istituto attua la settimana corta con rientri per il triennio tecnico o liceale, abilitare la 7ª e 8ª ora pomeridiana.
-5. **Intervallo di Istituto**: Indicare l'ora al termine della quale si tiene la ricreazione (es. dopo la 3ª ora) per attivare il vincolo `<ConstraintBreakTimes>`.
+
+**Scopo:** Definire la struttura settimanale di base prima di inserire classi o docenti.
+
+1. Apri il menu **Impostazioni Orario**.
+2. Seleziona **Giorni della Settimana**:
+   * Scegli *Settimana Corta* (5 giorni, Lunedì–Venerdì).
+   * Oppure scegli *Settimana Tradizionale* (6 giorni, Lunedì–Sabato).
+3. Imposta **Ore di Lezione Giornaliere** (es. 6 ore ordinarie: 08:00–14:00).
+4. Abilita i **Rientri Pomeridiani** (7ª e 8ª ora) se il piano di studi li prevede.
+5. Inserisci la posizione dell'**Intervallo Didattico** (es. dopo la 3ª ora) per applicare la pausa globale.
 
 ---
 
 ### Fase 2: Ingestione e Allineamento dell'Organico
-Invece di inserire manualmente docenti e cattedre:
-1. Nel menu **Snapshot & Organico**, cliccare su **Carica File Organico**.
-2. Selezionare il foglio Excel (`.xlsx`), CSV o il modello ufficiale Word (`.docx`) compilato dalla segreteria.
-3. Il motore analitico (`analyze_cattedre_alignment`) confronta i dati con il database della scuola e mostra il modale di verifica (Diff visivo):
-   * 🟢 **Verde**: Nuovi docenti e assegnazioni aggiunte.
-   * 🟡 **Giallo**: Cattedre con monte ore modificato.
-   * 🔴 **Rosso**: Assegnazioni rimosse.
-4. Cliccare su **Applica Modifiche con Snapshot**: Eurario crea automaticamente un checkpoint di ripristino sicuro prima di aggiornare il database.
+
+**Scopo:** Caricare docenti e cattedre da file esterni senza inserimenti manuali.
+
+1. Apri la schermata **Snapshot & Organico**.
+2. Fai clic su **Carica File Organico**.
+3. Seleziona il file Excel (`.xlsx`), CSV o il modello Word (`.docx`).
+4. Esamina il riquadro di verifica differenziale (Visual Diff):
+   * 🟢 **Verde**: Docenti o assegnazioni nuove.
+   * 🟡 **Giallo**: Cattedre con ore settimanali modificate.
+   * 🔴 **Rosso**: Cattedre rimosse.
+5. Fai clic su **Applica Modifiche con Snapshot**. Il sistema crea un punto di ripristino prima di aggiornare i dati.
 
 ---
 
-### Fase 3: Modellazione degli Spazi e delle Sedi (Plessi)
-1. **Plessi (Buildings)**: Se la scuola opera su più edifici (es. *Centrale* in centro storico e *Succursale* in periferia), creare le due entità impostando il **tempo di trasferimento stradale** (es. 15 minuti).
-2. **Aule Ordinarie**: Registrare le aule ordinarie associandole al rispettivo plesso.
-3. **Spazi a Risorsa Limitata**: Registrare palestre, aule informatiche e laboratori di scienze attivando la spunta **Laboratorio o Palestra** (`is_lab_or_gym`) per informare FET che lo spazio è conteso da più classi.
+### Fase 3: Modellazione degli Spazi e dei Plessi
+
+**Scopo:** Registrare edifici, aule e laboratori con i relativi vincoli logistici.
+
+1. Registra i **Plessi (Buildings)**:
+   * Crea le sedi della scuola (es. *Centrale* e *Succursale*).
+   * Imposta il tempo di trasferimento stradale tra le sedi (es. 15 minuti).
+2. Aggiungi le **Aule Ordinarie** associando ciascuna al proprio plesso.
+3. Registra gli **Spazi Specialistici** (palestre, aule informatiche, laboratori).
+4. Attiva l'opzione **Laboratorio o Palestra** (`is_lab_or_gym`) per le risorse condivise tra più classi.
+
+<img src="assets/eurario-spazi.png" alt="Eurario — Gestione Spazi e Aule" class="doc-screenshot">
 
 ---
 
 ### Fase 4: Classi, Indirizzi e Gruppi Articolati
-1. Creare le classi curricolari (es. `1A`, `2B`, `3CSA`) indicando:
-   * Numero studenti (usato da Eurario per verificare la capienza aule).
-   * **Aula Base (Home Room)**: L'aula assegnata stabilmente alla classe.
-2. Per gli istituti con **classi articolate** (es. sdoppiamento linguistico Francese/Spagnolo nel liceo linguistico o Meccanica/Energia nel tecnico), Eurario crea i sottogruppi collegati (`3A_FRA`, `3A_SPA`).
+
+**Scopo:** Creare le classi dell'istituto e configurare gli sdoppiamenti disciplinari.
+
+1. Registra le classi ordinarie (es. `1A`, `2B`, `3CSA`).
+2. Inserisci il numero di studenti per controllare la capienza delle aule.
+3. Seleziona l'**Aula Base (Home Room)** assegnata stabilmente alla classe.
+4. Per le classi articolate (es. sdoppiamento di lingua straniera), crea i sottogruppi collegati (es. `3A_FRA` e `3A_SPA`).
+
+<img src="assets/eurario-classi.png" alt="Eurario — Classi e Gruppi Articolati" class="doc-screenshot">
 
 ---
 
 ### Fase 5: Cattedre, Blocchi Didattici e Accorpamenti
-1. Assegnare a ciascuna cattedra il docente (o i docenti per compresenze), la classe o gruppo, la materia e le ore settimanali.
-2. Eurario applica istantaneamente la scomposizione didattica in blocchi (`compute_fallback_blocks`):
-   * 4 ore di Matematica $\rightarrow$ `2+1+1` (1 blocco da due ore e 2 ore singole).
-   * 6 ore di Lettere $\rightarrow$ `2+2+1+1`.
-   * 2 ore di Scienze Motorie $\rightarrow$ `2` (blocco unico consecutivo in palestra).
-3. **Accorpamenti**: Nel modulo *Accorpamenti*, raggruppare le materie affini insegnate dallo stesso docente nella stessa classe (es. *Matematica e Fisica* 7h $\rightarrow$ `2+2+2+1`).
+
+**Scopo:** Associare docenti, materie e classi definendo la scomposizione oraria settimanale.
+
+1. Assegna a ogni cattedra il docente, la classe, la materia e le ore settimanali.
+2. Controlla la suddivisione automatica in blocchi didattici:
+   * 4 ore $\rightarrow$ blocco `2+1+1`.
+   * 6 ore $\rightarrow$ blocco `2+2+1+1`.
+   * 2 ore di Scienze Motorie $\rightarrow$ blocco unico `2` in palestra.
+3. Apri il modulo **Accorpamenti** per unire materie affini dello stesso docente nella stessa classe (es. *Matematica e Fisica* 7h $\rightarrow$ `2+2+2+1`).
+
+<img src="assets/eurario-cattedre.png" alt="Eurario — Quadro Cattedre e Assegnazioni Didattiche" class="doc-screenshot">
 
 ---
 
-### Fase 6: Vincoli Docenti e Normativa Contrattuale
-1. Per ogni docente, verificare il monte ore cattedra (`target_hours`: 18h intera, o part-time).
-2. Impostare i giorni di presenza minimi e massimi (`min_days` e `max_days`).
-3. Nella **griglia settimanale disponibilità**, contrassegnare in rosso:
-   * Il **giorno libero contrattuale**.
-   * Le ore di indisponibilità per incarichi speciali, allattamento, permessi 104 o impegni di presidenza.
-4. Per docenti con cattedra orario esterna, attivare la spunta **COE** e indicare ore e giorni di completamento nella scuola esterna.
+### Fase 6: Vincoli Docenti, Desiderata e Riservatezza
+
+**Scopo:** Configurare monte ore contrattuale, giorni liberi, preferenze orarie e token di riservatezza.
+
+1. Verifica il monte ore contrattuale (`target_hours`: 18h per cattedra intera, o valore ridotto per part-time).
+2. Imposta il numero minimo e massimo di giorni di servizio (`min_days` e `max_days`).
+3. Nella **griglia disponibilità settimanale**, contrassegna in rosso le ore di indisponibilità assoluta o il giorno libero.
+4. Per docenti con cattedra mista, attiva la spunta **COE** e indica le ore esterne.
+5. Nella modale parametri, visualizza il **Link Calendario Privato (Token Segreto)** con i pulsanti per copiare il link o rigenerare la chiave crittografica.
+
+<img src="assets/eurario-docenti.png" alt="Eurario — Anagrafica Docenti e Ore Cattedra" class="doc-screenshot">
+
+<img src="assets/eurario-modale-docente.png" alt="Eurario — Parametri Docente, Desiderata e Token Calendario Privato" class="doc-screenshot">
 
 ---
 
 ### Fase 7: Elaborazione con il Solutore Matematico FET
-1. Aprire la sezione **Calcolo Orario & Solver**.
-2. Impostare il timeout desiderato (es. 300 secondi o illimitato).
-3. Cliccare su **Avvia Solutore FET**:
-   * Il processo nativo C++ `fet-cl` viene lanciato in background.
-   * La barra di avanzamento e i log streaming via SSE mostrano il numero di attività collocate in tempo reale, i tentativi al secondo e il tempo trascorso.
-   * In qualsiasi momento è possibile interrompere il calcolo salvando la migliore soluzione parziale trovata.
+
+**Scopo:** Avviare la risoluzione algoritmica automatica dei vincoli orari.
+
+1. Apri la schermata **Calcolo Orario & Solver**.
+2. Imposta il limite di tempo desiderato (es. 300 secondi o illimitato).
+3. Fai clic su **Avvia Solutore FET**.
+4. Monitora la barra di avanzamento e i log in tempo reale via SSE.
+5. Se necessario, interrompi il calcolo: il sistema salva lo stadio parziale più avanzato.
+
+<img src="assets/eurario-attivita.png" alt="Eurario — Attività Didattiche e Vincoli FET" class="doc-screenshot">
 
 ---
 
 ### Fase 8: Risoluzione Diagnostica con il Relaxation Engine
-Se l'orario risulta matematicamente sovra-vincolato (*Over-constrained Timetable*):
-1. FET si ferma segnalando l'impossibilità di piazzare tutte le attività.
-2. Il **Relaxation Engine** di Eurario esegue l'analisi dei conflitti su 4 livelli gerarchici.
-3. Il pannello evidenzia il nodo problematico (es. *"La Prof.ssa Neri e il Prof. Gialli hanno entrambi il giorno libero al Mercoledì nella classe 4B, esaurendo le ore disponibili"*).
-4. La commissione applica la modifica minima suggerita e rilancia il calcolo.
+
+**Scopo:** Isolare i vincoli incompatibili quando l'orario risulta matematicamente non risolvibile.
+
+1. Quando il calcolo si arresta, apri il report del **Relaxation Engine**.
+2. Leggi il livello gerarchico del conflitto individuato (Livello 1: ore assolute, Livello 2: aule, Livello 3: buche e giorni).
+3. Applica la correzione minima suggerita nella scheda del docente o della classe.
+4. Riavvia il calcolo con FET.
 
 ---
 
 ### Fase 9: Collocazione Intelligente e Monitoraggio delle Disposizioni ("D")
-Una volta calcolate tutte le lezioni curricolari con il solutore:
-1. I docenti con monte ore curricolare inferiore a 18h hanno ore a disposizione per supplenze e potenziamento.
-2. Cliccare su **Colloca Disposizioni Automatiche**:
-   * L'algoritmo proprietario individua i buchi orari dei docenti e li riempie prioritariamente con le ore "D", eliminando i tempi morti e ottimizzando la permanenza a scuola.
-   * Bilancia la presenza complessiva di supplenti su ogni ora della settimana.
 
-#### Indicatori di Densità Disposizioni nelle Celle dell'Orario
-Nella griglia oraria dei docenti, ogni cella libera riporta un badge indicatore in tempo reale (`👥 X D`) che mostra quanti docenti dell'istituto sono già a disposizione in quella stessa fascia oraria:
-* **`0 D` (Grigio / Allerta)**: Nessun docente a disposizione in quell'ora. Costituisce una finestra scoperta critica per la gestione delle supplenze.
-* **`1-2 D` (Verde Smeraldo)**: Presenza bilanciata e ottimale per la sorveglianza e la copertura ordinaria.
-* **`3+ D` (Viola / Blu)**: Alta densità di personale a disposizione.
-* **Tooltip Dettagliato**: Passando con il mouse sull'indicatore viene mostrato l'elenco nominativo dei colleghi in servizio di disposizione in quell'ora.
+**Scopo:** Assegnare le ore a disposizione dei docenti per coprire buchi orari e garantire supplenze.
 
-#### Maschera Interattiva: Quadro Distribuzione Disposizioni
-Accessibile tramite il pulsante **`⚖️ Distribuzione Disposizioni`** nella toolbar della vista Orario Risolto:
-* **Matrice Settimanale Completa**: Mostra il tabellone bidimensionale (Giorni × Ore) con il conteggio e l'elenco visivo dei docenti a disposizione.
-* **Navigazione con un Clic**: Cliccando sulla pillola di un docente, la modale si chiude e il sistema apre istantaneamente l'orario settimanale del docente selezionato per consentire spostamenti mirati.
-* **Riepilogo Statistico**: Segnala il numero totale di ore a disposizione collocate, le ore con copertura zero da riequilibrare e i periodi ad alta densità.
+1. Fai clic su **Colloca Disposizioni Automatiche**. L'algoritmo riempie le ore buche e ottimizza la copertura delle supplenze.
+2. Controlla gli indicatori di densità (`👥 X D`) visibili in ogni cella libera dell'orario:
+   * **`0 D` (Grigio)**: Nessun docente a disposizione in quell'ora (finestra scoperta critica).
+   * **`1-2 D` (Verde)**: Copertura ottimale per le supplenze.
+   * **`3+ D` (Viola)**: Alta densità di personale a disposizione.
+3. Fai clic su **📊 Quadro Disposizioni** per aprire la matrice settimanale completa.
+4. Fai clic sulla pillola di un docente per passare direttamente al suo orario individuale.
+
+<img src="assets/eurario-disposizioni.png" alt="Eurario — Matrice del Quadro Disposizioni d'Istituto" class="doc-screenshot">
 
 ---
 
-### Fase 10: Revisione Fine Interattiva e Salvataggio Snapshot
-1. Nel tabellone orario, la commissione può trascinare manualmente qualsiasi ora con **Drag & Drop**:
-   * **Assistenza al riposizionamento delle Disposizioni**: Durante il trascinamento di un'ora "D", le celle libere di destinazione evidenziano il rispettivo livello di copertura, guidando l'operatore a rilasciare l'ora negli slot con copertura insufficiente (`0 D`).
-   * Se lo spostamento causa un conflitto (es. sovrapposizione docente o aula occupata), Eurario segnala immediatamente l'errore.
-2. **Blocco Attività Definitive (`locked`)**:
-   * Cliccando sull'icona del lucchetto (`🔒`) presente su ciascuna card di lezione, l'attività viene bloccata in modo permanente.
-   * Una lezione bloccata è contraddistinta da un'evidenziazione con **cornice blu più spessa** (`.lesson-card.is-locked`), che la rende immediatamente riconoscibile e ne garantisce la stabilità assoluta durante i ricalcoli del solutore FET.
-3. Salvare uno **Snapshot Nominato** (es. *"Bozza 1 Approvata"*).
+### Fase 10: Revisione Fine Interattiva e Tabellone Orario
+
+**Scopo:** Spostare le ore manualmente, bloccare le posizioni confermate ed esportare i formati orario.
+
+1. Apri la vista **Orario Risolto**.
+2. Trascina qualsiasi card di lezione con **Drag & Drop** per cambiarne la collocazione.
+3. Fai clic sull'icona del lucchetto (`🔒`) per **bloccare in modo permanente** una lezione (`locked="true"`). Le attività bloccate mantengono una cornice blu più spessa e non vengono modificate dai successivi ricalcoli FET.
+4. Fai clic su **Salva Snapshot** per archiviare la versione confermata.
+5. Utilizza i pulsanti in testata:
+   * **🖨️ Stampa A4**: Anteprima stampabile della scheda docente.
+   * **📄 PDF**: Download istantaneo del PDF vettoriale A4.
+   * **📅 iCal (.ics)**: Download del file calendario standard RFC 5545.
+   * **➕ Google Calendar**: Iscrizione automatica con un clic al calendario docente.
+   * **📧 Invia Email**: Apertura della procedura di invio individuale.
+
+<img src="assets/eurario-tabellone.png" alt="Eurario — Tabellone Orario Risolto con Azioni Rapide" class="doc-screenshot">
 
 ---
 
 ### Fase 11: Validazione Spazio-Temporale con la TimeMachine Plessi
-Prima di procedere alla firma e alla pubblicazione dell'orario negli istituti multi-sede:
-1. Accedere a **⏳ TimeMachine Plessi** dal menu laterale o dal pulsante rapido presente nella barra strumenti del Tabellone Orario.
-2. **Ispezione Flussi Ora per Ora**:
-   * Usare i tasti freccia o il pulsante **▶ Play** per riprodurre lo scorrere della giornata scolastica.
-   * Controllare nel **Corridoio di Transito** che nessun docente itinerante abbia spostamenti critici senza intervallo o buca intermedia (evidenziati dal badge rosso ⚠️ *Ore Consecutive*).
-3. **Controllo Inizio Fuori Sede**:
-   * Verificare i badge **🌅 Inizio Fuori Sede**: segnalano le classi con sede ordinaria in succursale che devono presentarsi in centrale alla 1ª ora (es. per l'accesso ai laboratori o palestre).
-4. **Mappa Metropolitana dei Docenti Itineranti**:
-   * Cliccare su **🚇 Mappa Metro** per visionare la linea di percorrenza settimanale di ciascun docente itinerante e saltare direttamente allo slot desiderato cliccando sulle bandierine di cambio sede 🚗.
+
+**Scopo:** Verificare i flussi di movimento tra le sedi e il comfort degli spostamenti per i docenti itineranti.
+
+1. Apri la schermata **⏳ TimeMachine Plessi**.
+2. Usa i tasti freccia o il pulsante **▶ Play** per simulare lo scorrimento della giornata ora per ora.
+3. Controlla il **Corridoio di Transito**: verifica che nessun docente abbia cambi sede consecutivi senza intervallo o ora buca intermedia (badge ⚠️ *Ore Consecutive*).
+4. Ispeziona il pannello **🌅 Inizio Fuori Sede** per rilevare le classi con prima ora in succursale.
+5. Fai clic su **🚇 Mappa Metro** per visualizzare la linea temporale dei trasferimenti settimanali.
+
+<img src="assets/eurario-timemachine.png" alt="Eurario — TimeMachine Plessi e Spostamenti Docenti" class="doc-screenshot">
 
 ---
 
 ### Fase 12: Esportazione Ufficiale Word (.docx) e PDF
-1. Cliccare su **Stampe Ufficiali**.
-2. Selezionare **Tabellone Docenti Word (.docx)**:
-   * File in formato **A3 Orizzontale** conforme alla Procedura 12 ministeriale.
-   * Righe di intestazione ripetute automaticamente su ogni foglio.
-   * Evidenziazione cromatica ambra per le ore a disposizione ("D").
-3. Selezionare **Orari Classi PDF**:
-   * Layout settimanale con colori pastello per materia o versione *Toner-Save* per la bacheca studenti.
+
+**Scopo:** Generare i documenti ufficiali per l'albo, i docenti e le classi.
+
+1. Apri il menu **Stampe Ufficiali**.
+2. Seleziona **Tabellone Docenti Word (.docx)**:
+   * Genera il documento in formato **A3 Orizzontale** conforme alla Procedura 12 ministeriale.
+   * Mantiene le intestazioni ripetute automaticamente su ogni foglio.
+   * Evidenzia in colore ambra le ore a disposizione ("D").
+3. Seleziona **Orari Classi PDF**:
+   * Genera il documento A4 per classe con codici cromatici per materia o in versione monocromatica per bacheca.
 
 ---
 
 ### Fase 13: Notifica Riservata Docenti, Allegati PDF e Sincronizzazione Calendario (Google & iCal)
-Eurario include un sistema avanzato di distribuzione dell'orario individuale via email (*Zero-Confronti Privacy*), progettato per tutelare la riservatezza e prevenire tensioni o comparazioni tra colleghi:
-1. **Invio Email Individuale Mirato**:
-   * Ciascun docente riceve via posta elettronica **esclusivamente il proprio orario settimanale** visualizzato direttamente nel corpo dell'email in formato grafico responsive e leggibile.
-   * È possibile effettuare una selezione multipla mirata dei docenti destinatari oppure l'invio globale all'intero collegio.
-2. **Prova Preventiva all'Amministratore**:
-   * Prima di spedire l'orario ai docenti, l'amministratore può effettuare una simulazione inviando un'email di prova al proprio indirizzo per verificare il layout visivo e la corretta connessione SMTP.
+
+**Scopo:** Consegnare a ogni docente esclusivamente il proprio orario individuale nel rispetto della riservatezza (Zero-Confronti Privacy).
+
+1. **Invio Email Individuale**:
+   * Ciascun docente riceve un'email contenente **esclusivamente il proprio orario settimanale** nel corpo del messaggio.
+   * È possibile selezionare singoli docenti o lanciare l'invio globale all'intero collegio.
+2. **Prova Preventiva per l'Amministratore**:
+   * Invia un'email di prova al tuo indirizzo per verificare layout, grafica e connessione SMTP prima dell'invio massivo.
 3. **Allegato PDF Vettoriale A4 Ufficiale**:
-   * Ogni email allega automaticamente il file `Orario_{Cognome_Nome}.pdf` in formato **A4 Orizzontale**, pronto per la stampa o l'archiviazione personale.
-   * Include intestazione dell'istituto, cattedra, classe di concorso, orario delle campanelle con intervalli e spazio firma.
-4. **Allegato iCalendar (`.ics`) con Ricorrenza Settimanale**:
-   * Allega il file `Orario_{Cognome_Nome}.ics` conforme allo standard RFC 5545.
-   * Tutte le lezioni e ore a disposizione si ripetono settimanalmente (`RRULE:FREQ=WEEKLY`) fino alla data di fine lezioni (parametro d'istituto configurabile, di default 8 giugno).
-5. **Sincronizzazione 1-Click con Google Calendar & Apple/Outlook**:
-   * Nel corpo dell'email e nella vista orario è presente il pulsante **`➕ Aggiungi a Google Calendar (1-Click)`** che apre Google Calendar e sincronizza all'istante l'intero orario in un calendario dedicato.
-   * Pulsante dedicato **`🍏 Apple Calendar / Outlook (Webcal)`** per iPhone, iPad, Mac o Outlook via protocollo `webcal://`.
-   * Endpoint pulito e conforme a Google Calendar: `https://app.eurario.it/api/teachers/timetable/Orario_{Docente}.ics` con supporto completo alle richieste HTTP `HEAD` e `GET`.
-6. **Protezione Crittografica e Riservatezza Feed (Anti-Tamper & Zero-Confronti)**:
-   * Per garantire la riservatezza più rigorosa ed evitare confronti non autorizzati tra docenti, ogni collegamento al calendario include un token crittografico segreto a 128 bit (`?token=...`).
-   * Qualsiasi richiesta esterna priva del token o con token errato (es. tentativo di alterare il nome del file per spiare l'orario di un collega) viene bloccata dal server con `403 Forbidden`.
-   * L'amministratore può visualizzare il link privato e rigenerare la chiave crittografica nella scheda docente, revocando all'istante i vecchi collegamenti.
+   * Ogni email include il file allegato `Orario_{Cognome_Nome}.pdf` pronto per la stampa.
+4. **Allegato iCalendar (.ics) con Ricorrenza Settimanale**:
+   * Ogni email include il file `Orario_{Cognome_Nome}.ics` conforme allo standard RFC 5545 con ricorrenza settimanale fino al termine dell'anno scolastico (parametro d'istituto configurabile, predefinito 8 giugno).
+5. **Sincronizzazione con 1 Clic (Google Calendar / Apple / Outlook)**:
+   * Nel corpo del messaggio, il pulsante **➕ Aggiungi a Google Calendar** apre Google Calendar e iscrive il docente al feed.
+   * Il pulsante **🍏 Apple Calendar / Outlook (Webcal)** configura i dispositivi iOS, macOS e Outlook.
+6. **Protezione Crittografica e Riservatezza dei Feed**:
+   * Ogni URL di calendario include un token segreto casuale a 128 bit (`?token=...`).
+   * Richieste senza token o con token errato ricevono **`403 Forbidden`**. Questo impedisce tentativi di visualizzare orari di altri docenti alterando il nome nell'URL.
+   * L'amministratore può visualizzare il link privato o rigenerare la chiave crittografica nella scheda docente revocando i vecchi collegamenti.
+
+<img src="assets/eurario-email-modal.png" alt="Eurario — Modale Invio Orari via Email con Privacy Zero-Confronti" class="doc-screenshot">
 
 ---
 

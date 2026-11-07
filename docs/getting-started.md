@@ -119,8 +119,8 @@ Ogni docente registrato in Eurario è associato a rigorosi vincoli contrattuali:
   * FET traduce questi slot nel vincolo hard `<ConstraintTeacherNotAvailableTimes>` a peso 100%.
 
 <div class="doc-figure">
-  <img src="assets/eurario-docenti-disponibilita.png" alt="Eurario — Anagrafica Docenti e Matrice Disponibilità" class="doc-screenshot">
-  <div class="doc-caption">Figura 2.2: Scheda docente e matrice settimanale per l'impostazione rapida del giorno libero e delle indisponibilità orarie.</div>
+  <img src="assets/eurario-docenti.png" alt="Eurario — Anagrafica Docenti Scuola di Atene" class="doc-screenshot">
+  <div class="doc-caption">Figura 2.2: Scheda docente e impostazione del giorno libero, ore cattedra e preferenze orarie.</div>
 </div>
 
 ---

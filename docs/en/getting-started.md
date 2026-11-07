@@ -119,8 +119,8 @@ Every teacher profile in Eurario is linked to strict contractual rules:
   * FET converts these selections into 100% hard constraints (`<ConstraintTeacherNotAvailableTimes>`).
 
 <div class="doc-figure">
-  <img src="../assets/eurario-docenti-disponibilita.png" alt="Eurario — Teacher Profile & Availability Matrix" class="doc-screenshot">
-  <div class="doc-caption">Figure 2.2: Teacher profile and weekly matrix for rapid day-off and hourly unavailability configuration.</div>
+  <img src="../assets/eurario-docenti.png" alt="Eurario — Teacher Profile & Availability Matrix (School of Athens)" class="doc-screenshot">
+  <div class="doc-caption">Figure 2.2: Teacher profile, weekly workload, days off, and timetable preferences.</div>
 </div>
 
 ---
