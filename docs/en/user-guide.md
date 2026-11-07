@@ -180,6 +180,10 @@ Eurario includes a dedicated, privacy-first email delivery system (*Zero-Compari
    * Prominent **`➕ Add to Google Calendar (1-Click)`** button opens Google Calendar to instantly subscribe to the schedule in a dedicated layer.
    * Dedicated **`🍏 Apple Calendar / Outlook (Webcal)`** protocol link for iPhone, iPad, Mac, and desktop Outlook.
    * Clean endpoint without query parameters: `https://app.eurario.it/api/teachers/timetable/Orario_{Teacher}.ics` with full HTTP `HEAD` and `GET` compliance.
+6. **Cryptographic Feed Privacy Protection (Anti-Tamper & Zero-Confronti)**:
+   * To prevent unauthorized schedule inspection and comparisons among colleagues, each calendar subscription link is protected by an unguessable 128-bit secret token (`?token=...`).
+   * Any external request missing the token or using an invalid token (such as guessing another teacher's URL) is rejected with `403 Forbidden`.
+   * Administrators can view the private feed URL and regenerate the cryptographic token in the teacher edit modal, immediately revoking outdated links.
 
 ---
 

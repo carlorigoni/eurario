@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.56';
+let APP_VERSION = '1.9.57';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -4498,7 +4498,7 @@ async function renderTimetable() {
           <button class="btn btn-outline btn-sm" onclick="window.open('/api/teachers/timetable/ical?teacher=' + encodeURIComponent('${escapeJs(activeEntity)}'), '_blank')" title="${isEn ? 'Download iCalendar (.ics) for Google/Apple/Outlook for ' + escapeHtml(activeEntity) : 'Scarica calendario .ics (Google/Apple/Outlook) per ' + escapeHtml(activeEntity)}" style="border:1.5px solid #0284c7;color:#0284c7;font-weight:700;">
             📅 iCal (.ics)
           </button>
-          <button class="btn btn-outline btn-sm" onclick="window.open('https://calendar.google.com/calendar/render?cid=' + encodeURIComponent('webcal://' + window.location.host + '/api/teachers/timetable/Orario_' + encodeURIComponent('${escapeJs(activeEntity)}'.replace(/ /g, '_')) + '.ics'), '_blank')" title="${isEn ? 'Add schedule to Google Calendar (1-Click)' : 'Aggiungi orario a Google Calendar con 1 click'}" style="border:1.5px solid #1a73e8;color:#1a73e8;font-weight:700;">
+          <button class="btn btn-outline btn-sm" onclick="openTeacherGoogleCalendar('${escapeJs(activeEntity)}')" title="${isEn ? 'Add schedule to Google Calendar (1-Click)' : 'Aggiungi orario a Google Calendar con 1 click'}" style="border:1.5px solid #1a73e8;color:#1a73e8;font-weight:700;">
             ➕ Google Calendar
           </button>
           <button class="btn btn-outline btn-sm" onclick="openEmailTimetablesModal(['${escapeJs(activeEntity)}'])" title="${isEn ? 'Send individual timetable via email to ' + escapeHtml(activeEntity) : 'Invia l\'orario individuale via email a ' + escapeHtml(activeEntity)}" style="border:1.5px solid #059669;color:#059669;font-weight:700;">
@@ -7349,6 +7349,28 @@ function openEditTeacherModal(name) {
           </div>
         </div>
 
+        <div class="form-group" style="margin-top:8px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <label class="form-label" style="margin-bottom:0;display:flex;align-items:center;gap:6px;color:#0284c7;">
+              <span>🔒 ${isEn ? 'Private Calendar Feed & Cryptographic Token' : 'Link Calendario Privato (Token Segreto)'}</span>
+            </label>
+            <button type="button" class="btn btn-sm btn-sec" style="font-size:11px;padding:2px 8px;" onclick="regenerateCalendarToken('${escapeJs(name)}')">
+              🔄 ${isEn ? 'Revoke & Regenerate Key' : 'Rigenera Chiave Segreta'}
+            </button>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="editTeacherCalendarFeedUrl" class="form-input" readonly value="${getTeacherCalendarFeedUrlJs(name, teacher.calendar_token)}" style="font-family:var(--font-mono);font-size:11px;background:var(--bg-main);" onclick="this.select()">
+            <button type="button" class="btn btn-sm btn-outline" onclick="copyTeacherCalendarUrl('${escapeJs(name)}')" style="white-space:nowrap;font-size:11px;">
+              📋 ${isEn ? 'Copy Link' : 'Copia Link'}
+            </button>
+          </div>
+          <div style="font-size:10.5px;color:var(--text-muted);margin-top:4px;line-height:1.4;">
+            ${isEn
+              ? '🛡️ Feeds are strictly personal and protected by this unguessable token (anti-tamper privacy). Regenerating revokes old subscriptions immediately.'
+              : '🛡️ Feed strettamente personale protetto da token crittografico unguessable (Zero-Confronti). La rigenerazione revoca immediatamente i vecchi abbonamenti del calendario.'}
+          </div>
+        </div>
+
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
           <div class="form-group">
             <label class="form-label">${isEn ? 'Teaching Certificate (CDC)' : 'Classe di Concorso (CDC)'}</label>
@@ -7746,6 +7768,81 @@ function computeTeacherEmailJs(name, domain = 'rolandodapiazzola.edu.it') {
   local = local.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   local = local.replace(/['`]/g, '').replace(/[^a-zA-Z0-9.]/g, '').replace(/\.+/g, '.').replace(/^\.|\.$/g, '').toLowerCase();
   return local ? `${local}@${dom}` : '';
+}
+
+function getTeacherCalendarFeedUrlJs(teacherName, token = null) {
+  const safeName = (teacherName || '').replace(/ /g, '_');
+  let tToken = token;
+  if (!tToken && stateData && stateData.teachers) {
+    const tObj = stateData.teachers.find(t => (t.name || '').trim().toLowerCase() === (teacherName || '').trim().toLowerCase());
+    if (tObj && tObj.calendar_token) tToken = tObj.calendar_token;
+  }
+  const tokenParam = tToken ? `?token=${encodeURIComponent(tToken)}` : '';
+  return `${window.location.origin}/api/teachers/timetable/Orario_${encodeURIComponent(safeName)}.ics${tokenParam}`;
+}
+
+function getTeacherCalendarWebcalUrlJs(teacherName, token = null) {
+  const safeName = (teacherName || '').replace(/ /g, '_');
+  let tToken = token;
+  if (!tToken && stateData && stateData.teachers) {
+    const tObj = stateData.teachers.find(t => (t.name || '').trim().toLowerCase() === (teacherName || '').trim().toLowerCase());
+    if (tObj && tObj.calendar_token) tToken = tObj.calendar_token;
+  }
+  const tokenParam = tToken ? `?token=${encodeURIComponent(tToken)}` : '';
+  return `webcal://${window.location.host}/api/teachers/timetable/Orario_${encodeURIComponent(safeName)}.ics${tokenParam}`;
+}
+
+function openTeacherGoogleCalendar(teacherName) {
+  const webcalUrl = getTeacherCalendarWebcalUrlJs(teacherName);
+  const gcalUrl = `https://calendar.google.com/calendar/render?cid=${encodeURIComponent(webcalUrl)}`;
+  window.open(gcalUrl, '_blank');
+}
+
+async function copyTeacherCalendarUrl(teacherName) {
+  const inp = document.getElementById('editTeacherCalendarFeedUrl');
+  const url = inp ? inp.value : getTeacherCalendarFeedUrlJs(teacherName);
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('Link privato del calendario copiato negli appunti!', 'ok');
+  } catch (e) {
+    if (inp) {
+      inp.select();
+      document.execCommand('copy');
+      showToast('Link privato del calendario copiato negli appunti!', 'ok');
+    }
+  }
+}
+
+async function regenerateCalendarToken(teacherName) {
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+  const msg = isEn
+    ? `Are you sure you want to regenerate the private calendar key for ${teacherName}?\n\nWARNING: Any active calendar subscriptions (Google Calendar, Apple, Outlook) using the old link will stop updating immediately until the new link is imported.`
+    : `Sei sicuro di voler rigenerare la chiave crittografica del calendario privato per ${teacherName}?\n\nATTENZIONE: Gli abbonamenti attivi sul calendario (Google Calendar, iPhone, Outlook) che usano il vecchio link smetteranno subito di sincronizzarsi finché non verrà inserito il nuovo link.`;
+  if (!confirm(msg)) return;
+
+  try {
+    const res = await fetch('/api/teachers/calendar_token/regenerate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: teacherName })
+    });
+    const d = await res.json();
+    if (d.success && d.calendar_token) {
+      if (stateData && stateData.teachers) {
+        const tObj = stateData.teachers.find(t => (t.name || '').trim().toLowerCase() === (teacherName || '').trim().toLowerCase());
+        if (tObj) tObj.calendar_token = d.calendar_token;
+      }
+      const inp = document.getElementById('editTeacherCalendarFeedUrl');
+      if (inp) {
+        inp.value = getTeacherCalendarFeedUrlJs(teacherName, d.calendar_token);
+      }
+      showToast(isEn ? 'Private calendar key regenerated successfully!' : 'Nuova chiave segreta del calendario rigenerata con successo! Vecchio link revocato.', 'ok');
+    } else {
+      alert(d.error || 'Errore durante la rigenerazione della chiave.');
+    }
+  } catch (err) {
+    alert('Errore di comunicazione: ' + err.message);
+  }
 }
 
 async function batchPrefillTeacherEmails(overwrite = false) {

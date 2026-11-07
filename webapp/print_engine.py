@@ -2269,10 +2269,27 @@ def generate_single_teacher_email_html(data, teacher_name, custom_message=None, 
 
     base_url = (server_url or data.get("server_url") or "https://app.eurario.it").rstrip("/")
     safe_file_name = teacher_name.replace(" ", "_")
-    # Clean direct .ics URL without query parameters (fully compatible with Google Calendar and Webcal)
-    ical_http_url = f"{base_url}/api/teachers/timetable/Orario_{safe_file_name}.ics"
+
+    # Recupera o crea token crittografico segreto del docente
+    teacher_token = None
+    for t in data.get("teachers", []):
+        if t.get("name", "").strip().lower() == teacher_name.strip().lower():
+            teacher_token = t.get("calendar_token")
+            break
+    if not teacher_token:
+        try:
+            from webapp.database import Database
+            _db = Database()
+            teacher_token = _db.get_teacher_calendar_token(teacher_name, auto_create=True)
+        except Exception:
+            import secrets
+            teacher_token = secrets.token_hex(16)
+
+    token_q = f"?token={teacher_token}" if teacher_token else ""
+    # Clean direct .ics URL with cryptographic access token (fully compatible with Google Calendar and Webcal)
+    ical_http_url = f"{base_url}/api/teachers/timetable/Orario_{safe_file_name}.ics{token_q}"
     webcal_base = base_url.split("://", 1)[-1]
-    webcal_link = f"webcal://{webcal_base}/api/teachers/timetable/Orario_{safe_file_name}.ics"
+    webcal_link = f"webcal://{webcal_base}/api/teachers/timetable/Orario_{safe_file_name}.ics{token_q}"
     # Google Calendar render parameter MUST be webcal://, NOT https://
     gcal_link = f"https://calendar.google.com/calendar/render?cid={urllib.parse.quote(webcal_link, safe='')}"
 
@@ -2358,6 +2375,9 @@ def generate_single_teacher_email_html(data, teacher_name, custom_message=None, 
                   </table>
                   <div style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.45;">
                     💡 <b>Preferisci l'importazione manuale?</b> Apri direttamente l'allegato <b>Orario_{safe_file_name}.ics</b> con il tuo calendario, oppure in Google Calendar vai su <i>Altri calendari (+) &gt; Da URL</i> e incolla: <code style="color:#0369a1;background:#e0f2fe;padding:2px 6px;border-radius:3px;">{ical_http_url}</code>
+                  </div>
+                  <div style="font-size:11px;color:#0369a1;margin-top:8px;background:#e0f2fe;border:1px solid #bae6fd;padding:6px 10px;border-radius:4px;line-height:1.45;">
+                    🔒 <b>Riservatezza & Protezione Crittografica:</b> Il link sopra include una chiave segreta personale (token privato). Il tuo orario è protetto e accessibile esclusivamente tramite questo collegamento riservato: non condividerlo con terzi per mantenere il tuo orario strettamente confidenziale ed evitare confronti tra docenti.
                   </div>
                 </td>
               </tr>

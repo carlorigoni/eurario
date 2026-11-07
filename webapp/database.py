@@ -17,6 +17,7 @@ import logging
 import unicodedata
 from datetime import datetime
 from html.parser import HTMLParser
+import secrets
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 
@@ -1213,7 +1214,11 @@ class Database:
                             s_dict[subj]["classes"].add(s)
 
             result = []
+            dirty = False
             for t in sorted(self.data.get("teachers", []), key=lambda x: x["name"].lower()):
+                if not t.get("calendar_token"):
+                    t["calendar_token"] = secrets.token_hex(16)
+                    dirty = True
                 t_copy = copy.deepcopy(t)
                 st = t_stats.get(t["name"], {
                     "lesson_hours": 0, "disp_hours": 0, "hours": 0,
@@ -1281,6 +1286,8 @@ class Database:
                 t_copy["email"] = (t.get("email") or "").strip().lower() or compute_teacher_email(t.get("name", ""), self.get_teacher_email_domain())
 
                 result.append(t_copy)
+            if dirty:
+                self._save_to_disk(self.data)
             return result
 
     def add_teacher(self, name, comments="", cdc="", target_hours=18, max_days=5, min_days=4, contract_type="intera", short_name="", is_coe=False, custom_disp_hours=None, email=""):
@@ -1319,7 +1326,8 @@ class Database:
                     "min_days": int(min_days or 4),
                     "contract_type": ctype,
                     "is_coe": bool(ctype == "coe"),
-                    "custom_disp_hours": custom_disp
+                    "custom_disp_hours": custom_disp,
+                    "calendar_token": secrets.token_hex(16)
                 })
                 self.data["teachers"].sort(key=lambda t: t["name"].lower())
                 self.data["teacher_availability"][name] = []
@@ -1426,6 +1434,42 @@ class Database:
             self.data["teacher_availability"].pop(name, None)
             self._save_to_disk(self.data)
             return True
+
+    # --- TOKEN CALENDARIO PRIVATO DOCENTI ---
+    def get_teacher_calendar_token(self, teacher_name, auto_create=True):
+        import secrets
+        with self.lock:
+            for t in self.data.get("teachers", []):
+                if t.get("name", "").strip().lower() == teacher_name.strip().lower():
+                    token = t.get("calendar_token")
+                    if not token and auto_create:
+                        token = secrets.token_hex(16)
+                        t["calendar_token"] = token
+                        self._save_to_disk(self.data)
+                    return token
+            return None
+
+    def validate_teacher_calendar_token(self, teacher_name, token):
+        import secrets
+        if not token or not str(token).strip():
+            return False
+        stored = self.get_teacher_calendar_token(teacher_name, auto_create=False)
+        if not stored:
+            stored = self.get_teacher_calendar_token(teacher_name, auto_create=True)
+        if not stored:
+            return False
+        return secrets.compare_digest(str(token).strip(), str(stored).strip())
+
+    def regenerate_teacher_calendar_token(self, teacher_name):
+        import secrets
+        with self.lock:
+            for t in self.data.get("teachers", []):
+                if t.get("name", "").strip().lower() == teacher_name.strip().lower():
+                    new_token = secrets.token_hex(16)
+                    t["calendar_token"] = new_token
+                    self._save_to_disk(self.data)
+                    return new_token
+            return None
 
     # --- CLASSI ---
     def get_classes(self):

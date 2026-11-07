@@ -83,7 +83,8 @@
       "pref_shift_weight": 85,
       "free_day_1": "Ven",
       "free_day_strict": false,
-      "comments": "Fisica e Laboratorio Applicato"
+      "comments": "Fisica e Laboratorio Applicato",
+      "calendar_token": "d5e53493731dcad5f6f877fba2c9b4e6"
     },
     {
       "name": "Aristotele",
@@ -96,7 +97,8 @@
       "pref_shift_weight": 90,
       "free_day_1": "Lun",
       "free_day_strict": true,
-      "comments": "Economia Aziendale e Diritto"
+      "comments": "Economia Aziendale e Diritto",
+      "calendar_token": "99d92c2b81b45b077c801d6dac2693e3"
     },
     {
       "name": "Platone",
@@ -109,7 +111,8 @@
       "pref_shift_weight": 85,
       "free_day_1": "",
       "free_day_strict": false,
-      "comments": "Storia e Filosofia Universale"
+      "comments": "Storia e Filosofia Universale",
+      "calendar_token": "79e21c153e68c3d71e6394277735a124"
     },
     {
       "name": "Milone di Crotone",
@@ -122,7 +125,8 @@
       "pref_shift_weight": 85,
       "free_day_1": "Mer",
       "free_day_strict": false,
-      "comments": "Scienze Motorie e Atletica"
+      "comments": "Scienze Motorie e Atletica",
+      "calendar_token": "1763b7fb634931c90f3a3f378619b298"
     },
     {
       "name": "Marie Curie",
@@ -135,7 +139,8 @@
       "pref_shift_weight": 85,
       "free_day_1": "Gio",
       "free_day_strict": false,
-      "comments": "Scienze Naturali e Chimica"
+      "comments": "Scienze Naturali e Chimica",
+      "calendar_token": "d74b1c34b00ec9d3138b10cdc2167d41"
     },
     {
       "name": "Dante Alighieri",
@@ -148,7 +153,8 @@
       "pref_shift_weight": 85,
       "free_day_1": "Mar",
       "free_day_strict": false,
-      "comments": "Italiano e Letteratura Classica"
+      "comments": "Italiano e Letteratura Classica",
+      "calendar_token": "f2e7db105586dda410cf9cc5371dd26d"
     },
     {
       "name": "Euclide",
@@ -161,7 +167,8 @@
       "pref_shift_weight": 85,
       "free_day_1": "",
       "free_day_strict": false,
-      "comments": "Matematica e Geometria"
+      "comments": "Matematica e Geometria",
+      "calendar_token": "bb4321522072cf1f357aeb4163ecb400"
     },
     {
       "name": "William Shakespeare",
@@ -174,7 +181,8 @@
       "pref_shift_weight": 85,
       "free_day_1": "",
       "free_day_strict": false,
-      "comments": "Lingua Inglese e Potenziamento"
+      "comments": "Lingua Inglese e Potenziamento",
+      "calendar_token": "0f3bed5ca9c5bb2125272a42df7982eb"
     }
   ],
   "subjects": [
@@ -2896,7 +2904,7 @@
     "L": "liceo"
   },
   "config_name": "Configurazione Corrente",
-  "data_version": 104,
-  "last_modified": "2026-11-07T15:17:52.342497+01:00",
+  "data_version": 108,
+  "last_modified": "2026-11-07T16:00:02.356411+01:00",
   "admin_messages": []
 }

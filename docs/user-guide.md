@@ -181,6 +181,10 @@ Eurario include un sistema avanzato di distribuzione dell'orario individuale via
    * Nel corpo dell'email e nella vista orario è presente il pulsante **`➕ Aggiungi a Google Calendar (1-Click)`** che apre Google Calendar e sincronizza all'istante l'intero orario in un calendario dedicato.
    * Pulsante dedicato **`🍏 Apple Calendar / Outlook (Webcal)`** per iPhone, iPad, Mac o Outlook via protocollo `webcal://`.
    * Endpoint pulito e conforme a Google Calendar: `https://app.eurario.it/api/teachers/timetable/Orario_{Docente}.ics` con supporto completo alle richieste HTTP `HEAD` e `GET`.
+6. **Protezione Crittografica e Riservatezza Feed (Anti-Tamper & Zero-Confronti)**:
+   * Per garantire la riservatezza più rigorosa ed evitare confronti non autorizzati tra docenti, ogni collegamento al calendario include un token crittografico segreto a 128 bit (`?token=...`).
+   * Qualsiasi richiesta esterna priva del token o con token errato (es. tentativo di alterare il nome del file per spiare l'orario di un collega) viene bloccata dal server con `403 Forbidden`.
+   * L'amministratore può visualizzare il link privato e rigenerare la chiave crittografica nella scheda docente, revocando all'istante i vecchi collegamenti.
 
 ---
 

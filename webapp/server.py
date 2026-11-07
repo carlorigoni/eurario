@@ -102,7 +102,7 @@ def fetch_google_doc_docx_bytes(url):
     except Exception as e:
         raise ValueError(f"Impossibile scaricare il Google Doc: {e}")
 
-APP_VERSION = "1.9.56"
+APP_VERSION = "1.9.57"
 FET_VERSION = "7.12.0"
 APP_AUTHOR = "Carlo Rigoni"
 APP_MENTOR = "Federico Rettore"
@@ -1014,6 +1014,21 @@ class EurarioHandler(BaseHTTPRequestHandler):
             if matched_name:
                 teacher_param = matched_name
 
+            # Controllo Accesso e Riservatezza:
+            # Consentito solo se autenticato come utente della scuola su Eurario,
+            # OPPURE se viene fornito il token crittografico segreto valido del docente
+            req_token = query.get("token", [None])[0]
+            current_user = self._get_current_user()
+            is_authenticated = bool(current_user)
+
+            if not is_authenticated:
+                if not req_token or not db.validate_teacher_calendar_token(teacher_param, req_token):
+                    self._json(403, {
+                        "error": "Accesso non autorizzato",
+                        "message": "Token crittografico di accesso al calendario privato mancante o non valido. Controlla il link ricevuto via email o contatta l'amministratore."
+                    })
+                    return
+
             from webapp.pdf_engine import generate_teacher_timetable_ical
             try:
                 end_date = db.get_school_year_end_date()
@@ -1920,6 +1935,20 @@ class EurarioHandler(BaseHTTPRequestHandler):
                 return
             ok = db.update_teacher(body["name"], body)
             self._json(200 if ok else 400, {"success": ok})
+
+        elif path == "/api/teachers/calendar_token/regenerate":
+            admin = self._require_admin()
+            if not admin:
+                return
+            if not body or not body.get("name"):
+                self._json(400, {"error": "Nome docente mancante"})
+                return
+            t_name = body["name"].strip()
+            new_token = db.regenerate_teacher_calendar_token(t_name)
+            if new_token:
+                self._json(200, {"success": True, "teacher": t_name, "calendar_token": new_token})
+            else:
+                self._json(404, {"error": "Docente non trovato"})
 
         elif path == "/api/teachers/email_timetables":
             admin = self._require_admin()
