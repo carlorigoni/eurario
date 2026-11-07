@@ -102,7 +102,7 @@ def fetch_google_doc_docx_bytes(url):
     except Exception as e:
         raise ValueError(f"Impossibile scaricare il Google Doc: {e}")
 
-APP_VERSION = "1.9.53"
+APP_VERSION = "1.9.54"
 FET_VERSION = "7.12.0"
 APP_AUTHOR = "Carlo Rigoni"
 APP_MENTOR = "Federico Rettore"
@@ -1898,6 +1898,9 @@ class EurarioHandler(BaseHTTPRequestHandler):
             all_teachers = data.get("teachers", [])
             teachers_map = {t["name"]: t for t in all_teachers}
             email_domain = db.get_teacher_email_domain()
+            host_hdr = self.headers.get("Host", "app.eurario.it")
+            proto = self.headers.get("X-Forwarded-Proto", "https")
+            server_base = f"{proto}://{host_hdr}"
 
             if is_test:
                 if not test_recipient:
@@ -1908,7 +1911,7 @@ class EurarioHandler(BaseHTTPRequestHandler):
 
                 sample_teacher = teacher_names[0] if teacher_names and teacher_names[0] in teachers_map else (all_teachers[0]["name"] if all_teachers else "Docente Esempio")
                 subject = f"[TEST Eurario] {custom_subject or f'Orario Settimanale delle Lezioni - Prof. {sample_teacher}'}"
-                html_body = generate_single_teacher_email_html(data, sample_teacher, custom_message)
+                html_body = generate_single_teacher_email_html(data, sample_teacher, custom_message, server_url=server_base)
                 text_body = f"TEST INVIO ORARIO:\nGentile Amministratore,\nin allegato trovi l'orario in formato PDF e il file calendario (.ics) con ricorrenza settimanale per {sample_teacher}.\n"
 
                 from webapp.pdf_engine import generate_teacher_timetable_pdf, generate_teacher_timetable_ical
@@ -1972,7 +1975,7 @@ class EurarioHandler(BaseHTTPRequestHandler):
                     continue
 
                 subject = custom_subject or f"Orario Settimanale delle Lezioni - Prof. {t_name}"
-                html_body = generate_single_teacher_email_html(data, t_name, custom_message)
+                html_body = generate_single_teacher_email_html(data, t_name, custom_message, server_url=server_base)
                 text_body = f"Gentile Prof.ssa / Prof. {t_name},\nin allegato trova il Suo orario in formato PDF e il file calendario (.ics) da sincronizzare nel Suo smartphone o PC.\n"
 
                 safe_name = t_name.replace(' ', '_')

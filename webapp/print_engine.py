@@ -2254,16 +2254,28 @@ def generate_single_teacher_print_html(data, teacher_names=None, options=None):
     return "".join(html_out)
 
 
-def generate_single_teacher_email_html(data, teacher_name, custom_message=None):
+def generate_single_teacher_email_html(data, teacher_name, custom_message=None, server_url=None):
     """
     Genera il corpo HTML di un'email reattiva ed elegante per trasmettere al singolo docente
     il proprio orario settimanale. Compatibile al 100% con tutti i client email
     (Outlook, Gmail, Apple Mail, Thunderbird) grazie all'uso di tabelle con stili inline.
+    Include pulsante 1-Click per aggiunta diretta a Google Calendar e Apple Calendar/Outlook.
     """
+    import urllib.parse
     institution = data.get("institution", 'I.I.S. "Rolando da Piazzola"')
     school_year = data.get("school_year") or "2026/2027"
     days = data.get("days", ["Lun", "Mar", "Mer", "Gio", "Ven"])
     validity_date = get_default_validity_date()
+
+    base_url = (server_url or data.get("server_url") or "https://app.eurario.it").rstrip("/")
+    safe_teacher = urllib.parse.quote(teacher_name)
+    safe_file_name = teacher_name.replace(" ", "_")
+    ical_http_url = f"{base_url}/api/teachers/timetable/ical?teacher={safe_teacher}"
+    encoded_ical_url = urllib.parse.quote(ical_http_url, safe="")
+    gcal_link = f"https://calendar.google.com/calendar/render?cid={encoded_ical_url}"
+
+    webcal_base = base_url.split("://", 1)[-1]
+    webcal_link = f"webcal://{webcal_base}/api/teachers/timetable/ical?teacher={safe_teacher}"
 
     from webapp.fet_engine import build_timetable_views
     views = build_timetable_views(data)
@@ -2317,6 +2329,40 @@ def generate_single_teacher_email_html(data, teacher_name, custom_message=None):
         <tr>
           <td style="padding:18px 24px 12px;font-size:13.5px;line-height:1.55;color:#334155;">
             {intro_p}
+          </td>
+        </tr>
+        <!-- Sincronizzazione 1-Click con Google Calendar & Calendari -->
+        <tr>
+          <td style="padding:0 24px 16px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f0f9ff;border:1.5px solid #0284c7;border-radius:8px;overflow:hidden;">
+              <tr>
+                <td style="padding:14px 18px;">
+                  <div style="font-size:13px;font-weight:750;color:#0369a1;margin-bottom:4px;">
+                    📅 Sincronizzazione Automatica nel tuo Calendario Personale
+                  </div>
+                  <div style="font-size:12px;color:#334155;line-height:1.45;margin-bottom:12px;">
+                    Clicca sul pulsante per aggiungere con <b>1 solo click</b> tutte le tue lezioni settimanali al tuo calendario (con ripetizione settimanale automatica fino a fine anno scolastico):
+                  </div>
+                  <table cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td style="padding-right:10px;padding-bottom:6px;">
+                        <a href="{gcal_link}" target="_blank" rel="noopener" style="background-color:#1a73e8;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;font-size:12.5px;font-weight:700;display:inline-block;box-shadow:0 1px 3px rgba(0,0,0,0.15);">
+                          ➕ Aggiungi a Google Calendar (1-Click)
+                        </a>
+                      </td>
+                      <td style="padding-bottom:6px;">
+                        <a href="{webcal_link}" style="background-color:#0284c7;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:6px;font-size:12.5px;font-weight:700;display:inline-block;box-shadow:0 1px 3px rgba(0,0,0,0.15);">
+                          🍏 Apple Calendar / Outlook (Webcal)
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                  <div style="font-size:11px;color:#64748b;margin-top:6px;">
+                    💡 <i>In alternativa puoi aprire direttamente il file allegato <b>Orario_{safe_file_name}.ics</b> da smartphone o PC per importarlo nella tua app di calendario.</i>
+                  </div>
+                </td>
+              </tr>
+            </table>
           </td>
         </tr>
         <!-- Griglia Oraria Email -->
@@ -2380,9 +2426,9 @@ def generate_single_teacher_email_html(data, teacher_name, custom_message=None):
         <tr>
           <td style="padding:0 24px 16px;">
             <div style="background-color:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:12px 14px;font-size:12px;color:#166534;line-height:1.5;">
-              📎 <b>Allegati a questa email:</b><br>
+              📎 <b>Allegati e Sincronizzazione:</b><br>
               • 📄 <b>PDF Ufficiale Stampabile:</b> Scheda A4 orizzontale del tuo orario individuale completa di intestazione, dettagli cattedra e visto dirigenziale.<br>
-              • 📅 <b>File Calendario (.ics):</b> Apri o tocca l'allegato <code>.ics</code> per importare automaticamente tutte le tue lezioni settimanali nel tuo calendario (Google Calendar, Apple Calendar, Outlook) con ricorrenza valida fino al termine delle lezioni.
+              • 📅 <b>File Calendario (.ics) & Sincronizzazione 1-Click:</b> Clicca sul pulsante "Aggiungi a Google Calendar" sopra per sincronizzare l'orario con un click, oppure apri l'allegato <code>.ics</code> per importare automaticamente tutte le lezioni settimanali nel tuo calendario preferito (Google, Apple, Outlook) con ricorrenza valida fino al termine delle lezioni.
             </div>
           </td>
         </tr>
