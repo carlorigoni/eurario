@@ -2268,14 +2268,14 @@ def generate_single_teacher_email_html(data, teacher_name, custom_message=None, 
     validity_date = get_default_validity_date()
 
     base_url = (server_url or data.get("server_url") or "https://app.eurario.it").rstrip("/")
-    safe_teacher = urllib.parse.quote(teacher_name)
     safe_file_name = teacher_name.replace(" ", "_")
-    ical_http_url = f"{base_url}/api/teachers/timetable/ical?teacher={safe_teacher}"
+    # Clean direct .ics URL without query parameters (fully compatible with Google Calendar and Webcal)
+    ical_http_url = f"{base_url}/api/teachers/timetable/Orario_{safe_file_name}.ics"
     encoded_ical_url = urllib.parse.quote(ical_http_url, safe="")
     gcal_link = f"https://calendar.google.com/calendar/render?cid={encoded_ical_url}"
 
     webcal_base = base_url.split("://", 1)[-1]
-    webcal_link = f"webcal://{webcal_base}/api/teachers/timetable/ical?teacher={safe_teacher}"
+    webcal_link = f"webcal://{webcal_base}/api/teachers/timetable/Orario_{safe_file_name}.ics"
 
     from webapp.fet_engine import build_timetable_views
     views = build_timetable_views(data)
@@ -2357,8 +2357,8 @@ def generate_single_teacher_email_html(data, teacher_name, custom_message=None, 
                       </td>
                     </tr>
                   </table>
-                  <div style="font-size:11px;color:#64748b;margin-top:6px;">
-                    💡 <i>In alternativa puoi aprire direttamente il file allegato <b>Orario_{safe_file_name}.ics</b> da smartphone o PC per importarlo nella tua app di calendario.</i>
+                  <div style="font-size:11px;color:#64748b;margin-top:8px;line-height:1.45;">
+                    💡 <b>Preferisci l'importazione manuale?</b> Apri direttamente l'allegato <b>Orario_{safe_file_name}.ics</b> con il tuo calendario, oppure in Google Calendar vai su <i>Altri calendari (+) &gt; Da URL</i> e incolla: <code style="color:#0369a1;background:#e0f2fe;padding:2px 6px;border-radius:3px;">{ical_http_url}</code>
                   </div>
                 </td>
               </tr>

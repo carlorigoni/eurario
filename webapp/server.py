@@ -437,11 +437,20 @@ class EurarioHandler(BaseHTTPRequestHandler):
             self.send_header("Set-Cookie", "eurario_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0; HttpOnly; SameSite=Lax")
         self._send_cors()
         self.end_headers()
-        self.wfile.write(body)
-        try:
-            self.wfile.flush()
-        except Exception:
-            pass
+        if getattr(self, "command", "GET") != "HEAD":
+            self.wfile.write(body)
+            try:
+                self.wfile.flush()
+            except Exception:
+                pass
+
+    def _write_body(self, data):
+        if getattr(self, "command", "GET") != "HEAD":
+            self.wfile.write(data)
+            try:
+                self.wfile.flush()
+            except Exception:
+                pass
 
     def _get_session_token(self):
         cookie_header = self.headers.get("Cookie", "")
@@ -626,7 +635,20 @@ class EurarioHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Disposition", f'attachment; filename="{attachment_name}"')
         self._send_cors()
         self.end_headers()
-        self.wfile.write(content)
+        self._write_body(content)
+
+    def do_HEAD(self):
+        try:
+            self._handle_GET()
+        except Exception as e:
+            try:
+                self.send_response(200)
+                self._send_cors()
+                self.end_headers()
+            except Exception:
+                pass
+        finally:
+            clear_request_context()
 
     def do_GET(self):
         try:
@@ -835,7 +857,7 @@ class EurarioHandler(BaseHTTPRequestHandler):
             self.send_header("Expires", "0")
             self._send_cors()
             self.end_headers()
-            self.wfile.write(html_bytes)
+            self._write_body(html_bytes)
             return
 
         elif path == "/api/print/teachers":
@@ -858,7 +880,7 @@ class EurarioHandler(BaseHTTPRequestHandler):
             self.send_header("Expires", "0")
             self._send_cors()
             self.end_headers()
-            self.wfile.write(html_bytes)
+            self._write_body(html_bytes)
             return
 
         elif path == "/api/print/teachers/docx":
@@ -884,7 +906,7 @@ class EurarioHandler(BaseHTTPRequestHandler):
             self.send_header("Expires", "0")
             self._send_cors()
             self.end_headers()
-            self.wfile.write(docx_bytes)
+            self._write_body(docx_bytes)
             return
 
         elif path == "/api/print/transfers":
@@ -907,7 +929,7 @@ class EurarioHandler(BaseHTTPRequestHandler):
             self.send_header("Expires", "0")
             self._send_cors()
             self.end_headers()
-            self.wfile.write(html_bytes)
+            self._write_body(html_bytes)
             return
 
         elif path == "/api/print/teacher_timetable":
@@ -929,7 +951,7 @@ class EurarioHandler(BaseHTTPRequestHandler):
             self.send_header("Expires", "0")
             self._send_cors()
             self.end_headers()
-            self.wfile.write(html_bytes)
+            self._write_body(html_bytes)
             return
 
         elif path == "/api/print/teacher_timetable/pdf":
@@ -953,16 +975,36 @@ class EurarioHandler(BaseHTTPRequestHandler):
                 self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
                 self._send_cors()
                 self.end_headers()
-                self.wfile.write(pdf_bytes)
+                self._write_body(pdf_bytes)
             except Exception as e:
                 self._json(400, {"error": str(e)})
             return
 
-        elif path == "/api/teachers/timetable/ical":
+        elif path == "/api/teachers/timetable/ical" or (path.startswith("/api/teachers/timetable/") and path.endswith(".ics")):
             teacher_param = query.get("teacher", [None])[0] or query.get("teachers", [None])[0]
+            if not teacher_param and path.endswith(".ics"):
+                raw_filename = path[len("/api/teachers/timetable/"):-4]
+                if raw_filename.startswith("Orario_"):
+                    raw_filename = raw_filename[len("Orario_"):]
+                import urllib.parse
+                raw_unquoted = urllib.parse.unquote(raw_filename)
+                teacher_param = raw_unquoted.replace("_", " ")
+
             if not teacher_param:
                 self._json(400, {"error": "Nome docente mancante"})
                 return
+
+            all_teachers = db.get_teachers()
+            matched_name = None
+            clean_search = teacher_param.strip().lower().replace("_", " ")
+            for t in all_teachers:
+                t_name = (t.get("name") or "").strip()
+                if t_name.lower().replace("_", " ") == clean_search:
+                    matched_name = t_name
+                    break
+            if matched_name:
+                teacher_param = matched_name
+
             from webapp.pdf_engine import generate_teacher_timetable_ical
             try:
                 end_date = db.get_school_year_end_date()
@@ -971,12 +1013,12 @@ class EurarioHandler(BaseHTTPRequestHandler):
                 ical_bytes = ical_str.encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "text/calendar; charset=utf-8")
-                self.send_header("Content-Disposition", f'attachment; filename="Orario_{safe_name}.ics"')
+                self.send_header("Content-Disposition", f'inline; filename="Orario_{safe_name}.ics"')
                 self.send_header("Content-Length", str(len(ical_bytes)))
                 self.send_header("Cache-Control", "no-cache, no-store, must-revalidate, max-age=0")
                 self._send_cors()
                 self.end_headers()
-                self.wfile.write(ical_bytes)
+                self._write_body(ical_bytes)
             except Exception as e:
                 self._json(400, {"error": str(e)})
             return
