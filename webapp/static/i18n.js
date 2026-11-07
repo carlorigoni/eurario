@@ -312,6 +312,7 @@
           title: "👥 Gestione Accessi & Autorizzazioni Google OAuth",
           tab_pending: "Richieste in Attesa",
           tab_approved: "Utenti Autorizzati",
+          tab_school_smtp: "Email & SMTP Scuola",
           tab_logs: "📜 Registro Accessi",
           tab_config: "⚙️ Impostazioni OAuth & Notifiche",
           no_pending: "Nessuna richiesta di accesso in attesa.",
@@ -370,6 +371,7 @@
           year_placeholder: "2026/2027",
           notes_label: "Note / Recapito Referente Commissione Orario",
           notes_placeholder: "Indicare eventuali recapiti o note per la configurazione...",
+          email_label: "Email Ufficiale / Contatto Notifiche (Facoltativo)",
           cancel_btn: "Annulla",
           submit_btn: "🚀 Registra ed Entra",
           alert_name_required: "Inserisci il nome del nuovo Istituto Scolastico.",
@@ -1081,6 +1083,7 @@
           title: "👥 Access Management & Google OAuth Permissions",
           tab_pending: "Pending Requests",
           tab_approved: "Authorized Users",
+          tab_school_smtp: "School Email & SMTP",
           tab_logs: "📜 Access Audit Log",
           tab_config: "⚙️ OAuth & Notification Settings",
           no_pending: "No pending access requests.",
@@ -1139,6 +1142,7 @@
           year_placeholder: "2026/2027",
           notes_label: "Notes / Timetable Committee Contact Info",
           notes_placeholder: "Enter contact details or timetable setup notes...",
+          email_label: "Official Email / Contact Address (Optional)",
           cancel_btn: "Cancel",
           submit_btn: "🚀 Register and Enter",
           alert_name_required: "Please enter the School / Institution name.",
@@ -1629,11 +1633,12 @@
     scope.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.getAttribute('data-i18n');
       if (key) {
-        const translated = t(key);
+        const fallbackText = (el.tagName === 'INPUT' ? el.getAttribute('placeholder') : el.innerText) || '';
+        const translated = t(key, fallbackText);
         if (el.tagName === 'INPUT' && el.getAttribute('placeholder')) {
-          el.setAttribute('placeholder', translated);
+          el.setAttribute('placeholder', translated || fallbackText);
         } else {
-          el.innerText = translated;
+          el.innerText = translated || fallbackText;
         }
       }
     });
@@ -1641,7 +1646,9 @@
     scope.querySelectorAll('[data-i18n-html]').forEach(el => {
       const key = el.getAttribute('data-i18n-html');
       if (key) {
-        el.innerHTML = t(key);
+        const fallbackHtml = el.innerHTML || '';
+        const translated = t(key, fallbackHtml);
+        el.innerHTML = translated || fallbackHtml;
       }
     });
 
