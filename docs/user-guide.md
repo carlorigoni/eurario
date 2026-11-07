@@ -164,6 +164,26 @@ Prima di procedere alla firma e alla pubblicazione dell'orario negli istituti mu
 
 ---
 
+### Fase 13: Notifica Riservata Docenti, Allegati PDF e Sincronizzazione Calendario (Google & iCal)
+Eurario include un sistema avanzato di distribuzione dell'orario individuale via email (*Zero-Confronti Privacy*), progettato per tutelare la riservatezza e prevenire tensioni o comparazioni tra colleghi:
+1. **Invio Email Individuale Mirato**:
+   * Ciascun docente riceve via posta elettronica **esclusivamente il proprio orario settimanale** visualizzato direttamente nel corpo dell'email in formato grafico responsive e leggibile.
+   * È possibile effettuare una selezione multipla mirata dei docenti destinatari oppure l'invio globale all'intero collegio.
+2. **Prova Preventiva all'Amministratore**:
+   * Prima di spedire l'orario ai docenti, l'amministratore può effettuare una simulazione inviando un'email di prova al proprio indirizzo per verificare il layout visivo e la corretta connessione SMTP.
+3. **Allegato PDF Vettoriale A4 Ufficiale**:
+   * Ogni email allega automaticamente il file `Orario_{Cognome_Nome}.pdf` in formato **A4 Orizzontale**, pronto per la stampa o l'archiviazione personale.
+   * Include intestazione dell'istituto, cattedra, classe di concorso, orario delle campanelle con intervalli e spazio firma.
+4. **Allegato iCalendar (`.ics`) con Ricorrenza Settimanale**:
+   * Allega il file `Orario_{Cognome_Nome}.ics` conforme allo standard RFC 5545.
+   * Tutte le lezioni e ore a disposizione si ripetono settimanalmente (`RRULE:FREQ=WEEKLY`) fino alla data di fine lezioni (parametro d'istituto configurabile, di default 8 giugno).
+5. **Sincronizzazione 1-Click con Google Calendar & Apple/Outlook**:
+   * Nel corpo dell'email e nella vista orario è presente il pulsante **`➕ Aggiungi a Google Calendar (1-Click)`** che apre Google Calendar e sincronizza all'istante l'intero orario in un calendario dedicato.
+   * Pulsante dedicato **`🍏 Apple Calendar / Outlook (Webcal)`** per iPhone, iPad, Mac o Outlook via protocollo `webcal://`.
+   * Endpoint pulito e conforme a Google Calendar: `https://app.eurario.it/api/teachers/timetable/Orario_{Docente}.ics` con supporto completo alle richieste HTTP `HEAD` e `GET`.
+
+---
+
 ### Strumenti Trasversali di Produttività & Supporto
 
 #### 1. Filtro Globale Multi-Materia in Testata

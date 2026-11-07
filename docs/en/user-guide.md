@@ -164,6 +164,25 @@ Before finalizing and publishing schedules for multi-campus schools:
 
 ---
 
+### Step 13: Privacy-Preserving Faculty Timetable Email Delivery & Calendar Sync (Google & iCal)
+Eurario includes a dedicated, privacy-first email delivery system (*Zero-Comparison Privacy Mode*), preventing disputes or comparisons between colleagues:
+1. **Targeted Individual Email Delivery**:
+   * Each teacher receives **strictly their own personal schedule** formatted in a clean, responsive HTML email body.
+   * Supports selective batch delivery (single teacher, multi-select, or the entire faculty).
+2. **Administrator Safety Simulation**:
+   * Test SMTP delivery and inspect layout by sending a sample email directly to the administrator address before bulk delivery.
+3. **Official A4 Landscape Vector PDF Attachment**:
+   * Attaches `Orario_{Surname_Name}.pdf` generated via a zero-dependency vector engine.
+   * Includes institution header, CDC codes, bell schedule with breaks, and approval signatures.
+4. **Weekly Recurring iCalendar (`.ics`) Attachment**:
+   * RFC 5545 compliant `.ics` calendar file with weekly recurrence (`RRULE:FREQ=WEEKLY`) valid until the end of the school year (configurable parameter, defaults to June 8th).
+5. **1-Click Google Calendar & Apple/Outlook Sync**:
+   * Prominent **`➕ Add to Google Calendar (1-Click)`** button opens Google Calendar to instantly subscribe to the schedule in a dedicated layer.
+   * Dedicated **`🍏 Apple Calendar / Outlook (Webcal)`** protocol link for iPhone, iPad, Mac, and desktop Outlook.
+   * Clean endpoint without query parameters: `https://app.eurario.it/api/teachers/timetable/Orario_{Teacher}.ics` with full HTTP `HEAD` and `GET` compliance.
+
+---
+
 ### Cross-Functional Productivity & Support Tools
 
 #### 1. Global Multi-Subject Filter in Topbar
