@@ -1,13 +1,13 @@
 ---
 title: Panoramica Generale
-description: Documentazione tecnica e operativa ufficiale di Eurario, suite open source per la gestione e risoluzione dell'orario scolastico con motore euristico FET.
+description: Documentazione tecnica e operativa ufficiale di Eurario, suite open source per la gestione e risoluzione dell'orario scolastico con motore euristico FET secondo standard ASD-STE100.
 ---
 
 # 🎓 Eurario — Documentazione Ufficiale
 
-Benvenuti nella documentazione tecnica e operativa di **Eurario**, la suite moderna, libera e open source progettata specificamente per la modellazione, risoluzione matematica, ottimizzazione e pubblicazione dell'orario scolastico negli istituti secondari di primo e secondo grado italiani.
+Benvenuto nella documentazione di **Eurario**, la suite open source per progettare, calcolare, ottimizzare e pubblicare l'orario scolastico nelle scuole secondarie di primo e secondo grado.
 
-Eurario coniuga un'interfaccia web reattiva e collaborativa (ispirata ai canoni del Material Design 3 e Google Classroom) con la proverbiale affidabilità del rinomato motore solutore euristico nativo **FET** (*Free Timetabling Software*), sviluppato da Liviu Lalescu e Volker Dirr.
+Eurario integra un'interfaccia web responsive conforme a Material Design 3 con il motore solutore euristico nativo **FET** (*Free Timetabling Software*), sviluppato da Liviu Lalescu e Volker Dirr.
 
 ---
 
@@ -16,35 +16,40 @@ Eurario coniuga un'interfaccia web reattiva e collaborativa (ispirata ai canoni 
 <div class="eurario-card-grid">
   <a href="getting-started/" class="eurario-card">
     <h3>🚀 Primo Accesso & Anagrafiche</h3>
-    <p>Autenticazione sicura con Google Workspace, gestione multi-istituto, anagrafiche docenti, classi, articolazioni, materie con sigle per stampe, aule e plessi.</p>
+    <p>Autenticazione con Google Workspace, gestione multi-istituto, anagrafiche docenti, classi, materie, aule e plessi.</p>
   </a>
 
   <a href="user-guide/" class="eurario-card">
     <h3>📖 Guida Utente & Casi d'Uso</h3>
-    <p>Guida operativa cronologica passo-passo e 10 casi d'uso concreti: part-time, COE, compresenze, articolazioni, palestre e relaxation engine.</p>
+    <p>Guida operativa in 14 fasi cronologiche e 10 casi d'uso concreti con schermate di riferimento.</p>
   </a>
 
   <a href="timetable-flow/" class="eurario-card">
     <h3>⚡ Flusso di Generazione & Ottimizzazione</h3>
-    <p>Assegnazione cattedre, scomposizione automatica in blocchi (2+1+1), solutore asincrono con log SSE, diagnostica Relaxation Engine e algoritmo disposizioni.</p>
+    <p>Assegnazione cattedre, scomposizione blocchi didattici, solutore asincrono FET, Relaxation Engine e disposizioni.</p>
   </a>
 
   <a href="cross-reference/" class="eurario-card">
     <h3>🔬 Parametri & Cross-Reference FET</h3>
-    <p>Tavola di corrispondenza esaustiva tra le impostazioni didattiche di Eurario e i tag XML generati per il motore C++ FET (vincoli di tempo, spazio e didattici).</p>
+    <p>Tavola comparativa tra i parametri di Eurario e i tag XML generati per il motore C++ FET.</p>
   </a>
 
   <a href="docker-deploy/" class="eurario-card">
     <h3>🐳 Installazione & Deploy con Docker</h3>
-    <p>Deploy rapido on-premise su server Linux x86/ARM, Docker Compose, Synology NAS, reverse proxy con Nginx/Traefik e Cloudflare Tunnel HTTPS.</p>
+    <p>Installazione su server Linux x86/ARM, configurazione Docker Compose, Nginx, Caddy e Cloudflare Tunnel.</p>
+  </a>
+
+  <a href="architecture/" class="eurario-card">
+    <h3>🏗️ Architettura & DevOps</h3>
+    <p>Pipeline CI/CD con GitHub e Docker Hub, controllo di versione e aggiornamenti del server in produzione.</p>
   </a>
 </div>
 
 ---
 
-## 🏛️ L'Architettura del Sistema
+## 🏛️ Architettura del Sistema
 
-Eurario è strutturato secondo un'architettura modulare a micro-componenti, interamente containerizzata e priva di dipendenze esterne pesanti:
+Eurario adotta un'architettura modulare containerizzata senza librerie esterne pesanti in Python:
 
 ```mermaid
 graph TB
@@ -92,59 +97,55 @@ graph TB
 
 ---
 
-## 🌟 Punti di Forza & Conformità CCNL Scuola
+## 🌟 Caratteristiche Chiave & Normativa CCNL
 
-Eurario è stato ingegnerizzato attorno alle reali complessità organizzative, didattiche e contrattuali della scuola secondaria italiana:
+Eurario è progettato sulle regole contrattuali e didattiche della scuola italiana:
 
-### 1. Rispetto Rigoroso dei Contratti Docenti
-* **Cattedre Standard (18 ore)**, **Part-Time Orizzontale/Verticale** (da 2 a 5 giorni di servizio) e **Spezzoni orari**.
-* **Cattedre Orario Esterne (COE)**: Configurazione flessibile di ore e giorni di servizio dedicati alla scuola esterna di completamento, sottraendoli automaticamente dal vincolo settimanale interno.
-* **Tutela del Giorno Libero Contrattuale**: Blocco assoluto a livello di vincolo rigido FET (*Hard Constraint 100%*).
-* **Controllo Ore Buche**: Limitazione delle finestre libere tra le ore di lezione a un massimo giornaliero (es. 1 ora) e settimanale (es. 2 ore).
-* **Minimo Ore Giornaliere**: Impostazione di una soglia minima (es. 2 ore) per evitare che un docente si rechi a scuola per una sola ora di servizio.
+### 1. Rispetto dei Contratti Docenti
+* **Cattedre Ordinarie (18 ore)**, **Part-time** (da 2 a 5 giorni settimanali) e **Spezzoni orari**.
+* **Cattedre Orario Esterne (COE)**: Gestione di ore e giorni dedicati alla scuola di completamento.
+* **Giorno Libero Contrattuale**: Tutela assoluta con vincolo rigido FET al 100%.
+* **Controllo Ore Buche**: Limite massimo configurabile per giorno (es. max 1) e per settimana (es. max 2).
+* **Minimo Ore Giornaliere**: Soglia minima di presenza (es. min 2 ore) per evitare spostamenti inefficienti.
 
-### 2. Didattica e Articolazioni Complesse
-* **Scomposizione Automatica in Blocchi Didattici**: Conversione intelligente del monte ore disciplinare in sequenze ottimali (`2+1+1` per 4 ore, `2+1` per 3 ore, `2+2+1+1` per 6 ore, `2` per Scienze Motorie o laboratori pratici).
-* **Macro-Materie & Regole di Accorpamento**: Gestione unificata per insegnamenti compositi (es. *Italiano, Storia e Geografia* o *Matematica e Fisica*) con possibilità di indicare discipline distinte per le stampe ufficiali.
-* **Classi Articolate & Sdoppiamenti**: Supporto nativo per gruppi linguistici (*Inglese / Francese / Tedesco / Spagnolo*) o articolazioni di indirizzo nel triennio degli istituti tecnici e professionali.
-* **Fasce Orarie Preferenziali**: Incentivazione della collocazione nelle prime ore del mattino (*PRIME*) per materie impegnative o nelle ultime ore (*ULTIME*) per attività laboratoriali o motorie.
-* **Divieto Assoluto Rientri Pomeridiani**: Flag esplicito per escludere materie teoriche o specifiche dalle ore pomeridiane (7ª e 8ª ora).
+### 2. Didattica e Articolazioni
+* **Scomposizione Automatica in Blocchi Didattici**: Conversione automatica del monte ore in sequenze ottimali (`2+1+1` per 4 ore, `2+1` per 3 ore, `2+2+1+1` per 6 ore).
+* **Macro-Materie & Accorpamenti**: Unione delle cattedre affini dello stesso docente (es. *Matematica e Fisica*).
+* **Classi Articolate & Sdoppiamenti**: Supporto per lingue comunitarie (*Francese / Spagnolo*) e indirizzi tecnici.
+* **Fasce Orarie Preferenziali**: Assegnazione prioritaria nelle prime ore (*PRIME*) o nelle ultime ore (*ULTIME*).
+* **Esclusione Rientri Pomeridiani**: Divieto di collocazione nelle ore pomeridiane (7ª e 8ª ora).
 
 ### 3. Logistica Multi-Plesso & Aule Speciali
-* **Centrale e Succursali**: Gestione del personale docente in servizio su più edifici scolastici, con parametri per il tempo di viaggio stradale (*travel time*) e vincoli sul numero massimo di cambi sede al giorno.
-* **TimeMachine Plessi & Flussi Spazio-Temporali**: Simulatore interattivo ora per ora con player multimediale e scorciatoie da tastiera. Traccia l'occupazione dei plessi, le migrazioni dei docenti itineranti nel corridoio di transito (con rating di comfort: buca, intervallo, ore consecutive), le classi con inizio giornata fuori sede e una mappa metropolitana stile subway per ciascun docente.
-* **Aule Speciali e Palestre**: Gestione delle aule a capienza limitata, palestre con suddivisione a metà campo e laboratori specialistici condivisi tra più classi.
+* **Centrale e Succursali**: Gestione dei tempi di trasferimento e limite sui cambi plesso giornalieri.
+* **TimeMachine Plessi**: Simulatore ora per ora con mappa metropolitana dei docenti e monitoraggio spostamenti.
+* **Palestre e Laboratori**: Capienza controllata e prevenzione di sovrapposizioni.
 
-### 4. Gestione Disposizioni & Supplenze ("D")
-* **Algoritmo di Bilanciamento Dinamico**: Collocazione automatica delle ore a disposizione per coprire i buchi orari dei docenti e massimizzare la presenza di personale per supplenze nelle fasce orarie critiche.
-* **Indicatori di Densità Oraria (`👥 X D`)**: Monitoraggio in tempo reale nelle celle del tabellone per individuare ore scoperte (`0 D`) e bilanciare la presenza di docenti per le supplenze.
-* **Quadro Distribuzione Disposizioni**: Matrice settimanale d'istituto con navigazione immediata all'orario di ciascun docente e reportistica analitica di copertura.
-* **Griglia Interattiva Drag & Drop**: Spostamento manuale delle ore "D" con guida visiva al bilanciamento e verifica immediata dei vincoli.
-* **Personalizzazione Funzioni**: Assegnazione di note specifiche (es. *Biblioteca*, *Supporto Laboratorio*, *Coordinamento*).
+### 4. Disposizioni & Supplenze ("D")
+* **Algoritmo di Bilanciamento**: Assegna le ore a disposizione per chiudere i buchi orari e distribuire la vigilanza.
+* **Indicatori di Densità Oraria (`👥 X D`)**: Mostra in tempo reale il numero di docenti a disposizione presenti in ogni ora.
+* **Griglia Drag & Drop**: Spostamento manuale delle ore con verifica immediata dei vincoli.
 
-### 5. Esportazioni Tipografiche e Condivisione
-* **Tabellone Docenti Ufficiale in Microsoft Word (.docx)**: Layout A3 Orizzontale conforme alla Procedura 12 ministeriale con righe di intestazione ripetute, protezione split riga (`cantSplit`), eliminazione automatica colonne vuote e colorazione differenziata delle ore di disposizione.
-* **Quadri Orario Classi Tipografici**: Generazione PDF e HTML con palette pastello ad alto contrasto o modalità *Toner-Save* monocromatica per fotocopiatori d'istituto.
-* **Protezione Dati Multi-Utente (OCC)**: Meccanismo di *Optimistic Concurrency Control* basato su versioni progressive del database per prevenire sovrascritture accidentali tra i componenti della commissione orario.
+### 5. Esportazioni Tipografiche
+* **Tabellone Docenti Word (.docx A3 Orizzontale)**: Conforme alla Procedura 12 con righe di intestazione ripetute.
+* **Orario Classi PDF**: Impaginazione con colori pastello o modalità monocromatica per fotocopiatrici.
+* **Controllo Concorrenza (OCC)**: Previene la sovrascrittura simultanea dei dati tra più utenti.
 
 ---
 
-## 🖥️ Interfaccia Web a Colpo d'Occhio
-
-A differenza dei software tradizionali basati su complesse finestre di dialogo a più livelli, Eurario offre un ambiente web unificato e reattivo dove ogni docente, classe, cattedra e vincolo è costantemente visibile e modificabile in tempo reale:
+## 🖥️ Interfaccia Web
 
 <div class="doc-figure">
   <img src="assets/eurario-cattedre.png" alt="Eurario — Quadro Cattedre e Assegnazioni Insegnamenti" class="doc-screenshot">
-  <div class="doc-caption">Figura 1.1: Schermata principale di gestione cattedre e scomposizione automatica blocchi in Eurario.</div>
+  <div class="doc-caption">Figura 1.1: Schermata di gestione cattedre, assegnazione ore e scomposizione automatica in blocchi.</div>
 </div>
 
 ---
 
-## 📜 Licenza & Crediti del Progetto
+## 📜 Licenza & Crediti
 
-Eurario è software libero rilasciato sotto i termini della licenza **GNU Affero General Public License v3 (AGPLv3)**.
+Eurario è distribuito sotto licenza **GNU Affero General Public License v3 (AGPLv3)**.
 
-* **Ideazione, Architettura & Sviluppo Full-Stack**: [Carlo Rigoni](https://github.com/carlorigoni)
-* **Mentore dell'Orario & Guida Metodologica**: Federico Rettore
+* **Sviluppo & Architettura**: [Carlo Rigoni](https://github.com/carlorigoni)
+* **Consulenza Metodologica**: Federico Rettore
 * **Motore Euristico FET**: Liviu Lalescu e Volker Dirr ([Sito ufficiale FET](https://lalescu.ro/liviu/fet/))
 * **Repository Ufficiale GitHub**: [github.com/carlorigoni/eurario](https://github.com/carlorigoni/eurario)

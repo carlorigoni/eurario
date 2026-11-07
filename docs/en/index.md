@@ -1,42 +1,47 @@
 ---
 title: General Overview
-description: Official technical and operational documentation of Eurario, an open source suite for school timetabling and optimization powered by the FET heuristic engine.
+description: Official technical and operational documentation for Eurario, an open-source timetabling suite powered by the FET heuristic solver according to ASD-STE100 standards.
 ---
 
 # 🎓 Eurario — Official Documentation
 
-Welcome to the technical and operational documentation of **Eurario**, the modern, open-source school timetabling suite specifically designed for modeling, mathematical solving, optimization, and publishing of high school schedules.
+Welcome to the documentation for **Eurario**, the open-source suite designed to build, solve, optimize, and publish school timetables for secondary schools.
 
-Eurario combines a responsive, collaborative web interface (inspired by Material Design 3 and Google Classroom) with the unmatched performance and dependability of the native **FET** (*Free Timetabling Software*) heuristic engine, created by Liviu Lalescu and Volker Dirr.
+Eurario pairs a responsive Material Design 3 web client with the official native **FET** (*Free Timetabling Software*) heuristic engine developed by Liviu Lalescu and Volker Dirr.
 
 ---
 
-## 🧭 Documentation Roadmap
+## 🧭 Documentation Map
 
 <div class="eurario-card-grid">
-  <a href="../getting-started/" class="eurario-card">
+  <a href="getting-started/" class="eurario-card">
     <h3>🚀 Getting Started & Master Data</h3>
-    <p>Secure authentication via Google Workspace, multi-school management, teacher profiles, classes, split groups, subjects with print abbreviations, rooms, and buildings.</p>
+    <p>Google Workspace authentication, multi-school management, teachers, classes, subjects, rooms, and campuses.</p>
   </a>
 
-  <a href="../user-guide/" class="eurario-card">
-    <h3>📖 User Guide & Real-World Use Cases</h3>
-    <p>Step-by-step chronological user guide and 10 concrete institutional use cases: part-time, shared COE, co-teaching, language splits, and relaxation diagnostics.</p>
+  <a href="user-guide/" class="eurario-card">
+    <h3>📖 User Guide & Use Cases</h3>
+    <p>Step-by-step operational guide in 14 chronological phases and 10 concrete use cases with interface screenshots.</p>
   </a>
 
-  <a href="../timetable-flow/" class="eurario-card">
-    <h3>⚡ Timetable Generation & Optimization</h3>
-    <p>Teaching assignments, automatic sub-activity block splitting (2+1+1), asynchronous solver execution with live SSE streaming, Relaxation Engine diagnostics, and on-duty hour balancing.</p>
+  <a href="timetable-flow/" class="eurario-card">
+    <h3>⚡ Generation & Optimization Flow</h3>
+    <p>Teaching loads, didactic block decomposition, asynchronous FET solver, Relaxation Engine, and standby periods.</p>
   </a>
 
-  <a href="../cross-reference/" class="eurario-card">
+  <a href="cross-reference/" class="eurario-card">
     <h3>🔬 Parameters & FET Cross-Reference</h3>
-    <p>Exhaustive comparative mapping between Eurario's pedagogical interface settings and the generated C++ FET XML constraints (time, space, and institutional rules).</p>
+    <p>Comprehensive mapping table between Eurario settings and compiled native C++ FET XML tags.</p>
   </a>
 
-  <a href="../docker-deploy/" class="eurario-card">
+  <a href="docker-deploy/" class="eurario-card">
     <h3>🐳 Docker Installation & Deployment</h3>
-    <p>Quick on-premise deployment on Linux x86/ARM servers, Docker Compose, Synology NAS, reverse proxying with Nginx/Traefik, and HTTPS via Cloudflare Tunnel.</p>
+    <p>Deployment on Linux x86/ARM servers, Docker Compose recipes, Nginx, Caddy, and Cloudflare Tunnel.</p>
+  </a>
+
+  <a href="architecture/" class="eurario-card">
+    <h3>🏗️ Architecture & DevOps</h3>
+    <p>GitHub and Docker Hub CI/CD pipelines, semantic versioning, and zero-downtime production upgrades.</p>
   </a>
 </div>
 
@@ -44,28 +49,28 @@ Eurario combines a responsive, collaborative web interface (inspired by Material
 
 ## 🏛️ System Architecture
 
-Eurario is architected with a modular, lightweight containerized stack, completely independent of heavy external database services:
+Eurario uses a containerized modular architecture without external Python dependencies:
 
 ```mermaid
 graph TB
-    subgraph Frontend["Client Web (Modern Browser)"]
+    subgraph Frontend["Web Client (Modern Browser)"]
         UI["Reactive SPA Interface\n(HTML5 / CSS3 / Vanilla JS)"]
-        LiveSSE["Solver Log Stream\n(Server-Sent Events)"]
-        DnD["Interactive Schedule Grid\n(Drag & Drop On-Duty and Activities)"]
+        LiveSSE["Solver Log Streaming\n(Server-Sent Events)"]
+        DnD["Interactive Timetable Grid\n(Drag & Drop Standby Hours & Blocks)"]
     end
 
     subgraph Backend["Eurario Core Engine (Python 3.10+)"]
-        Server["Asynchronous Multi-Threaded HTTP Server"]
+        Server["Multi-Thread Async HTTP Server"]
         Auth["RBAC Access Control & Google OAuth 2.0"]
-        DB["Isolated Multi-Tenant JSON DB\n(Optimistic Concurrency Control OCC)"]
+        DB["Isolated Multi-Tenant JSON Database\n(Optimistic Concurrency Control OCC)"]
         FETGen["FET XML Compiler & Generator"]
         Diag["Relaxation Engine & Conflict Resolver"]
-        DispAlgo["Dynamic On-Duty Balancing Algorithm (D)"]
-        PrintEng["Typographic Word (.docx A3) & PDF Engine"]
+        DispAlgo["Standby Hours Balancing Algorithm (D)"]
+        PrintEng["Typography Engine Word (.docx A3) & PDF"]
     end
 
-    subgraph NativeCore["Heuristic Solver Engine"]
-        FETCL["Native C++ Binary Process (fet-cl)"]
+    subgraph NativeCore["Native Heuristic Solver"]
+        FETCL["Native fet-cl Binary Process (C++)"]
     end
 
     subgraph Storage["Persistent Storage (/app/data)"]
@@ -80,71 +85,67 @@ graph TB
     Server --> Auth
     Server --> DB
     Server --> PrintEng
-    DB <-->|"Atomic File I/O & Locks"| Storage
-    Server -->|"Compiles full dataset"| FETGen
-    FETGen -->|"Writes .fet XML file"| Storage
-    Server -->|"Launches async subprocess"| FETCL
+    DB <-->|"Atomic File I/O & Lock"| Storage
+    Server -->|"Compile complete dataset"| FETGen
+    FETGen -->|".fet file on disk"| Storage
+    Server -->|"Spawn async subprocess"| FETCL
     FETCL -->|"Live stdout/stderr stream"| Server
-    FETCL -->|"Saves solved XML timetable"| Storage
+    FETCL -->|"Write solved timetable"| Storage
     Server -->|"On mathematical deadlock"| Diag
-    Server -->|"Fills schedule gaps"| DispAlgo
+    Server -->|"Fill gaps & substitute periods"| DispAlgo
 ```
 
 ---
 
-## 🌟 Key Features & Institutional Compliance
+## 🌟 Key Features & Contractual Compliance
 
-Eurario was engineered around real-world logistical, contractual, and educational constraints of secondary schools:
+Eurario is built to satisfy educational constraints and Italian collective bargaining agreements (CCNL Scuola):
 
-### 1. Strict Contractual Compliance
-* **Standard Workloads (18 hours)**, **Part-Time Schedules** (2 to 5 working days per week), and **Hour Blocks**.
-* **External Shared Schedules (COE)**: Explicit configuration of external days and hours for teachers split across multiple schools, automatically subtracted from internal target hours.
-* **Guaranteed Contractual Day Off**: Enforced as a strict hard constraint (100% weight in FET).
-* **Gap Hours Minimization**: Strict control over free windows between teaching periods (e.g., maximum 1 hour per day, 2 hours per week).
-* **Minimum Daily Hours**: Enforcing minimum teaching thresholds (e.g., at least 2 hours per day) to avoid trips for a single lecture.
+### 1. Teacher Contract Safeguards
+* **Standard Loads (18 hours)**, **Part-time** (2 to 5 working days), and **Fractional loads**.
+* **External Split Appointments (COE)**: Automatically deducts external days and hours from the weekly internal schedule.
+* **Contractual Day Off**: Protected by a 100% hard constraint in the FET solver.
+* **Idle Window Limits**: Strict daily (e.g., max 1) and weekly (e.g., max 2) gap limits.
+* **Minimum Daily Hours**: Enforces a minimum load per active day (e.g., min 2 hours) to avoid inefficient one-hour trips.
 
-### 2. Advanced Curriculum & Articulated Groups
-* **Automatic Sub-Activity Block Splitting**: Converts total weekly hours into sound pedagogical units (`2+1+1` for 4 hours, `2+1` for 3 hours, `2+2+1+1` for 6 hours, `2` for Physical Education or laboratory sessions).
-* **Macro-Subjects & Merged Activities**: Unified management for composite disciplines (e.g., *Literature & History* or *Mathematics & Physics*) with separate subject designations on final printouts.
-* **Articulated & Split Classes**: Full support for bilingual or specialized tracks (*French / Spanish / German* or technical specializations like *Mechanics / Robotics*) running simultaneously in separate rooms.
-* **Preferred Time Slots**: Direct incentives for early morning periods (*PRIME*) for cognitively demanding subjects or late/afternoon slots (*ULTIME*) for labs and sports.
-* **Afternoon Period Exclusions**: Direct flags to prevent theoretical classes from being scheduled during 7th and 8th hour afternoon periods.
+### 2. Curriculum & Split Cohorts
+* **Automatic Didactic Block Split**: Decomposes total subject hours into optimal blocks (`2+1+1` for 4 hours, `2+1` for 3 hours, `2+2+1+1` for 6 hours).
+* **Macro-Subjects & Subject Merges**: Combines related subjects taught by the same teacher (e.g., *Math & Physics*).
+* **Split Groups & Tracks**: Native support for language tracks (*French / Spanish*) and vocational specialties.
+* **Preferred Time Slots**: Prioritizes early morning periods (*EARLY*) or afternoon periods (*LATE*).
+* **Afternoon Block Exclusion**: Prohibits scheduling specified academic subjects during afternoon periods.
 
-### 3. Multi-Building Logistics & Shared Facilities
-* **Main Building & Annexes (Plessi)**: Native support for teachers commuting between buildings, incorporating travel times and capping daily building changes.
-* **Campus TimeMachine & Spatiotemporal Simulation**: Interactive period-by-period timeline simulator with media playback and keyboard shortcuts. Tracks campus occupancy, traveling teachers in the transit corridor (with comfort ratings: gap, break, consecutive), off-site start alerts, and subway-style metro line maps.
-* **Specialized Rooms & Gyms**: Manages capacity-restricted spaces, half-court gyms, and computer/science labs shared across multiple classes.
+### 3. Multi-Campus Logistics & Shared Facilities
+* **Main & Branch Campuses**: Manages road travel times and limits daily campus changes for traveling teachers.
+* **Campus TimeMachine**: Hour-by-hour visual simulator with subway-style teacher commute routes.
+* **Gymnasiums & Labs**: Tracks facility capacities to prevent room clashing.
 
-### 4. Dynamic On-Duty & Substitute Balancing ("D")
-* **Smart Greedy Placement Algorithm**: Automatically fills teacher schedule gaps with on-duty reserve hours ("D") to maximize cover during peak absence periods.
-* **Period Density Badges (`👥 X D`)**: Live indicators on empty grid cells highlighting unstaffed periods (`0 D`) and guiding optimal coverage.
-* **On-Duty Distribution Matrix**: Comprehensive weekly board with instant teacher schedule jump links and staffing analytics.
-* **Interactive Drag & Drop**: Freely reposition on-duty hours directly inside the master grid with visual balance guidance and real-time conflict checking.
-* **Custom Duty Labels**: Assign dedicated roles such as *Library Duty*, *Lab Support*, or *Administration*.
+### 4. Standby Periods & Substitution Coverage ("D")
+* **Balancing Algorithm**: Assigns standby periods to close idle gaps and balance cover hours across every period.
+* **Hourly Density Badges (`👥 X D`)**: Displays real-time counts of available standby teachers per period.
+* **Drag & Drop Grid**: Allows manual fine-tuning with instant constraint checks.
 
-### 5. Typographic Exports & Collaboration
-* **Official Word (.docx) Master Teacher Board**: A3 Landscape layout fully compliant with institutional regulations, featuring repeated table header rows (`tblHeader`), anti-row-split styling (`cantSplit`), dynamic column width adjustments, and highlighted on-duty hours.
-* **Typographic Class Timetables**: Rendered in high-contrast pastel palettes or monochrome *Toner-Save* format for high-volume school printing.
-* **Optimistic Concurrency Control (OCC)**: Built-in `data_version` tracking prevents accidental overwrites when multiple timetable committee members work simultaneously.
+### 5. Document Exports
+* **Master Teacher Timetable Word (.docx A3 Landscape)**: Complies with official ministerial layouts with repeating header rows.
+* **Student Class Schedules PDF**: High-contrast pastel palettes or monochrome toner-save output.
+* **Optimistic Concurrency Control (OCC)**: Prevents accidental data overwrites when multiple committee members work concurrently.
 
 ---
 
-## 🖥️ User Interface Overview
-
-Unlike legacy timetabling applications burdened with nested dialogs, Eurario presents a unified, live web dashboard:
+## 🖥️ User Interface
 
 <div class="doc-figure">
-  <img src="../assets/eurario-cattedre.png" alt="Eurario — Teaching Assignments and Automatic Block Splitting" class="doc-screenshot">
-  <div class="doc-caption">Figure 1.1: Main teaching assignments dashboard and automatic block splitting in Eurario.</div>
+  <img src="../assets/eurario-cattedre.png" alt="Eurario — Teaching Loads and Assignments" class="doc-screenshot">
+  <div class="doc-caption">Figure 1.1: Teaching loads management interface with automated didactic block breakdown.</div>
 </div>
 
 ---
 
 ## 📜 License & Project Credits
 
-Eurario is free and open-source software distributed under the terms of the **GNU Affero General Public License v3 (AGPLv3)**.
+Eurario is open-source software released under the **GNU Affero General Public License v3 (AGPLv3)**.
 
-* **Architecture, Full-Stack Design & Engineering**: [Carlo Rigoni](https://github.com/carlorigoni)
-* **Timetabling Methodology & Mentorship**: Federico Rettore
-* **FET Heuristic Timetabling Engine**: Liviu Lalescu and Volker Dirr ([Official FET Website](https://lalescu.ro/liviu/fet/))
+* **Development & Architecture**: [Carlo Rigoni](https://github.com/carlorigoni)
+* **Methodological Guidance**: Federico Rettore
+* **FET Solver Engine**: Liviu Lalescu and Volker Dirr ([FET Official Website](https://lalescu.ro/liviu/fet/))
 * **Official GitHub Repository**: [github.com/carlorigoni/eurario](https://github.com/carlorigoni/eurario)

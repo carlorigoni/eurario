@@ -1,146 +1,206 @@
 ---
 title: Getting Started & Master Data
-description: Comprehensive guide to initial setup, Google OAuth authentication, multi-school management, and complete master data configuration in Eurario.
+description: Step-by-step setup guide for authentication, multi-school management, buildings, rooms, classes, and teachers in Eurario following ASD-STE100 standards.
 ---
 
-# 🚀 Getting Started & Master Data Configuration
+# 🚀 Getting Started & Initial Setup
 
-This guide walks the school timetabling committee through the essential first steps in Eurario, from authentication and multi-school isolation to detailed master data management.
+This operational guide describes the initial configuration of Eurario. Follow the numbered procedures to configure authentication, physical facilities, student cohorts, subjects, and teachers.
 
 ---
 
-## 1. Authentication & Role-Based Access Control (RBAC)
+## 1. Authentication & Access Control (RBAC)
 
-Eurario incorporates an institutional access control system designed to safeguard sensitive educational data in compliance with GDPR standards:
+### Purpose
+Protect school institutional data and assign correct operational permissions to authorized personnel.
 
 ```mermaid
 flowchart TD
-    User["Teacher / Committee Member"] -->|"Google Login"| OAuth["Google Workspace OAuth 2.0\n(@school.edu)"]
-    OAuth --> Check["User Verification in Database"]
-    Check -->|"First Access"| Pending["Status: PENDING\nAdministrator Notification"]
+    User["Teacher or Committee Member"] -->|"Google Login"| OAuth["Google Workspace OAuth 2.0\n(@school.edu)"]
+    OAuth --> Check["Verify User in Database"]
+    Check -->|"First Login"| Pending["Status: PENDING\nNotification for Administrator"]
     Pending -->|"Admin Approval"| Approved["Status: ACTIVE\nRole: Admin / Editor / Viewer"]
     Check -->|"Already Approved"| Session["Create Secure HTTP-Only Cookie Session"]
     Session --> App["Access Eurario Dashboard"]
 ```
 
-* **Google Workspace Single Sign-On**: Users authenticate using their official institutional accounts (e.g. `name.surname@school.edu`). No local passwords need to be set or maintained.
-* **Protected Registration Workflow**: When logging in with Google for the first time, accounts are placed in `pending` status. The system administrator receives an alert in the administration console and can approve access with the appropriate permissions (`admin`, `editor`, `viewer`).
-* **Standalone / Demo Mode**: If `GOOGLE_CLIENT_ID` is omitted in the Docker environment, Eurario automatically activates standalone mode, granting immediate access to the default school without requiring cloud tokens.
-
----
-
-## 2. Multi-School Architecture (Multi-Tenant)
-
-Eurario natively supports **multiple independent schools** inside a single running instance:
-
-* **Strict Data Isolation**: Each school's data is housed in its own isolated directory under `data/<school_id>/`, containing `project.json`, historical snapshots (`snapshots/`), and the latest solved timetable (`solved_timetable.xml`).
-* **Instant Switching**: Through the **Schools** dropdown in the top navigation bar, authorized administrators can switch between institutes or spin up a new blank school dataset.
-* **Optimistic Concurrency Control (OCC)**: Every database mutation increments a `data_version` counter. If two committee members simultaneously modify data for the same institution, Eurario intercepts the conflict, prevents data overwrite, and presents a visual comparison modal showing the concurrent changes.
-
----
-
-## 3. Buildings & Rooms Management
-
-Before defining classes and teachers, physical school spaces must be configured:
-
-### A. School Buildings (Plessi)
-For institutions operating across multiple sites (e.g., *Main Campus* and *Branch Campus*):
-* **Building Name**: Official name of the campus.
-* **Short Code**: Brief identifier (e.g., `C` for Central, `B` for Branch), rendered on timetable cards and teacher boards.
-* **Travel Time**: Estimated travel duration in minutes between buildings. FET uses this parameter to prevent scheduling back-to-back lessons across different campuses without sufficient commuting time.
-
-### B. Rooms & Laboratories (Rooms)
-* **Room Name**: e.g. `Room 101`, `Computer Lab 1`, `Main Gymnasium`.
-* **Associated Building**: Physical campus location.
-* **Student Capacity**: Maximum seating capacity. Eurario checks student headcount against room capacity.
-* **Room Type**: Standard, Gymnasium, Computer Lab, Science Lab, Art Studio.
-* **"Lab or Gym" Flag (`is_lab_or_gym`)**: Flags the room as a limited-availability, shared facility for the timetable solver and print templates.
-
----
-
-## 4. Classes & Articulated Groups
-
-Classes represent the student groups for which FET will generate a continuous, gap-free weekly schedule.
-
-### A. Standard Class Parameters
-* **Class Name**: Standard denomination (e.g., `1A`, `2B`, `3CSA`, `5BL`).
-* **Student Headcount**: Number of enrolled students (used for room capacity validation).
-* **Home Room (`base_room`)**: Default regular classroom permanently assigned to the class (`ConstraintStudentsSetHomeRoom`).
-* **Default Building**: The home campus of the class.
-* **Weekly Schedule Presets**: Quickly apply standard high school schedules (5-day or 6-day week schedules, automatically barring afternoon periods or configuring required afternoon return sessions).
-
-### B. Articulated Classes & Subgroups
-For courses where a class splits into multiple tracks (such as second foreign languages or technical specializations):
-* **Subgroups / Articulations**: Eurario creates linked child entities (e.g., `3A_FRA` and `3A_SPA` for French and Spanish, or `4A_MECH` and `4A_AUTO` for technical tracks).
-* **Simultaneous Scheduling**: During articulated hours, both subgroups attend class during the very same period in separate rooms without generating schedule conflicts for the parent class.
-
----
-
-## 5. Subjects & Print Abbreviations
-
-Subject management in Eurario balances pedagogical requirements with typographic print considerations:
+### First Login Procedure
+1. Open the Eurario web address in your browser.
+2. Click the **Sign in with Google** button.
+3. Select your institutional account with the official school domain (e.g., `@school.edu`).
+4. Wait for system administrator approval.
+5. After approval, refresh the page to enter the dashboard.
 
 <div class="doc-figure">
-  <img src="../assets/eurario-modale-materia.png" alt="Eurario — Subject Parameters and Print Code Modal" class="doc-screenshot">
-  <div class="doc-caption">Figure 2.1: Subject configuration modal, ministerial competition class (CDC), print abbreviation, and preferred time slots.</div>
+  <img src="../assets/eurario-modale-gestione-accessi.png" alt="Eurario — Access Management and User Roles" class="doc-screenshot">
+  <div class="doc-caption">Figure 1.1: Access management modal, user approval queue, and RBAC role assignment.</div>
 </div>
 
-### Detailed Subject Parameters:
-* **Full Name**: Complete academic title (e.g., *Natural Sciences, Chemistry and Biology*).
-* **Print Short Name (`short_name`)**: Optional compact label for official printouts. When provided (e.g., `MATH`, `PHYS`, `SCI`, `ENG`), it is rendered in Word (.docx) and PDF timetable cells, avoiding awkward line breaks. If omitted, Eurario automatically generates a smart abbreviation.
-* **Competition Code (CDC)**: Reference ministerial code (e.g., `A012`, `A027`, `A048`).
+### Available User Roles
+* **Admin**: Manages all schools, approves users, and configures global parameters.
+* **Editor**: Modifies master data, teaching loads, constraints, and runs the timetable solver.
+* **Viewer**: Views timetables and downloads official printouts without write permissions.
+
+> [!NOTE]
+> When `GOOGLE_CLIENT_ID` is omitted from server settings, Eurario starts in standalone local mode with immediate open access.
+
+---
+
+## 2. Multi-School Management (Multi-Tenant)
+
+### Purpose
+Manage multiple independent schools or distinct academic years inside a single server deployment.
+
+### Key Multi-Tenant Features
+* **Data Isolation**: Files for each school reside in an isolated folder under `data/<school_id>/`.
+* **Fast Switching**: Select the school name from the top dropdown selector.
+* **Optimistic Concurrency Control (OCC)**: Every save operation increments the `data_version` counter. When two users edit simultaneously, the system prevents data loss and displays differences.
+
+### Procedure to Create a New School
+1. Click the school selector in the top navigation bar.
+2. Select **New School...**.
+3. Enter the official name of the institution (e.g., *Galileo Galilei High School*).
+4. Choose between an empty dataset or the pre-filled demo dataset *School of Athens*.
+5. Click **Create School**.
+
+---
+
+## 3. School Buildings & Rooms Management
+
+### Purpose
+Define physical campuses and classrooms before assigning lesson activities to student classes.
+
+<div class="doc-figure">
+  <img src="../assets/eurario-spazi.png" alt="Eurario — Campus Buildings and Rooms" class="doc-screenshot">
+  <div class="doc-caption">Figure 1.2: Campus buildings, standard classrooms, computer labs, and capacity management.</div>
+</div>
+
+### Procedure to Add a Campus Building
+1. Open the **Spaces & Rooms** tab from the main navigation.
+2. Locate the **School Buildings** section.
+3. Click **+ New Building**.
+4. Enter the **Building Name** (e.g., *Main Campus*).
+5. Enter the **Short Code** (e.g., `M`).
+6. Enter the **Travel Time** in minutes to other buildings.
+7. Click **Save Building**.
+
+### Procedure to Add a Room or Laboratory
+1. In the **Spaces & Rooms** tab, locate the **Rooms & Labs** section.
+2. Click **+ New Room**.
+3. Enter the **Room Name** (e.g., *Computer Lab 1* or *Main Gymnasium*).
+4. Select the **Associated Building**.
+5. Enter the maximum **Student Capacity**.
+6. Select the **Room Type** (*Standard*, *Lab*, *Gymnasium*).
+7. If multiple classes share this facility, enable the **Lab or Gym** checkbox.
+8. Click **Save Room**.
+
+> [!WARNING]
+> Travel time between buildings must reflect real commuting duration. The FET solver uses this value to prevent back-to-back lessons in different buildings without travel time.
+
+---
+
+## 4. Student Classes & Track Split Groups
+
+### Purpose
+Define student classes, assign home rooms, and configure split track groupings.
+
+<div class="doc-figure">
+  <img src="../assets/eurario-classi.png" alt="Eurario — Student Classes Management" class="doc-screenshot">
+  <div class="doc-caption">Figure 1.3: Class roster, assigned base room, and weekly hour preset.</div>
+</div>
+
+### Procedure to Add a Standard Class
+1. Open the **Classes** tab from the main navigation.
+2. Click **+ New Class**.
+3. Enter the **Class Name** (e.g., `1A`, `3CSA`).
+4. Enter the **Student Headcount**.
+5. Select the **Home Room** assigned to the class.
+6. Select the **Default Building**.
+7. Choose the weekly hour preset (*High School 27h*, *High School 30h*, *Technical 32h*).
+8. Click **Save Class**.
+
+### Managing Split Groups (Articolazioni)
+When a class divides for specific subjects (e.g., *French / Spanish* language tracks):
+1. Click the **Split Groups** button next to the class.
+2. Define subgroup names (e.g., `3A_FRA` and `3A_SPA`).
+3. Assign the dedicated room or laboratory for each subgroup.
+4. Save the configuration. Split lessons take place at the same hour in separate rooms.
+
+---
+
+## 5. Subjects & Print Short Codes
+
+### Purpose
+Configure curriculum subjects, ministerial codes, time slot preferences, and short names for printed documents.
+
+<div class="doc-figure">
+  <img src="../assets/eurario-modale-materia.png" alt="Eurario — Subject Settings Modal and Print Short Codes" class="doc-screenshot">
+  <div class="doc-caption">Figure 1.4: Subject settings modal with competition code, time slot preference, and print abbreviations.</div>
+</div>
+
+### Subject Parameters
+* **Full Name**: Full curriculum title (e.g., *Natural Sciences, Chemistry and Geography*).
+* **Short Name (`short_name`)**: Abbreviation for Word and PDF timetables (e.g., `SCI`, `MATH`, `ENG`). Prevents text wrapping in timetable cells.
+* **Competition Code (CDC)**: Official ministerial subject code (e.g., `A027`, `A012`).
 * **Preferred Time Slot (`pref_hours`)**:
-  * `PRIME`: Prioritizes scheduling during periods 1 to 3 (ideal for written tests, math, and high-focus subjects).
-  * `ULTIME`: Favors late morning or afternoon periods (ideal for Physical Education, art, and practical labs).
-  * `INDIFFERENTE`: No specific time preference.
-* **Afternoon Exclusion (`no_rientri`)**: Hard constraint prohibiting the subject from 7th or 8th period afternoon slots.
+  * `EARLY`: Priority for morning periods 1 to 3 (written tests, analytical subjects).
+  * `LATE`: Priority for later periods or afternoon sessions (physical education, labs).
+  * `ANY`: No slot preference.
+* **Exclude Afternoon Blocks (`no_rientri`)**: Prevents scheduling the subject during afternoon periods.
 
 ---
 
-## 6. Teacher Profiles & Contractual Rules
+## 6. Teachers & Contractual Constraints
 
-Every teacher profile in Eurario is linked to strict contractual rules:
-
-* **Full Name & Short Label (`short_name`)**: Eurario automatically generates the official typographic initials for compact boards (e.g., `ROSSI M.`, `BIANCHI L.`).
-* **Contract Workload (`target_hours`)**:
-  * Standard full-time schedule: **18 hours/week** (in secondary education).
-  * Part-time contracts: 8, 9, 10, 12, 14, or 15 hours/week.
-* **Contract Type (`contract_type`)**: `intera` (full), `part-time`, `spezzone` (hour block).
-* **Active Working Days (`min_days` & `max_days`)**:
-  * Full-time: typically 5 days per week (with 1 day off out of 6).
-  * Part-time: computed automatically based on workload (e.g. 9 hours over 2-3 days; 12 hours over 3-4 days).
-* **External Shared Schedule (COE - Cattedra Orario Esterna)**:
-  * Active `is_coe` flag.
-  * External school completion hours (`coe_hours`) and designated external working days (`coe_days`).
-  * Eurario deducts external hours from the internal target and strictly blocks external days in the solver XML.
-* **Allowed Buildings (`allowed_buildings`)**: Restricts the teacher to specific campus locations.
-* **Interactive Unavailability Matrix**:
-  * Weekly grid (days x hours) to toggle contractual days off or specific periods unavailable for administrative tasks.
-  * FET converts these selections into 100% hard constraints (`<ConstraintTeacherNotAvailableTimes>`).
+### Purpose
+Register teachers with contracted teaching hours, contractual day off, and unavailability intervals.
 
 <div class="doc-figure">
-  <img src="../assets/eurario-docenti.png" alt="Eurario — Teacher Profile & Availability Matrix (School of Athens)" class="doc-screenshot">
-  <div class="doc-caption">Figure 2.2: Teacher profile, weekly workload, days off, and timetable preferences.</div>
+  <img src="../assets/eurario-docenti.png" alt="Eurario — Teacher Master Data" class="doc-screenshot">
+  <div class="doc-caption">Figure 1.5: Teacher roster, contract target hours, working days, and availability status.</div>
+</div>
+
+### Procedure to Configure a Teacher
+1. Open the **Teachers** tab from the main navigation.
+2. Click **+ New Teacher** or click an existing teacher entry.
+3. Enter the **Full Name** (e.g., *Socrates*) and **Short Code** (e.g., *SOCRATES*).
+4. Set the **Target Hours** (`target_hours`, e.g., `18` for a standard full-time load).
+5. Select the **Contract Type** (*Full-time*, *Part-time*, *Fractional*).
+6. Set **Minimum and Maximum Working Days** (`min_days` and `max_days`).
+7. For external split appointments, check **External Split Contract (COE)** and enter external hours.
+8. Click cells on the weekly grid to mark the **Day Off** or unavailable hours (red cells).
+9. Click **Save Teacher**.
+
+<div class="doc-figure">
+  <img src="../assets/eurario-modale-docente.png" alt="Eurario — Teacher Edit Modal" class="doc-screenshot">
+  <div class="doc-caption">Figure 1.6: Detailed modal for contractual limits, presence days, and allowed campuses.</div>
 </div>
 
 ---
 
-## 7. Automated Organico Ingestion from Excel or Word
+## 7. Automated Teaching Load Import from Excel or Word
 
-Instead of entering hundreds of teacher assignments manually, Eurario includes a powerful data ingestion engine:
+### Purpose
+Load the complete teacher roster and teaching assignments from existing files without manual typing.
 
 ```mermaid
 flowchart LR
-    File["Staffing File\n(.xlsx / .docx)"] --> Parser["Eurario Semantic Parser\n(Header & Table Scanner)"]
-    Parser --> Matcher["Alignment Engine\n(Diff against current database)"]
-    Matcher --> DiffModal["Visual Diff Modal\n+ Added Teachers\n~ Modified Allocations\n- Removed Rows"]
-    DiffModal -->|"User Confirmation"| AutoSnapshot["Automatic Pre-Import Snapshot"]
-    AutoSnapshot --> Apply["Atomic Database Update"]
+    File["Staff File\n(.xlsx / .docx)"] --> Parser["Semantic Parser\n(Table and Column Reading)"]
+    Parser --> Matcher["Comparison Engine\n(Match against Current Database)"]
+    Matcher --> DiffModal["Diff Viewer\n+ Added / ~ Modified / - Removed"]
+    DiffModal -->|"User Confirmation"| AutoSnapshot["Automatic Safety Snapshot"]
+    AutoSnapshot --> Apply["Apply to Database"]
 ```
 
-1. **Excel (`.xlsx`) and CSV Import**: Ingestion of structured spreadsheets with standard columns (*Teacher, Competition Code, Class/Group, Subject, Weekly Hours*).
-2. **Official Word (`.docx`) Model**: Download a preformatted Word template, complete it with the administration, and upload it directly.
-3. **Pre-Import Integrity Check (`analyze_cattedre_alignment`)**:
-   * Highlights added teachers in green, modified hours in yellow, and deleted assignments in red.
-   * Validates total class hours against curriculum standards (e.g., 27h/week for early scientific high school, 30h/week for senior years).
-4. **Automatic Safety Snapshot**: Automatically creates a rollback point (*"Pre-Import Organico"*) before applying batch updates.
+### Import Procedure
+1. Open the **Teaching Loads (Cattedre)** tab from the main navigation.
+2. Click **Import Staff File**.
+3. Select your source file type:
+   * **Excel Spreadsheet (`.xlsx`)**: with columns *Teacher*, *Code*, *Class*, *Subject*, *Hours*.
+   * **Official Word Template (`.docx`)**: download directly via the *Download Word Template* button.
+4. Select the file from your computer and upload it.
+5. Review the **Diff Viewer** summary:
+   * Green rows show new teaching loads.
+   * Yellow rows show hour modifications.
+   * Red rows show removed assignments.
+6. Click **Apply Changes**. The system takes an automatic snapshot before updating the database.

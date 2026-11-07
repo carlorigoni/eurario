@@ -1,6 +1,6 @@
 ---
 title: Official GitHub README
-description: Official README document from the open source carlorigoni/eurario GitHub repository.
+description: Official README document for the carlorigoni/eurario open-source repository on GitHub according to ASD-STE100 standards.
 ---
 
 # 🎓 Eurario — Official GitHub Repository
@@ -11,96 +11,76 @@ description: Official README document from the open source carlorigoni/eurario G
 
 > 🔗 **GitHub Repository:** [github.com/carlorigoni/eurario](https://github.com/carlorigoni/eurario)
 
-Modern, high-performance web application designed for modeling, solving, optimizing, and publishing high school timetables, powered by the native **FET (Free Timetabling Software)** heuristic engine.
+Eurario is an open-source timetabling suite for secondary schools, integrated with the high-performance native C++ **FET (Free Timetabling Software)** solver.
 
-Zero external Python dependencies, responsive Material 3 / Google Classroom inspired interface, and ready-to-run multi-arch container image on Docker Hub.
+Zero external Python dependencies, a responsive Material 3 interface, and ready-to-run multi-arch container images on Docker Hub.
 
 ---
 
-## 🌟 Key Capabilities
+## 🌟 Key Features
 
-- **Integrated Native FET Solver Engine**:
-  - Real-time timetable generation with live SSE stdout streaming and bottleneck activity diagnostics.
-  - One-click rollback and highest-stage snapshot recovery.
-- **Activity Pinning & Locking**:
-  - Lock entire classes or individual lessons onto the timetable grid with permanent 100% hard constraints (`ConstraintActivityPreferredStartingTime` and `ConstraintActivityPreferredRoom`).
-- **Comprehensive Institutional Management**:
-  - **Teachers**: workload hours, contracts (full, shared COE, part-time), gap minimization, days off, and availability.
-  - **Classes & Groups**: articulated language divisions (e.g. French, Spanish, German) and specialized study tracks.
-  - **Rooms & Specialized Spaces**: home rooms, shared gymnasiums with concurrent capacity caps, computer/science labs.
-  - **Macro-Subjects & Merging**: pedagogical combination of composite courses.
-  - **Intelligent On-Duty Placement**: automatic gap plugging and substitution balancing.
-- **Staffing Synchronization & Word Template (.docx)**:
-  - Official Word template download and diff-based spreadsheet/document ingestion.
-- **Demo Dataset & Blank Slate**:
-  - Pre-populated fully functional school (*"School of Athens" Classical & Scientific High School*) with a 100% pre-solved timetable to explore all features immediately.
-  - One-click reset to start fresh with a blank institution.
+- **Integrated FET Heuristic Solver**:
+  - Real-time solving with live SSE log streaming and bottleneck activity tracking.
+  - Automatic saving and one-click recovery of the highest partial solve stage on timeout.
+- **Activity Locking System**:
+  - Lock entire classes or single lesson hours onto the timetable grid with permanent 100% hard constraints (`ConstraintActivityPreferredStartingTime` and `ConstraintActivityPreferredRoom`).
+- **Complete Institutional Management**:
+  - **Teachers**: target hours, contracts (full-time, split COE, fractional, part-time), gaps, max daily hours, preferences, and contractual day off.
+  - **Classes & Groups**: split groups for foreign languages (e.g., French, Spanish) and technical specialties.
+  - **Classrooms & Shared Facilities**: home rooms, shared gyms with capacity checks, and specialized laboratories.
+  - **Macro-Subjects & Merges**: combine related teaching loads for balanced pedagogical distribution.
+  - **Automated Standby Periods**: dedicated algorithm to fill idle gaps and balance substitute coverage.
+- **Word (.docx) & Excel Roster Synchronization**:
+  - Direct download of official Word template or export of current staff assignments.
+  - Automated sync with Diff Viewer preview before applying updates.
+- **Pre-filled Demo Dataset ("School of Athens")**:
+  - Comes with a complete, fully solved school dataset to test all features immediately.
+  - Clean slate reset feature to create a new empty institution.
 - **Lightweight Architecture**:
-  - **Zero external Python libraries** (exclusively uses Python 3 standard library).
+  - Runs on Python 3.10+ using only standard library modules.
 
 ---
 
 ## 🐳 Official Docker Hub Image
 
-Published as a pre-compiled container image with Ubuntu Linux, Python 3, and the native C++ FET binary on **Docker Hub**:
+Eurario is published as an official pre-built container image:
 
 👉 **Docker Hub Repository:** [`carlorigoni/eurario`](https://hub.docker.com/r/carlorigoni/eurario)
 
-No need to install C++ compilers, Qt, or graphical libraries: everything is packaged and ready to deploy.
+No need to install C++ compilers or desktop GUI libraries on the host.
 
 ---
 
-## 🚀 Quickstart with Docker Compose
+## 🚀 Quick Start with Docker Compose
 
-```yaml
-version: '3.8'
+1. Create a `docker-compose.yml` file:
+   ```yaml
+   version: '3.8'
 
-services:
-  eurario:
-    container_name: eurario
-    image: carlorigoni/eurario:latest
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./data:/app/data
-    environment:
-      - PORT=8000
-      - PYTHONUNBUFFERED=1
-```
+   services:
+     eurario:
+       container_name: eurario
+       image: carlorigoni/eurario:latest
+       restart: unless-stopped
+       ports:
+         - "8000:8000"
+       volumes:
+         - ./data:/app/data
+       environment:
+         - PORT=8000
+         - PYTHONUNBUFFERED=1
+   ```
 
-Start the container:
-```bash
-docker compose up -d
-```
+2. Start the container:
+   ```bash
+   docker compose up -d
+   ```
 
-Access the application at:
-👉 **`http://localhost:8000`**
-
----
-
-## 🛠️ Local Development (Without Docker)
-
-```bash
-git clone https://github.com/carlorigoni/eurario.git
-cd eurario
-
-# Run directly with native Python
-python3 -m webapp.server
-```
-
-Open `http://localhost:8000` in your web browser.
+3. Open your browser:
+   👉 **`http://localhost:8000`**
 
 ---
 
-## 👥 Credits & Acknowledgments
+## 📄 License
 
-- **Architecture, Full-Stack Design & Development:** [Carlo Rigoni](https://github.com/carlorigoni)
-- **Timetabling Methodology & Mentorship:** Federico Rettore
-- **FET Timetabling Engine:** Liviu Lalescu and Volker Dirr ([Official FET Website](https://lalescu.ro/liviu/fet/))
-
----
-
-## 📜 License
-
-Eurario is free and open-source software licensed under the **GNU Affero General Public License v3.0 (AGPLv3)**.
+Released under the [GNU Affero General Public License v3 (AGPLv3)](https://www.gnu.org/licenses/agpl-3.0).

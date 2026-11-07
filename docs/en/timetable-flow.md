@@ -1,204 +1,227 @@
 ---
-title: Timetable Flow & Optimization
-description: From sub-activity block splitting to the asynchronous FET solver, Relaxation Engine diagnostics, dynamic on-duty balancing, and typographic exports.
+title: Timetable Generation & Optimization Flow
+description: Step-by-step procedure from teaching block breakdown to the asynchronous FET solver, diagnostic relaxation engine, substitute placement, and official printouts according to ASD-STE100 standards.
 ---
 
-# ⚡ Timetable Generation, Solving & Optimization
+# ⚡ Timetable Generation & Optimization Flow
 
-Constructing an optimal school timetable requires mathematically balancing strict contractual constraints (availability, rest intervals, travel between buildings) against pedagogical goals (balanced weekly distribution, consecutive lab sessions, early hours for tests).
-
-In Eurario, this process is structured across **6 consecutive, reversible, and fully auditable phases**.
+This operational guide describes the steps required to assemble, solve, and refine school timetables using the FET engine.
 
 ```mermaid
 flowchart TD
-    A["1. Teaching Allocations & Co-Teaching"] --> B["2. Automatic Pedagogical Block Splitting\n(e.g., 4h -> 2+1+1)"]
-    B --> C["3. Macro-Subjects & Merging Rules\n(e.g., Math + Physics)"]
-    C --> D["4. XML Compilation & Asynchronous FET Solving\n(Real-time SSE log streaming)"]
-    D -->|"If timetable is over-constrained"| E["5A. Diagnostic Relaxation Engine\n(Pinpoints exact root-cause conflicts)"]
-    D -->|"Mathematical solution found"| F["5B. Dynamic On-Duty Balancing Algorithm (D)\n(Automatic gap filling and coverage)"]
+    A["1. Define Teaching Loads & Co-Teaching"] --> B["2. Automatic Teaching Block Split\n(e.g., 4h -> 2+1+1)"]
+    B --> C["3. Macro-Subjects & Subject Merges\n(e.g., Math + Physics)"]
+    C --> D["4. XML Compilation & FET Solving\n(Real-time SSE log streaming)"]
+    D -->|"If timetable overconstrained"| E["5A. Diagnostic Relaxation Engine\n(Pinpoint root cause conflicts)"]
+    D -->|"Mathematical solution found"| F["5B. Substitute Period Placement (D)\n(Automatic gap filling and balancing)"]
     F --> G["6. Interactive Drag & Drop Refinement"]
-    G --> H["7. Typographic Word (.docx A3) & PDF Export"]
+    G --> H["7. Official Word (.docx A3) & PDF Export"]
 ```
 
 ---
 
-## 1. Teaching Allocations & Pedagogical Block Splitting
+## 1. Teaching Loads & Didactic Block Split
 
-In Eurario, a **Teaching Allocation (Cattedra)** represents the assignment between one or more teachers (including co-teaching), a class or articulated group, and a subject for a set number of weekly hours.
+### Purpose
+Define weekly subject assignments and divide them into atomic units (blocks) for the FET solver.
 
-### The "Sub-Activity Block Splitting" Model
-The FET mathematical engine does not schedule abstract bulk hours; rather, it places discrete **atomic sub-activities**, each possessing an exact duration (a single 1-hour lesson, 2 consecutive hours for written exams or labs, or 3 hours for technical drawing).
+### Automatic Block Split Rule
+The FET engine schedules individual sub-activities. Eurario automatically decomposes weekly teaching hours using the `compute_fallback_blocks` heuristic:
 
-Eurario implements the heuristic algorithm `compute_fallback_blocks(total_hours, subject)` to automatically split weekly workloads according to established pedagogical standards:
-
-| Weekly Hours | Default Block Split | Educational Rationale & Alternatives |
+| Weekly Hours | Default Breakdown | Typical Pedagogical Examples |
 | :---: | :---: | :--- |
-| **1 hour** | `1` | Ethics / Religious Education, Homeroom period |
-| **2 hours** | `2` *(or `1+1`)* | `2` for Physical Education or Labs; `1+1` for oral lectures |
-| **3 hours** | `2+1` | Foreign Languages, History, Philosophy |
-| **4 hours** | `2+1+1` *(or `2+2`)* | `2+1+1` for Mathematics/Physics; `2+2` for science labs |
-| **5 hours** | `2+1+1+1` *(or `2+2+1`)* | Classical Languages (Latin/Greek), Literature |
-| **6 hours** | `2+2+1+1` | Integrated Humanities (Literature and History) |
-| **7 hours** | `2+2+2+1` | Composite blocks (Math & Physics, Literature & Classics) |
-| **8 hours** | `2+2+2+2` | Vocational workshop modules with double lab sessions |
+| **1 hour** | `1` | Religion, Alternative Ethics |
+| **2 hours** | `2` *(or `1+1`)* | Physical Education, Art; oral subjects (`1+1`) |
+| **3 hours** | `2+1` | Philosophy, Art History, English Language |
+| **4 hours** | `2+1+1` *(or `2+2`)* | Mathematics, Physics; practical lab sessions (`2+2`) |
+| **5 hours** | `2+1+1+1` *(or `2+2+1`)* | Italian Literature, Latin Language |
+| **6 hours** | `2+2+1+1` | Humanities (Italian and History) |
+| **7 hours** | `2+2+2+1` | Merged Math and Physics |
+| **8 hours** | `2+2+2+2` | Vocational double laboratory courses |
 
-### Custom Block Overrides & Feasibility Checking (`check_cattedra_feasibility`)
-The timetabling committee can override any split at any time by directly typing the desired block sequence (e.g., `1+1+1` instead of `2+1`). Eurario immediately verifies two key requirements:
-1. **Hour Sum Consistency**: Ensures that the arithmetic sum of the sub-activities matches the total assigned hours.
-2. **Teacher Working Days Feasibility**: If a teacher works a part-time contract spanning only 3 days per week, but their subject is split into 4 single-hour blocks (`1+1+1+1`), the system alerts the committee before running FET, preventing an unsolvable mathematical state.
+<div class="doc-figure">
+  <img src="../assets/eurario-cattedre.png" alt="Eurario — Teaching Loads and Hour Blocks" class="doc-screenshot">
+  <div class="doc-caption">Figure 2.1: Teaching loads interface with automatic block decomposition and feasibility checks.</div>
+</div>
 
----
+### Procedure to Modify Hour Blocks
+1. Open the **Teaching Loads (Cattedre)** tab from the main navigation.
+2. Locate the row for the target subject and class.
+3. Click the **Blocks** field (e.g., `2+1+1`).
+4. Type the new block sequence (e.g., `1+1+1+1`).
+5. Press `Enter` or click outside the field.
+6. Verify that no sum warnings or teacher working day warnings appear.
 
-## 2. Macro-Subjects & Activity Merging Rules
-
-In secondary schools, single teaching positions often encompass multiple formally distinct disciplines:
-* **Italian Literature, History and Geography** (7 total hours).
-* **Mathematics and Physics** (7 or 8 total hours in senior science tracks).
-* **Philosophy and History** (5 or 6 total hours).
-
-Through the **Merging Rules (Accorpamenti)** module:
-1. Eurario automatically identifies potential merge candidates (`get_accorpamenti_candidates`) where the same teacher covers compatible subjects in the same class.
-2. Applying the rule groups these separate activities into a single macro-activity with an optimized block sequence (e.g., `2+2+2+1`), avoiding redundant or competing constraints.
-3. On official master printouts and grade sheets, Eurario retains individual subject identities by properly labeling each period.
+> [!WARNING]
+> The sum of all blocks must equal total contracted hours. The number of blocks cannot exceed the teacher's scheduled working days.
 
 ---
 
-## 3. XML Compilation & Asynchronous FET Solving
+## 2. Macro-Subjects & Merging Rules
 
-When the committee launches timetable generation, Eurario initiates an asynchronous, multi-threaded pipeline:
+### Purpose
+Combine related subjects taught by the same teacher to avoid scheduling conflicts and improve weekly balance.
+
+<div class="doc-figure">
+  <img src="../assets/eurario-accorpamenti.png" alt="Eurario — Subject Merges and Macro-Subjects" class="doc-screenshot">
+  <div class="doc-caption">Figure 2.2: Subject merge dialog for related disciplines (e.g., Math and Physics, Italian and History).</div>
+</div>
+
+### Procedure to Merge Subjects
+1. Open the **Teaching Loads** tab and click **Subject Merges**.
+2. Review compatible candidates detected by Eurario (same teacher, same class).
+3. Select the disciplines to combine (e.g., *Math* 4h + *Physics* 3h = 7h total).
+4. Select the optimized block structure (e.g., `2+2+2+1`).
+5. Click **Apply Merge**.
+
+---
+
+## 3. Asynchronous Resolution with the FET Engine
+
+### Purpose
+Compile constraints into native FET XML format and execute the background solver with live streaming progress.
 
 ```mermaid
 sequenceDiagram
     participant UI as Browser (SPA)
     participant Srv as Python HTTP Server
-    participant Disk as Storage (/app/data)
-    participant FET as Native fet-cl Binary (C++)
+    participant Disk as File System (/app/data)
+    participant FET as Native fet-cl Process (C++)
 
     UI->>Srv: POST /api/solver/start (timelimit=300s)
-    Srv->>Disk: Write input.fet (Compiled XML dataset with all constraints)
-    Srv->>FET: Spawn subprocess fet-cl --inputfile=input.fet
-    Srv-->>UI: 200 OK (Solver started in background)
+    Srv->>Disk: Write input.fet (Compiled XML constraints)
+    Srv->>FET: Spawn fet-cl --inputfile=input.fet
+    Srv-->>UI: 200 OK (Solver running in background)
     UI->>Srv: Connect SSE /api/solver/stream
-    loop Each calculation step
-        FET-->>Srv: Real-time stdout (activities placed / total activities)
-        Srv-->>UI: SSE Event: log, percentage progress, elapsed time
+    loop Calculation loop
+        FET-->>Srv: Output stdout (placed activities / total)
+        Srv-->>UI: SSE Event (percentage, log, time)
     end
-    alt Valid Solution Found
-        FET->>Disk: Write solved_timetable.xml
+    alt Solution Found
+        FET->>Disk: Writes solved_timetable.xml
         Srv-->>UI: SSE Event: status="SOLVED"
-    else Time Limit Exceeded / Deadlock
-        Srv->>FET: Clean SIGINT termination
+    else Timeout or Conflict
+        Srv->>FET: Clean SIGINT shutdown
         Srv-->>UI: SSE Event: status="TIMEOUT / OVERCONSTRAINED"
     end
 ```
 
-### Execution Highlights:
-* **Non-Blocking Operation**: The native C++ solver `fet-cl` runs in a dedicated background worker. Committee members can freely browse or configure other modules without interrupting the run.
-* **Real-Time SSE Streaming**: The Eurario solver console receives live progress updates (placed activities, iterations per second, elapsed time).
-* **Graceful Abort**: Clicking the *"Stop"* button sends a graceful `SIGINT` signal to `fet-cl`, allowing it to cleanly dump the best partial timetable generated so far before exiting.
+<div class="doc-figure">
+  <img src="../assets/eurario-solver.png" alt="Eurario — Real-time FET Solver Console" class="doc-screenshot">
+  <div class="doc-caption">Figure 2.3: Solver dashboard with live SSE log streaming and remaining computation time.</div>
+</div>
+
+### Procedure to Run the Solver
+1. Open the **Timetable Solver** tab from the main navigation.
+2. Set the **Time Limit** in seconds (default `300` seconds).
+3. Select the run mode:
+   * **Full Solve**: recomputes all unlocked lesson cards.
+   * **Resume from Highest Stage**: starts from the best partial solution.
+4. Click **Start Solver**.
+5. Monitor the progress bar and real-time streaming logs.
+6. When the solve finishes successfully, click **View Timetable Board**.
 
 ---
 
-## 4. Diagnostic Relaxation Engine (Conflict Analysis)
+## 4. Diagnostic Relaxation Engine (Conflict Resolver)
 
-If FET fails to find a complete solution within the allocated time limit, the timetable is almost certainly mathematically over-constrained.
-
-Rather than leaving the committee with generic errors, Eurario's **Relaxation Engine** systematically investigates the deadlock by temporarily relaxing secondary constraint layers:
+### Purpose
+Automatically identify conflicting constraints when the timetable cannot be solved within the time limit.
 
 ```mermaid
 graph TD
-    Start["Timetable Deadlock Analysis"] --> Step1["Level 1: Relax Spatial Constraints (Campus Travel & Room Caps)"]
-    Step1 -->|"Resolves?"| Sol1["Root Cause: Room shortage or insufficient campus travel time"]
-    Step1 --> Step2["Level 2: Relax Preferred Time Slots (Early/Late hours)"]
-    Step2 -->|"Resolves?"| Sol2["Root Cause: Over-concentration of subjects in 1st period"]
-    Step2 --> Step3["Level 3: Relax Teacher Gap Limits (Max gaps per day/week)"]
-    Step3 -->|"Resolves?"| Sol3["Root Cause: Inability to eliminate gaps with requested working days"]
-    Step3 --> Step4["Level 4: Audit Hard Constraints (Day Off & Unavailability)"]
-    Step4 --> Sol4["Critical Deadlock: Simultaneous days off among co-dependent teachers in the same class"]
+    Start["Analyze Solve Failure"] --> Step1["Level 1: Relax Spatial Constraints (Campuses & Rooms)"]
+    Step1 -->|"Solves?"| Sol1["Conflict: Room capacity or building travel times"]
+    Step1 --> Step2["Level 2: Relax Time Slots (Early / Late hours)"]
+    Step2 -->|"Solves?"| Sol2["Conflict: Too many subjects demand period 1"]
+    Step2 --> Step3["Level 3: Relax Teacher Idle Gaps"]
+    Step3 -->|"Solves?"| Sol3["Conflict: Impossible gap limits with working days"]
+    Step3 --> Step4["Level 4: Verify Hard Constraints (Day Off)"]
+    Step4 --> Sol4["Critical Conflict: Multiple teachers request same day off"]
 ```
-
-The diagnostic report explicitly names the affected teachers, classes, or rooms, suggesting minimal targeted remedies (e.g., *"Allow 1 additional gap hour for Prof. Bianchi"* or *"Shift Dr. Neri's day off from Wednesday to Friday"*).
-
----
-
-## 5. Dynamic On-Duty & Reserve Balancing Algorithm ("D")
-
-Once all curricular teaching activities are placed by FET, teachers with fewer than 18 teaching hours have remaining contracted hours designated for internal relief and substitution (*Disposizioni* or *On-Duty Reserve*).
-
-Eurario provides an automated greedy placement algorithm (`place_disposizioni_in_timetable`):
-
-### How the Algorithm Works:
-1. **Residual Computation**: For each teacher, the system computes:
-   $$\text{On-Duty Hours} = \text{target\_hours} - \sum \text{assigned curricular hours}$$
-2. **Priority 1 — Gap Plugging**: The algorithm first searches for free periods sandwiched between two teaching hours for the same teacher. Placing an on-duty period in that gap eliminates dead time and optimizes the teacher's presence on campus.
-3. **Priority 2 — Natural Clustered Placement**: If a teacher has no gaps, the on-duty period is placed directly before or after their active classes, adhering to maximum daily teaching limits.
-4. **Priority 3 — Global School Coverage**: The algorithm balances total reserve staff across every single period of the week, avoiding uncovered periods and ensuring robust substitute capacity.
-
----
-
-## 6. Interactive Grid, Snapshots & Master Exports
 
 <div class="doc-figure">
-  <img src="../assets/eurario-tabellone.png" alt="Eurario — Solved Master Timetable and On-Duty Management" class="doc-screenshot">
-  <div class="doc-caption">Figure 3.1: Weekly timetable board with class or teacher views, automated on-duty placement (D), and drag & drop.</div>
+  <img src="../assets/eurario-diagnostica.png" alt="Eurario — Relaxation Engine Conflict Diagnostics" class="doc-screenshot">
+  <div class="doc-caption">Figure 2.4: Relaxation Engine diagnostic report with concrete corrective recommendations.</div>
 </div>
 
-### Professional Operational Tools:
-* **Period Density Badges (`👥 X D`)**: Real-time badges on empty timetable cells showing institute-wide substitute teacher staffing (`0 D` gray for unstaffed slots, `1-2 D` emerald green for optimal coverage, `3+ D` purple for high coverage) with detailed teacher rosters on hover.
-* **On-Duty Distribution Matrix**: Interactive dashboard opened via `⚖️ Disposizioni Matrix`, displaying the weekly grid of reserve periods, one-click teacher schedule navigation, and unstaffed period alerts.
-* **Interactive Drag & Drop with Guidance**: Any lesson or on-duty slot can be manually dragged to a new position on the grid with immediate collision checking and visual staffing balance guidance.
-* **Custom Duty Labeling (`custom_desc`)**: Assign dedicated roles to reserve hours (e.g., *Library Duty*, *Lab Supervision*, *Special Needs Assistance*).
-* **Activity Pinning (`toggle_activity_lock`)**: Lock an activity to a specific day and period with a 100% hard FET constraint, marked by a padlock icon `🔒` and a prominent thicker blue perimeter border (`.lesson-card.is-locked`).
-* **Global Multi-Subject Header Filter**: Filter teacher allocations, activities, and timetable boards by one or multiple subjects simultaneously.
-* **Named Snapshots**: Save milestone versions (e.g., *"Official Fall Schedule"*, *"Draft 2 - Afternoon Returns"*) with one-click rollback or raw `.fet` file download.
-* **Word (.docx) Master Teacher Board (A3 Landscape)**:
-  * Full institutional compliance with repeated table headers across pages (`tblHeader`).
-  * Anti-split row styling (`cantSplit`) ensuring readable physical printouts.
-  * Amber color-coded highlighting for on-duty hours ("D").
-* **Class Timetables (PDF & HTML)**:
-  * High-contrast pastel color coding by subject.
-  * High-volume, toner-friendly monochrome format (*Toner-Save*).
+### Procedure for Diagnostic Analysis
+1. If the solver reports `TIMEOUT`, click **Run Diagnostics**.
+2. The engine executes 4 sequential levels of constraint relaxation.
+3. Review the on-screen diagnostic report.
+4. Identify the flagged teacher or class.
+5. Apply the recommended correction (e.g., *change a teacher's day off* or *allow one additional gap hour*).
+6. Restart the solver to verify the updated configuration.
 
 ---
 
-## 7. Campus TimeMachine & Itinerant Faculty (Spatiotemporal Simulation)
+## 5. Substitute Period Placement Algorithm ("D")
 
-In multi-campus institutions (e.g., **Main Campus** and a distant **Branch Campus**), tracking faculty travelling between buildings and classes scheduled off-site (e.g., sports centers, dedicated laboratories) is essential for timetable viability.
+### Purpose
+Automatically place contractual on-call standby periods ("D") to ensure complete substitution coverage throughout the school week.
 
-Eurario's **TimeMachine** provides an interactive simulation engine allowing administrators to navigate period-by-period across the entire school week and validate physical transfer logistics.
+### Contractual Residual Formula
+$$\text{Standby Hours} = \text{target\_hours} - \sum \text{assigned curriculum hours}$$
 
-```mermaid
-flowchart LR
-    MainCampus["🏫 Main Campus\n(Standard classrooms & labs)"] <-->|"🚗 Transit Corridor\n(Itinerant Teachers & Comfort Analysis)"| BranchCampus["🏛️ Branch Campus\n(Resident classes)"]
-```
+### Three Priority Rules
+1. **Priority 1 — Close Idle Gaps**: Places standby periods into existing free windows between lessons.
+2. **Priority 2 — Natural Extension**: Schedules standby hours adjacent to lessons without extending the school day.
+3. **Priority 3 — Weekly Balance**: Balances teacher coverage uniformly across every period of the week.
 
-### Key TimeMachine Capabilities:
+<div class="doc-figure">
+  <img src="../assets/eurario-disposizioni.png" alt="Eurario — Weekly Substitute Balance Matrix" class="doc-screenshot">
+  <div class="doc-caption">Figure 2.5: Weekly substitute coverage matrix with color-coded density indicators.</div>
+</div>
 
-#### 1. 🎛️ Mission Control & Media Player
-* **Daily Selector with Transfer Counts**: Top day-bar (Monday–Friday) showing badges with total scheduled campus changes (e.g., `🚗 31`).
-* **Segmented Period Scrubber**: Instant navigation between periods (1st through 6th/8th). Features micro-indicators:
-  * 🚗 **Orange Dot**: Itinerant teachers currently traveling in transit.
-  * 📍 **Red Dot**: Classes attending or starting off-site lessons.
-* **Continuous Playback**: Interactive **▶ Play / ⏸ Pause** controls with speed toggle (`1x` / `2x`).
-* **Keyboard Hotkeys**: Fast navigation using `Space` (Play/Pause) and `Left / Right Arrows` (Previous / Next period).
+### Procedure to Place Standby Periods
+1. Open the **Timetable Board** tab from the main navigation.
+2. Click **Place Automatic Standby Hours**.
+3. Eurario calculates optimal slots and places amber `D` badges into the grid.
+4. Click **Standby Distribution** to inspect substitution coverage for every period.
 
-#### 2. 🗺️ Spatial View (3-Column Campus Map)
-* **Main & Branch Campus Columns**: Period-specific rosters of all classes and faculty present on each campus.
-* **Off-Site Start Alerts (🌅 Pulsing Red Badge)**: Automatically flags classes resident in the Branch campus that **must arrive at the Main campus for Period 1** (e.g., for athletics or specialty labs).
-* **Guest Class Badge**: Labels classes temporarily relocated outside their resident base building.
-* **Faculty Roster Tab**: Toggles from class cards to teachers on duty, detailing rooms and on-call status (`D`).
-* **Central Transit Highway**:
-  * Real-time animated cards for faculty members currently moving between campuses.
-  * Directional flow indicators (Main ➔ Branch or Branch ➔ Main).
-  * **Transit Comfort Rating**:
-    * 🟩 **With Free Period Gap**: Teacher has at least one free period to travel comfortably.
-    * ☕ **During School Break**: Transfer aligns with the mid-morning recreation pause.
-    * ⚠️ **Back-to-Back Consecutive**: Critical warning for travel with zero gap between consecutive teaching periods.
+---
 
-#### 3. 🚇 Metro Subway Map (Itinerant Schedule Diagram)
-* Subway-line visualization charting each itinerant teacher across the week:
-  * 🔵 **Blue Station**: Period taught at Main Campus.
-  * 🟣 **Purple Station**: Period taught at Branch Campus.
-  * ⚪ **Dashed Node**: Free period or gap.
-  * 🚗 **Transfer Flag**: Station change indicator. Clicking any flag or node jumps the TimeMachine directly to that exact day and period.
-* **Instant Name Filter**: Search box to isolate any teacher's weekly travel trajectory.
+## 6. Interactive Grid, Drag & Drop, and Activity Locking
+
+### Purpose
+Manually fine-tune the timetable and lock permanent lesson slots with 100% hard constraints.
+
+<div class="doc-figure">
+  <img src="../assets/eurario-tabellone.png" alt="Eurario — Solved Timetable Board" class="doc-screenshot">
+  <div class="doc-caption">Figure 2.6: Interactive timetable grid with drag and drop, density indicators, and slot locking (padlock).</div>
+</div>
+
+### Procedure to Move Lessons (Drag & Drop)
+1. Click and hold any lesson card or standby `D` badge.
+2. Drag the card into the desired target slot.
+3. Observe target cell highlights:
+   * Green cells indicate valid placement without conflicts.
+   * Red cells indicate teacher or room clashes.
+4. Release the mouse button to confirm placement.
+
+### Procedure to Lock a Lesson Slot (`Lock`)
+1. Right-click the lesson card or click its menu button.
+2. Select **Lock Slot (`Lock`)**.
+3. A padlock icon `🔒` appears on the card.
+4. The solver will keep this activity in place during future recalculations.
+
+---
+
+## 7. Official Document Export (Word & PDF)
+
+### Purpose
+Generate official documents for school notice boards and headmaster validation.
+
+<div class="doc-figure">
+  <img src="../assets/eurario-modale-stampa-docenti.png" alt="Eurario — Teacher Timetable Print Export Modal" class="doc-screenshot">
+  <div class="doc-caption">Figure 2.7: Export modal for Word (.docx A3 landscape) and PDF teacher schedules.</div>
+</div>
+
+### Procedure to Export Schedules
+1. On the **Timetable Board**, click **Export Prints**.
+2. Select the target document format:
+   * **Teacher Master Schedule Word (.docx A3 landscape)**: formatted to official ministerial guidelines.
+   * **Class Timetables PDF**: rendered in soft pastel colors by subject.
+   * **Campus Commute Summary**: weekly travel overview for multi-building schools.
+3. Select desired options (e.g., *Include Standby Hours*, *Highlight Substitutes*).
+4. Click **Download Document**.

@@ -1,19 +1,17 @@
 ---
-title: Architettura & DevOps Pipeline
-description: Guida dettagliata e visuale all'architettura software di Eurario, alla pipeline CI/CD con GitHub e Docker Hub, al controllo di versione e agli aggiornamenti automatici in produzione.
+title: Architettura & Pipeline DevOps
+description: Guida all'architettura software di Eurario, alla pipeline CI/CD con GitHub e Docker Hub, al controllo di versione e agli aggiornamenti in produzione secondo standard ASD-STE100.
 ---
 
 # 🏗️ Architettura del Software & Pipeline DevOps
 
-Eurario è progettato secondo una filosofia ingegneristica rigorosa: **zero dipendenze esterne Python**, footprint di memoria minimale, motore solutore nativo in C++ ad alte prestazioni e una pipeline automatizzata di Continuous Integration e Continuous Deployment (CI/CD) che garantisce massima affidabilità sia per installazioni cloud gestite che per server on-premise scolastici.
-
-In questa pagina viene descritto in dettaglio il funzionamento dell'intero ecosistema: dall'editing dei file sorgente in ambiente di sviluppo locale, ai workflow di controllo versione su GitHub, alla generazione delle immagini container su Docker Hub, fino alla distribuzione automatica su Cloudflare Pages e all'aggiornamento dei server di produzione.
+Questo documento descrive l'architettura tecnica di Eurario e il flusso operativo di rilascio, distribuzione e aggiornamento.
 
 ---
 
 ## 1. Mappa E2E dell'Ecosistema Eurario
 
-Il diagramma seguente illustra l'intero flusso di interazione tra i componenti locali, i repository remoti, i registri container, la rete CDN e i server di produzione:
+Il diagramma seguente illustra l'interazione tra ambiente di sviluppo, repository GitHub, registro Docker Hub, rete CDN Cloudflare e server di produzione:
 
 ```mermaid
 flowchart TD
@@ -51,7 +49,7 @@ flowchart TD
             ReverseProxy["Reverse Proxy & TLS\n(Caddy / Nginx / Cloudflare Tunnel)"]
             DockerEngine["Docker Engine Runtime"]
             Watchtower["Watchtower / Update Cron\n(Controllo Notturno Nuove Immagini)"]
-            PersistentVol["Volume Dati Persistente\n(/instance <-> ./data host)"]
+            PersistentVol["Volume Dati Persistente\n(/instance <--> ./data host)"]
         end
         subgraph ContainerApp["Container Eurario"]
             PyServer["Server HTTP Python\n(Standard Library nativa)"]
@@ -83,14 +81,14 @@ flowchart TD
 
 ## 2. Componenti Software Interni & Runtime Locale
 
-L'architettura del software è concepita per eliminare qualsiasi complessità superflua e garantire longevità decennale senza rotture provocate da aggiornamenti di librerie di terze parti:
+L'architettura interna elimina librerie terze non necessarie per garantire stabilità a lungo termine.
 
 ```mermaid
 graph LR
     Browser["🌐 Browser Client\n(Material 3 / Vanilla ES6)"] 
     -->|"HTTP REST API & EventStream"| ServerPy["⚙️ webapp/server.py\n(Python HTTP Server Nativo)"]
     
-    subgraph CoreBackend["Backend Eurario (Standard Library Only)"]
+    subgraph CoreBackend["Backend Eurario (Standard Library)"]
         ServerPy --> AuthPy["🛡️ webapp/auth.py\n(PBKDF2, IP Lockout, Rate Limiter)"]
         ServerPy --> Exporter["📄 Procedura 9 & 12\n(Generatore PDF A3/A4 e Word .docx)"]
         ServerPy --> SolverManager["⚡ Timetable Solver Manager\n(Subprocess fet-cl C++)"]
@@ -100,272 +98,178 @@ graph LR
         SolverManager --> FET["bin/fet-cl\n(C++ Nativo Qt-Free FET Engine)"]
     end
 
-    subgraph DataStorage["Persistenza Dati Atomica (instance/)"]
-        ServerPy <--> JsonData["data.json / settings.json\n(Salvataggio Atomico con lock)"]
-        ServerPy <--> Snapshots["snapshots/\n(Punti di ripristino .fet e .json)"]
-        FET --> SolutionXML["orario_soluzione.xml\n(Risultato del calcolo orario)"]
+    subgraph DataStorage["Persistenza Dati Atomica (data/)"]
+        ServerPy <--> JsonData["project.json\n(Salvataggio Atomico)"]
+        ServerPy <--> Snapshots["snapshots/\n(Punti di ripristino .fet)"]
+        FET --> SolutionXML["solved_timetable.xml\n(Risultato calcolo FET)"]
     end
 ```
 
-### Dettaglio dei singoli layer:
+### Dettaglio dei Singoli Componenti
 
-1. **Frontend (Zero-Framework Vanilla Stack)**:
-   - Scritto in **HTML5 semantico**, **Vanilla ES6+ JavaScript** e **CSS moderno** con variabili personalizzate per il supporto dinamico a Tema Chiaro e Tema Scuro.
-   - Design System ispirato a Google Classroom / Google Material 3 (colori istituzionali `#1B2A4A`, `#059669`, `#E4572E`, card modulari, rail flyout per la barra laterale).
-   - Nessun bundler (Webpack, Vite o Rollup) in fase di esecuzione: il caricamento è immediato, con cache-busting automatico tramite query param di versione (`?v=1.9.5`).
+#### 1. Frontend (Vanilla Web Stack)
+* Sviluppato in HTML5 semantico, Vanilla JavaScript ES6+ e CSS moderno con variabili custom.
+* Supporta il tema chiaro e il tema scuro in modo nativo.
+* Interfaccia grafica conforme alle linee guida Material Design 3.
+* Nessun bundler in fase di esecuzione. Il caricamento nel browser è immediato.
+* Controllo della cache con query string di versione (`?v=X.Y.Z`).
 
-2. **Backend Python (`webapp/server.py` & `webapp/auth.py`)**:
-   - Esegue su Python 3.10+ utilizzando **esclusivamente moduli della Standard Library**: `http.server`, `urllib`, `json`, `hashlib`, `hmac`, `secrets`, `subprocess`, `threading`.
-   - Nessun framework pesante (Django/FastAPI) e nessuna dipendenza di rete runtime.
-   - Sicurezza enterprise: password con hash crittografico **PBKDF2-HMAC-SHA256 a 600.000 iterazioni**, salting casuale crittografico (16 byte), delay esponenziale (tarpit) e blocco IP automatico temporizzato contro attacchi brute-force.
+#### 2. Backend Python (`webapp/server.py` & `webapp/auth.py`)
+* Esegue su Python 3.10+ senza framework esterni.
+* Utilizza esclusivamente la Standard Library di Python (`http.server`, `urllib`, `json`, `hashlib`, `subprocess`).
+* Sicurezza accessi: hash password con PBKDF2-HMAC-SHA256 a 600.000 iterazioni e salting a 16 byte.
+* Protezione brute-force: ritardo progressivo e blocco temporizzato per indirizzo IP.
 
-3. **Motore Solutore Euristico (`bin/fet-cl`)**:
-   - Binario compilato nativo in C++ dal codice sorgente del motore FET (ideato da Liviu Lalescu e Volker Dirr).
-   - Viene invocato dal server Python come subprocess indipendente con passaggio argomenti ottimizzato. Non carica l'interfaccia grafica Qt, operando in modalità pura a riga di comando per la massima velocità di calcolo e stabilità su server headless.
+#### 3. Motore Solutore Euristico (`bin/fet-cl`)
+* Binario nativo C++ compilato dal sorgente ufficiale FET di Liviu Lalescu e Volker Dirr.
+* Viene eseguito come subprocess asincrono headless senza interfaccia Qt.
+* Comunica lo stato di avanzamento al server tramite standard output (stdout).
 
-4. **Storage Atomico su File System (`instance/` e `data/`)**:
-   - Nessun database relazionale esterno da configurare o mantenere (niente Postgres o MySQL complessi).
-   - I dati scolastici, le anagrafiche docenti, i blocchi orari e le preferenze risiedono in file JSON strutturati.
-   - Le scritture su disco sono atomiche (scrittura su file temporaneo seguita da `os.replace`), prevenendo qualsiasi corruzione anche in caso di improvvisa interruzione di alimentazione.
+#### 4. Persistenza Atomica (`data/`)
+* I dati scolastici risiedono in file JSON strutturati (`project.json`).
+* Le scritture su disco sono atomiche: salvataggio su file temporaneo seguito da `os.replace`.
+* Previene la corruzione dei dati in caso di spegnimento improvviso del server.
 
 ---
 
-## 3. Gestione del Controllo di Versione & Flusso Git
+## 3. Gestione Versioni & Flusso Git
 
-Eurario adotta il modello **Semantic Versioning (SemVer 2.0.0)** nel formato `vMAJOR.MINOR.PATCH`:
+Eurario segue la specifica **Semantic Versioning (SemVer 2.0.0)** nel formato `vMAJOR.MINOR.PATCH`:
+* **`MAJOR`**: Modifiche architetturali rilevanti o cambi di struttura dati non retrocompatibili.
+* **`MINOR`**: Nuove funzionalità didattiche, nuove stampe o estensione dei vincoli FET.
+* **`PATCH`**: Correzioni di bug, miglioramenti prestazionali e aggiornamenti di sicurezza.
 
-* **`MAJOR`**: Rilasci architetturali di vasta portata o cambiamenti strutturali profondi.
-* **`MINOR`**: Nuove funzionalità applicative, integrazioni di nuove procedure di stampa o estensioni dei vincoli FET.
-* **`PATCH`**: Correzioni di bug, ottimizzazioni prestazionali, rifiniture grafiche e aggiornamenti di sicurezza.
+### File Sincronizzati al Rilascio di Versione
 
-### File sincronizzati all'avanzamento di versione:
-
-A ogni cambio versione, un set coerente di file viene sincronizzato per garantire che l'intero ecosistema esponga lo stesso identico identificativo:
-
-| File | Identificativo / Variabile | Scopo |
+| File | Variabile / Riferimento | Scopo |
 | :--- | :--- | :--- |
-| `webapp/server.py` | `APP_VERSION = "1.9.5"` | Esposta dalle API server e nei log di avvio |
-| `webapp/static/app.js` | `const APP_VERSION = '1.9.5'` | Utilizzata per il check remoto su Docker Hub |
-| `webapp/static/index.html` | Etichette UI e cache buster (`?v=1.9.5`) | Sidebar, About modal e invalidazione cache browser |
-| `landing/content/site_data.json` | `"current_version": "v1.9.5"` | Visualizzazione versione su eurario.it e annunci |
-| `landing/index.html` | `#liveVerTag` | Tag dell'immagine consigliata nella sezione hero |
-| `zensical.toml` | Query parameter asset CSS/JS | Cache busting per la documentazione docs.eurario.it |
+| `webapp/server.py` | `APP_VERSION = "1.9.6"` | Risposta API e log di avvio server |
+| `webapp/static/app.js` | `const APP_VERSION = '1.9.6'` | Verifica aggiornamenti su Docker Hub |
+| `webapp/static/index.html` | Etichette interfaccia e cache buster | Sidebar, About modal e invalidazione asset browser |
+| `landing/content/site_data.json` | `"current_version": "v1.9.6"` | Versione mostrata sul sito eurario.it |
+| `landing/index.html` | Tag immagine Docker consigliata | Visualizzazione comando di download nella hero section |
+| `zensical.toml` | Parametri asset CSS/JS | Cache busting della documentazione docs.eurario.it |
 
 ---
 
-## 4. Pipeline di Containerizzazione su Docker Hub
+## 4. Pipeline di Pubblicazione su Docker Hub
 
-Alla creazione di un nuovo Git Tag (es. `git tag v1.9.5 && git push origin v1.9.5`), viene generata l'immagine container multi-piattaforma ufficiale:
+Alla creazione di un nuovo tag Git (es. `git tag v1.9.6 && git push origin v1.9.6`), la pipeline esegue i seguenti passaggi:
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor Dev as Sviluppatore / Maintainer
     participant Git as GitHub (carlorigoni/eurario)
-    participant Hub as Docker Hub Registry
+    participant Hub as Registro Docker Hub
     participant Prod as Server di Produzione
 
     Dev->>Git: git push origin vX.Y.Z
-    Note over Git,Hub: Automated Multi-Arch Build Trigger
-    Git->>Hub: Compilazione container per linux/amd64 e linux/arm64
-    Hub->>Hub: Pubblicazione carlorigoni/eurario:latest
-    Hub->>Hub: Aggiornamento tag carlorigoni/eurario:latest e release tag
+    Git->>Hub: Compilazione automatica multi-arch (linux/amd64 e linux/arm64)
+    Hub->>Hub: Pubblicazione immagine carlorigoni/eurario:latest
+    Hub->>Hub: Creazione tag immutabile carlorigoni/eurario:vX.Y.Z
 
-    loop Controllo Periodico (Client o Server)
+    loop Verifica Periodica
         Prod->>Hub: GET /v2/repositories/carlorigoni/eurario/tags
-        Hub-->>Prod: Elenco ultimi tag pubblicati (latest)
+        Hub-->>Prod: Elenco ultimi tag disponibili
     end
 
-    alt Versione Locale < Ultimo Tag
-        Prod->>Prod: Mostra notifica "Nuovo Aggiornamento Disponibile"
+    alt Nuova Versione Disponibile
+        Prod->>Prod: Mostra notifica aggiornamento
         Prod->>Hub: docker compose pull && docker compose up -d
-        Prod->>Prod: Riavvio a caldo con dati persistenti intatti
-    else Versione Locale == Ultimo Tag
-        Prod->>Prod: Badge verde "Release Stabile Allineata"
+        Prod->>Prod: Riavvio a caldo con dati intatti
+    else Versione Allineata
+        Prod->>Prod: Mostra badge verde "Versione Aggiornata"
     end
 ```
 
-### Multi-Architettura:
-La build genera un unico manifest multi-arch che raggruppa:
-- **`linux/amd64`**: per server cloud tradizionali, VM e PC con processori Intel/AMD.
-- **`linux/arm64`**: per Apple Silicon (M1/M2/M3/M4), VPS Hetzner CAX basati su Ampere Altra e Raspberry Pi 5.
-
-Quando l'amministratore esegue `docker pull carlorigoni/eurario:latest`, il demone Docker seleziona in automatico l'architettura adatta all'hardware in uso.
+### Supporto Multi-Architettura
+La build genera un unico manifest multi-piattaforma per:
+* **`linux/amd64`**: server Intel/AMD x86_64 e macchine virtuali cloud.
+* **`linux/arm64`**: Apple Silicon (M-series), server ARM e Raspberry Pi 5.
 
 ---
 
-## 5. Controllo di Versione & Aggiornamenti nel Server di Produzione
+## 5. Procedure di Aggiornamento in Produzione
 
-Eurario include un meccanismo integrato di autodiagnosi e monitoraggio degli aggiornamenti accessibile sia dalla barra di stato della WebApp che tramite automazione di sistema:
+### Procedura Manuale da Terminale
+1. Accedi via SSH al server della scuola.
+2. Posizionati nella directory di Eurario:
+   ```bash
+   cd /opt/eurario
+   ```
+3. Scarica la nuova immagine container:
+   ```bash
+   docker compose pull
+   ```
+4. Riavvia i container:
+   ```bash
+   docker compose up -d
+   ```
+5. Tutti i dati memorizzati nel volume `./data` rimangono preservati.
 
-### 1. Rilevamento tramite API di Docker Hub
-Nella WebApp, la funzione client interroga l'endpoint pubblico:
-```http
-GET https://hub.docker.com/v2/repositories/carlorigoni/eurario/tags?page_size=10
-```
-La risposta JSON contiene tutti i tag rilasciati con i relativi digest e timestamp di creazione. L'algoritmo di confronto estrae l'ultimo tag valido che segue la convenzione `vX.Y.Z` e lo confronta numericamente con `APP_VERSION`:
+### Procedura di Aggiornamento Automatico con Watchtower
+Per abilitare l'aggiornamento automatico orario senza intervento manuale:
+1. Inserisci il servizio Watchtower nel file `docker-compose.yml`:
+   ```yaml
+   watchtower:
+     image: containrrr/watchtower
+     container_name: eurario_watchtower
+     restart: unless-stopped
+     environment:
+       - DOCKER_API_VERSION=1.41
+       - WATCHTOWER_HTTP_API_UPDATE=true
+       - WATCHTOWER_HTTP_API_TOKEN=eurario-update-token
+     volumes:
+       - /var/run/docker.sock:/var/run/docker.sock
+     command: --interval 3600 --cleanup eurario
+   ```
+2. Salva e riavvia con `docker compose up -d`.
 
-* Se `Versione Remota > Versione Locale`: il badge nel footer della sidebar diventa arancione/ambra e invita l'amministratore a procedere con l'aggiornamento.
-* Cliccando sul badge, si apre il **Modal di Verifica Aggiornamenti** con la data del rilascio e le istruzioni immediate di aggiornamento.
-
-### 2. Aggiornamento Manuale (Zero Rischio)
-Per aggiornare un'installazione Docker Compose esistente, è sufficiente eseguire due comandi nella directory del server:
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-Grazie al montaggio del volume locale (`./data:/app/data` o `./instance:/app/instance`), il container precedente viene sostituito dal nuovo in meno di 5 secondi, mantenendo intatti al 100%:
-- Anagrafiche dell'istituto e docenti;
-- Storico degli snapshot e file `.fet`;
-- Password e credenziali master;
-- Registri di audit e log degli accessi.
-
-### 3. Aggiornamento Automatico Notturno con Watchtower
-Per gli istituti scolastici che desiderano aggiornamenti silenti e automatici senza interventi manuali, è possibile affiancare il container **Watchtower**:
-
-```yaml
-version: '3.8'
-
-services:
-  eurario:
-    image: carlorigoni/eurario:latest
-    container_name: eurario
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./data:/app/webapp/data
-    environment:
-      - PORT=8000
-      - WATCHTOWER_API_URL=http://eurario_watchtower:8080/v1/update
-      - WATCHTOWER_TOKEN=eurario-update-token
-
-  watchtower:
-    image: containrrr/watchtower
-    container_name: eurario_watchtower
-    restart: unless-stopped
-    environment:
-      - DOCKER_API_VERSION=1.41
-      - WATCHTOWER_HTTP_API_UPDATE=true
-      - WATCHTOWER_HTTP_API_TOKEN=eurario-update-token
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 3600 --http-api-update --cleanup eurario
-```
-
-> [!NOTE]
-> Con questa configurazione, ogni ora Watchtower verifica se su Docker Hub è presente un'immagine più recente di `carlorigoni/eurario:latest`. Se presente, la scarica, riavvia `eurario` e rimuove la vecchia immagine inutilizzata.
-
-### 4. Aggiornamento Diretto In-App ("Aggiorna ora")
-All'interno del modal *"Aggiornamento Eurario"* della WebApp, qualora sia disponibile una nuova versione, compare il pulsante attivo **🚀 Aggiorna ora** accanto al comando di copia. Cliccando il pulsante:
-1. La WebApp invia una richiesta autenticata all'endpoint server `POST /api/version/upgrade`.
-2. Il server innesca la procedura di upgrade tramite l'API HTTP di Watchtower, il socket Docker locale (`/var/run/docker.sock`) o tramite `git pull` se installato da sorgenti.
-3. Il container scarica la nuova release a caldo e si riavvia mantenendo intatti al 100% tutti i dati nei volumi persistenti (`./data`).
-4. Il frontend monitora il riavvio del servizio e mostra la notifica di successo con il pulsante per ricaricare la pagina aggiornata.
+### Procedura di Aggiornamento In-App ("Aggiorna ora")
+1. Apri la barra laterale di Eurario nel browser.
+2. Se è disponibile un aggiornamento, il badge di versione diventa ambra.
+3. Fai clic sul badge di versione per aprire il modale di aggiornamento.
+4. Fai clic sul pulsante **🚀 Aggiorna ora**.
+5. Il server attiva l'aggiornamento tramite Watchtower o socket Docker locale.
+6. Al termine del riavvio, fai clic su **Ricarica Pagina**.
 
 ---
 
-## 6. Il Ruolo Strategico di Cloudflare nell'Ecosistema Eurario
+## 6. Ruolo di Cloudflare nell'Ecosistema
 
-Cloudflare costituisce il pilastro di rete e sicurezza dell'intera infrastruttura Eurario, assolvendo a tre funzioni critiche distinte: **Hosting Edge CI/CD (Cloudflare Pages)**, **Protezione DNS & WAF Anycast**, e **Connessione Sicura On-Premise (Cloudflare Tunnel)**:
+Cloudflare gestisce la distribuzione CDN, la sicurezza perimetrale e l'accesso remoto on-premise:
 
 ```mermaid
 flowchart LR
     subgraph InternetUsers["🌐 Docenti, Studenti & Visitatori"]
-        BrowserDocs["Consultazione Manuale\n(docs.eurario.it)"]
-        BrowserLanding["Visitatore & Showcase\n(eurario.it)"]
+        BrowserDocs["Consultazione Documentazione\n(docs.eurario.it)"]
+        BrowserLanding["Sito Istituzionale\n(eurario.it)"]
         BrowserApp["Dirigente & Commissione Orario\n(app.eurario.it)"]
     end
 
-    subgraph CloudflareGlobal["☁️ Rete Edge Globale Cloudflare (300+ Città)"]
-        subgraph CFEnhancements["Edge Security, DNS & Acceleration"]
-            EdgeDNS["Anycast DNS (1.1.1.1)\n+ WAF + Anti-DDoS L3/L4/L7"]
-            EdgeTLS["Terminazione SSL/TLS Automatica\n+ HTTP/3 (QUIC) + Compressione Brotli"]
-        end
-        subgraph CFPages["Cloudflare Pages (Static Edge CI/CD)"]
-            EdgeDocs["docs.eurario.it\n(Build Zensical & Cache Globale)"]
-            EdgeLanding["eurario.it\n(Static Showcase & Demo)"]
-        end
-        subgraph CFTunnel["Cloudflare Zero-Trust Network"]
-            EdgeTunnelEndpoint["Cloudflare Tunnel Edge Endpoint\n(Ingress Criptato)"]
-        end
+    subgraph CloudflareGlobal["☁️ Rete Edge Globale Cloudflare"]
+        EdgeDNS["DNS Anycast + WAF + Anti-DDoS"]
+        EdgeTLS["Terminazione SSL/TLS + HTTP/3"]
+        CFPages["Cloudflare Pages (Hosting Statico Edge)"]
+        CFTunnel["Cloudflare Tunnel (Zero-Trust Ingress)"]
     end
 
-    subgraph SchoolInfrastructure["🏫 Rete Istituto Scolastico / Server Host"]
-        subgraph LocalFirewall["Firewall Scolastico (Nessuna porta aperta in ingresso)"]
-            Cloudflared["cloudflared Daemon (Container)\n(Connessione crittografata outbound)"]
-            EurarioContainer["Eurario WebApp Container\n(:8000 locale isolato)"]
-            SchoolData["Storage Dati Persistenti\n(instance/ e snapshots/)"]
-        end
+    subgraph SchoolInfrastructure["🏫 Rete Scolastica On-Premise"]
+        Cloudflared["Demone cloudflared (Container)"]
+        EurarioContainer["Container Eurario WebApp (:8000)"]
+        SchoolData["Storage Dati Persistenti (data/)"]
     end
 
-    BrowserDocs --> EdgeDNS --> EdgeTLS --> EdgeDocs
-    BrowserLanding --> EdgeDNS --> EdgeTLS --> EdgeLanding
-    BrowserApp --> EdgeDNS --> EdgeTLS --> EdgeTunnelEndpoint
-    EdgeTunnelEndpoint <-->|"Tunnel QUIC/TLS Outbound (Bypass NAT/Firewall)"| Cloudflared
-    Cloudflared -->|"HTTP interno :8000"| EurarioContainer
+    BrowserDocs --> EdgeDNS --> EdgeTLS --> CFPages
+    BrowserLanding --> EdgeDNS --> EdgeTLS --> CFPages
+    BrowserApp --> EdgeDNS --> EdgeTLS --> CFTunnel
+    CFTunnel <-->|"Tunnel Crittografato Outbound"| Cloudflared
+    Cloudflared -->|"HTTP Locale :8000"| EurarioContainer
     EurarioContainer <--> SchoolData
 ```
 
-### 6.1 Cloudflare Pages: CI/CD & Static Edge Hosting
-
-I siti pubblici ad alto traffico ([eurario.it](https://eurario.it) e [docs.eurario.it](https://docs.eurario.it)) non risiedono sul server di calcolo degli orari, ma sono distribuiti in modalità *serverless static edge* tramite **Cloudflare Pages**:
-
-* **Deploy Continuo su Git Push**: A ogni push sul branch `main` di GitHub, Cloudflare Pages clona il repository in un runner isolato ed esegue il comando di build:
-  ```bash
-  pip install zensical && zensical build
-  ```
-* **Prestazioni Sub-Millisecondo**: I file compilati HTML, CSS, JavaScript e le immagini SVG sono replicati istantaneamente su oltre 300 data center edge in tutto il mondo, garantendo tempi di caricamento inferiori a 15 millisecondi e disponibilità 100% SLA.
-* **Isolamento Totale**: Un picco di visite su `eurario.it` o la consultazione massiva della documentazione non sottrae neanche un singolo ciclo di CPU al motore solutore FET in esecuzione sull'istanza applicativa.
-
-### 6.2 Cloudflare DNS, WAF & Terminazione SSL/TLS
-
-Tutti i domini dell'ecosistema sono gestiti attraverso la rete DNS Anycast di Cloudflare:
-
-* **Certificati SSL/TLS Rigorosi**: Gestione automatica del rinnovo certificati con crittografia end-to-end *Full (Strict)*, abilitazione trasparente di **HTTP/3 (QUIC)** e fallback HTTP/2.
-* **Scudo Anti-DDoS & WAF**: Mitigazione volumetrica istantanea contro attacchi Denial of Service a livello 3, 4 e 7.
-* **Ottimizzazione Asset**: Compressione dinamica **Brotli** e minificazione al volo per ridurre al minimo il consumo di banda.
-
-### 6.3 Cloudflare Tunnel (`cloudflared`): Esposizione On-Premise a Zero-Trust
-
-Per gli istituti scolastici italiani che installano Eurario on-premise sui propri server interni (o VM), la configurazione di rete presenta storicamente ostacoli notevoli:
-* Reti protette da firewall rigidi ministeriali o provinciali;
-* Presenza di doppi o tripli NAT senza controllo del router perimetrale;
-* Mancanza di un indirizzo IP pubblico statico;
-* Divieto di aprire porte in ingresso (`80` o `443`) per motivi di sicurezza informatica.
-
-**Cloudflare Tunnel** risolve radicalmente questi vincoli tramite il demone leggero `cloudflared`:
-
-1. **Solo Connessione Outbound**: Il container `cloudflared` in esecuzione nel server della scuola stabilisce una connessione crittografata verso i nodi perimetrali Cloudflare più vicini (utilizzando porte in uscita `443` o `7844/UDP`).
-2. **Nessuna Porta Aperta nel Router**: Tutte le porte in ingresso del firewall scolastico rimangono **ermeticamente chiuse**. Non è richiesto alcun port-forwarding o IP statico.
-3. **Instradamento Sicuro**: Gli utenti autorizzati (docenti e commissione orario) navigano su `https://app.eurario.it` o sul sottodominio scolastico `https://orario.istituto.edu.it`: Cloudflare riceve la richiesta cifrata e la inoltra attraverso il tunnel verso il container locale `eurario:8000`.
-
-#### Esempio di Deploy Docker Compose con Cloudflare Tunnel:
-
-```yaml
-version: '3.8'
-
-services:
-  eurario:
-    image: carlorigoni/eurario:latest
-    container_name: eurario-app
-    restart: unless-stopped
-    volumes:
-      - ./data:/app/data
-    environment:
-      - PORT=8000
-    # Nota: la porta 8000 non necessita neanche di essere esposta all'esterno del server!
-
-  tunnel:
-    image: cloudflare/cloudflared:latest
-    container_name: eurario-tunnel
-    restart: unless-stopped
-    command: tunnel run
-    environment:
-      - TUNNEL_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... # Token generato da Cloudflare Zero Trust
-```
-
-> [!TIP]
-> Questa architettura garantisce che il server scolastico rimanga totalmente invisibile agli scanner di porte su Internet, beneficiando contestualmente della protezione DDoS globale e del certificato HTTPS gestito di Cloudflare.
+### Vantaggi dell'Infrastruttura Edge
+* **Cloudflare Pages**: ospita `eurario.it` e `docs.eurario.it` con build automatica su push Git e distribuzione edge globale.
+* **WAF e Protezione DDoS**: blocca attacchi volumetrici e applicativi ai livelli 3, 4 e 7.
+* **Cloudflare Tunnel**: consente l'accesso sicuro a Eurario da remoto senza aprire porte nel firewall scolastico e senza richiedere IP pubblico statico.

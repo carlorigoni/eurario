@@ -1,35 +1,35 @@
 ---
 title: Parametri & Cross-Reference FET
-description: Tavola comparativa tecnica esaustiva tra le impostazioni didattiche di Eurario e i tag XML generati per il motore solutore nativo FET.
+description: Tavola comparativa tecnica tra le impostazioni didattiche di Eurario e i tag XML generati per il motore solutore nativo FET secondo standard ASD-STE100.
 ---
 
 # 🔬 Cross-Reference: Parametri Eurario & Vincoli XML FET
 
-Il motore solutore di Eurario è alimentato dal binario ufficiale ad alte prestazioni **FET** (*Free Timetabling Software*).
+Il motore solutore di Eurario utilizza il binario nativo **FET** (*Free Timetabling Software*).
 
-Questa pagina documenta la corrispondenza biunivoca e analitica tra ogni singolo parametro configurabile nell'interfaccia didattica di Eurario e la relativa struttura XML compilata per il motore FET ([Manuale Ufficiale FET](https://www.timetabling.de/manual/FET-manual.en.html)).
+Questa pagina descrive la corrispondenza tecnica tra i parametri configurati nell'interfaccia di Eurario e i relativi tag XML generati per FET ([Manuale Ufficiale FET](https://www.timetabling.de/manual/FET-manual.en.html)).
 
 ---
 
 ## 1. Mappatura Entità Fondamentali
 
-| Concetto in Eurario | Entità XML FET | Attributi e Note Architetturali |
+| Concetto in Eurario | Tag XML FET | Descrizione e Utilizzo |
 | :--- | :--- | :--- |
-| **Docente** | `<Teacher>` | Identificato univocamente da `<Name>`. Contiene la classe di concorso (CDC) e il monte ore nei commenti. |
-| **Classe Ordinaria** | `<Year>` | Rappresenta la coorte degli studenti (es. `1A`, `3B`, `5CSA`). In FET definisce il raggruppamento di studenti di massimo livello. |
-| **Indirizzo / Articolazione** | `<Group>` | Sottogruppo di una classe che condivide lezioni comuni ma si separa per indirizzi specifici (es. `3A_INFO`, `3A_TEL`). |
-| **Gruppo Linguistico / Laboratorio** | `<Subgroup>` | Unità atomica di studenti usata per divisioni a metà classe (es. `1A_FRA`, `1A_SPA`). |
-| **Materia Scolastica** | `<Subject>` | Disciplina d'insegnamento curricolare. Se configurata con sigla `short_name`, la sigla viene usata per le stampe mentre in FET viene preservato il nome identificativo. |
-| **Cattedra Didattica** | Gruppo `<Activity>` | Ciascuna cattedra viene atomizzata in sotto-attività convesse collegate dal medesimo `<Activity_Group_Id>`. |
-| **Plesso Scolastico** | `<Building>` | Edificio fisico dell'istituto (es. *Centrale*, *Succursale*). |
-| **Aula / Laboratorio** | `<Room>` | Spazio fisico assegnato a un `<Building>` con capienza massima `<Capacity>`. |
+| **Docente** | `<Teacher>` | Identificato univocamente dal nome. Contiene la classe di concorso e il monte ore nei commenti. |
+| **Classe Ordinaria** | `<Year>` | Rappresenta la coorte degli studenti (es. `1A`, `3B`, `5CSA`). È il gruppo studenti di livello superiore. |
+| **Indirizzo / Articolazione** | `<Group>` | Sottogruppo di una classe che condivide lezioni comuni e si separa per indirizzi specifici (es. `3A_INFO`, `3A_TEL`). |
+| **Gruppo Linguistico / Laboratorio** | `<Subgroup>` | Unità minima usata per divisioni a metà classe (es. `1A_FRA`, `1A_SPA`). |
+| **Materia Scolastica** | `<Subject>` | Disciplina curricolare. La sigla `short_name` compare nelle stampe; FET riceve il nome completo. |
+| **Cattedra Didattica** | Gruppo `<Activity>` | Ciascuna cattedra viene scomposta in attività collegate dal medesimo `<Activity_Group_Id>`. |
+| **Plesso Scolastico** | `<Building>` | Edificio fisico dell'istituto (es. *Sede Centrale*, *Succursale*). |
+| **Aula / Laboratorio** | `<Room>` | Spazio fisico associato a un `<Building>` con capienza massima `<Capacity>`. |
 
 ---
 
 ## 2. Vincoli Temporali Docenti (`Time_Constraints_List`)
 
 ### A. Giorno Libero Contrattuale & Indisponibilità Orarie
-* **Interfaccia Eurario**: Scheda *Disponibilità Docente* &rarr; Matrice settimanale cliccabile (giorni x ore).
+* **Interfaccia Eurario**: Scheda *Docenti* &rarr; Matrice settimanale cliccabile (giorni × ore).
 * **Tag XML FET**: `<ConstraintTeacherNotAvailableTimes>`
 * **Codice XML Generato**:
   ```xml
@@ -41,10 +41,10 @@ Questa pagina documenta la corrispondenza biunivoca e analitica tra ogni singolo
       <Day>Sab</Day>
       <Hour>1</Hour>
     </Not_Available_Time>
-    <!-- ... ore da 1 a 6 per il sabato libero -->
+    <!-- ore da 1 a 6 per il sabato libero -->
   </ConstraintTeacherNotAvailableTimes>
   ```
-* **Impatto Risolutivo**: Vincolo rigido (*Hard Constraint 100%*). FET esclude tassativamente la collocazione di attività didattiche in quegli slot.
+* **Effetto**: Vincolo rigido (*Hard 100%*). FET esclude tassativamente lezioni in quegli slot.
 
 ### B. Giorni Massimi e Minimi di Servizio a Settimana
 * **Interfaccia Eurario**: Modale Docente &rarr; *Giorni di presenza settimanali* (`min_days` e `max_days`).
@@ -64,10 +64,10 @@ Questa pagina documenta la corrispondenza biunivoca e analitica tra ogni singolo
     <Min_Days_Per_Week>3</Min_Days_Per_Week>
   </ConstraintTeacherMinDaysPerWeek>
   ```
-* **Utilizzo Pratico**: Indispensabile per part-time verticali (es. docente presente solo su 3 o 4 giorni specifici) ed eliminazione di giorni frammentati.
+* **Effetto**: Obbligatorio per part-time verticali ed eliminazione di giorni con una sola ora frammentata.
 
 ### C. Finestre Libere (Ore Buche Giornaliere e Settimanali)
-* **Interfaccia Eurario**: Impostazioni Istituto &rarr; *Max buchi al giorno* (default 1) e *Max buchi alla settimana* (default 2-3).
+* **Interfaccia Eurario**: Impostazioni Istituto &rarr; *Max buchi al giorno* e *Max buchi alla settimana*.
 * **Tag XML FET**:
   * `<ConstraintTeacherMaxGapsPerDay>` (Peso 95-100%)
   * `<ConstraintTeacherMaxGapsPerWeek>` (Peso 95-100%)
@@ -85,26 +85,26 @@ Questa pagina documenta la corrispondenza biunivoca e analitica tra ogni singolo
   </ConstraintTeacherMaxGapsPerWeek>
   ```
 
-### D. Massimo e Minimo Ore Giornaliere di Lezione
-* **Interfaccia Eurario**: Impostazioni Orario &rarr; *Ore massime di lezione al giorno* e *Minimo ore nei giorni di presenza*.
+### D. Limite Ore Giornaliere di Lezione
+* **Interfaccia Eurario**: Impostazioni Orario &rarr; *Massimo ore al giorno* e *Minimo ore al giorno*.
 * **Tag XML FET**:
-  * `<ConstraintTeacherMaxHoursDaily>`: Limita il carico didattico a 4 o 5 ore al giorno.
-  * `<ConstraintTeacherMinHoursDaily>`: Impone un minimo di 2 ore nei giorni lavorativi per evitare uscite antieconomiche per 1 sola ora di lezione.
-  * `<ConstraintTeacherMaxSpanPerDay>`: Limita la permanenza complessiva del docente a scuola (dalla prima all'ultima ora).
+  * `<ConstraintTeacherMaxHoursDaily>`: Limita il carico didattico giornaliero (es. max 4 o 5 ore).
+  * `<ConstraintTeacherMinHoursDaily>`: Impone un minimo di ore nei giorni lavorativi (es. min 2 ore).
+  * `<ConstraintTeacherMaxSpanPerDay>`: Limita l'ampiezza dell'orario giornaliero (dalla prima all'ultima ora).
 
 ---
 
 ## 3. Vincoli Temporali Studenti & Classi
 
 ### A. Compattezza Orario Studenti (Zero Ore Buche)
-* **Interfaccia Eurario**: Attivo di default per tutte le classi.
+* **Interfaccia Eurario**: Attivo in modo permanente per tutte le classi.
 * **Tag XML FET**:
   * `<ConstraintStudentsMaxGapsPerDay>`: `<Max_Gaps>0</Max_Gaps>` (Peso 100%)
   * `<ConstraintStudentsMaxGapsPerWeek>`: `<Max_Gaps>0</Max_Gaps>` (Peso 100%)
-* **Effetto Risolutivo**: Garantisce che nessuna classe abbia ore buche non presidiate tra una lezione e l'altra.
+* **Effetto**: Impedisce finestre vuote tra le lezioni degli studenti.
 
 ### B. Ingressi Posticipati alla Seconda Ora
-* **Interfaccia Eurario**: Impostazioni Istituto &rarr; *Massimo ingressi alla seconda ora a settimana*.
+* **Interfaccia Eurario**: Impostazioni Istituto &rarr; *Massimo ingressi alla seconda ora*.
 * **Tag XML FET**: `<ConstraintStudentsEarlyMaxBeginningsAtSecondHour>`
 * **Codice XML Generato**:
   ```xml
@@ -113,19 +113,19 @@ Questa pagina documenta la corrispondenza biunivoca e analitica tra ogni singolo
     <Max_Beginnings_At_Second_Hour>0</Max_Beginnings_At_Second_Hour>
   </ConstraintStudentsEarlyMaxBeginningsAtSecondHour>
   ```
-* **Effetto Risolutivo**: Se impostato a 0, impone che per tutte le classi le lezioni inizino sempre rigorosamente alla prima ora della mattina.
+* **Effetto**: Con valore 0, tutte le classi iniziano le lezioni alla prima ora del mattino.
 
-### C. Pause Didattiche e Intervallo di Istituto
+### C. Pause Didattiche e Intervallo
 * **Interfaccia Eurario**: Impostazioni Orario &rarr; *Intervallo Ricreazione*.
 * **Tag XML FET**: `<ConstraintBreakTimes>`
-* **Effetto Risolutivo**: Blocca la collocazione di lezioni durante le pause deliberate dal collegio docenti.
+* **Effetto**: Blocca la collocazione di lezioni durante l'intervallo deliberate dal collegio.
 
 ---
 
 ## 4. Vincoli sulle Discipline & Suddivisione Cattedre
 
-### A. Distanziamento tra le Lezioni della Stessa Materia
-* **Interfaccia Eurario**: Calcolato automaticamente per ciascuna cattedra suddivisa in blocchi (es. `2+1+1`).
+### A. Distanziamento tra Lezioni della Stessa Materia
+* **Interfaccia Eurario**: Calcolato automaticamente per cattedre con blocchi orari (es. `2+1+1`).
 * **Tag XML FET**: `<ConstraintMinDaysBetweenActivities>`
 * **Codice XML Generato**:
   ```xml
@@ -139,37 +139,29 @@ Questa pagina documenta la corrispondenza biunivoca e analitica tra ogni singolo
     <MinDays>1</MinDays>
   </ConstraintMinDaysBetweenActivities>
   ```
-* **Effetto Risolutivo**: Impone che le singole lezioni si tengano in giorni diversi della settimana e che, qualora eccezionalmente assegnate nello stesso giorno, debbano essere obbligatoriamente consecutive (`Consecutive_If_Same_Day=true`).
+* **Effetto**: Colloca i blocchi in giorni diversi. Se collocati nello stesso giorno, impone la consecutività (`Consecutive_If_Same_Day=true`).
 
-### B. Fascia Oraria Preferita (Prime Ore / Ultime Ore)
+### B. Fascia Oraria Preferita (Prime / Ultime Ore)
 * **Interfaccia Eurario**: Modale Materia &rarr; *Fascia Oraria Preferita* (`PRIME`, `ULTIME`, `INDIFFERENTE`).
 * **Tag XML FET**: `<ConstraintActivitiesPreferredTimeSlots>`
-* **Configurazione**:
-  * `PRIME`: Assegna un peso di preferenza per le ore 1, 2 e 3 (ottimale per Matematica, Latino o compiti scritti).
-  * `ULTIME`: Assegna un peso di preferenza per le ore 4, 5 e pomeridiane (ottimale per Scienze Motorie o Laboratori Artistici).
+* **Effetto**:
+  * `PRIME`: Assegna priorità alle ore 1, 2 e 3 (verifiche scritte, matematica).
+  * `ULTIME`: Assegna priorità alle ore 4, 5 e pomeridiane (educazione motoria, arte).
 
 ### C. Esclusione Rientri Pomeridiani (`no_rientri`)
 * **Interfaccia Eurario**: Modale Materia &rarr; *Escludi dai Rientri Pomeridiani*.
-* **Tag XML FET**: `<ConstraintActivitiesPreferredTimeSlots>` impostato con divieto assoluto sugli slot pomeridiani (7ª e 8ª ora).
+* **Tag XML FET**: `<ConstraintActivitiesPreferredTimeSlots>` impostato con divieto assoluto sulle ore pomeridiane (7ª e 8ª ora).
 
-### D. Attività Bloccate Manualmente dalla Commissione
-* **Interfaccia Eurario**: Icona Lucchetto sulla griglia orario.
-* **Tag XML FET**: `<ConstraintActivityPreferredStartingTime>` (Hard 100%). Fissa in modo inamovibile giorno e ora di inizio dell'attività.
+### D. Attività Bloccate Manualmente (`Lock`)
+* **Interfaccia Eurario**: Icona Lucchetto `🔒` sulla scheda dell'attività.
+* **Tag XML FET**: `<ConstraintActivityPreferredStartingTime>` (Hard 100%). Fissa in modo inamovibile giorno e ora di inizio.
 
-### E. Attività a Termine Giornata (Cattedre Quindicinali / Asimmetriche)
+### E. Attività a Termine Giornata
 * **Interfaccia Eurario**: Impostazioni Cattedra &rarr; *Colloca a Fine Giornata*.
 * **Tag XML FET**: `<ConstraintActivityEndsStudentsDay>`
-* **Codice XML Generato**:
-  ```xml
-  <ConstraintActivityEndsStudentsDay>
-    <Weight_Percentage>100</Weight_Percentage>
-    <Activity_Id>412</Activity_Id>
-    <Active>true</Active>
-  </ConstraintActivityEndsStudentsDay>
-  ```
-* **Utilizzo pratico FET**: Raccomandato dal manuale FET per le lezioni che si svolgono una volta ogni due settimane (es. laboratori a settimane alterne), garantendo che l'assenza a settimane alterne si traduca in un'uscita anticipata senza generare ore buche per gli studenti.
+* **Effetto**: Colloca l'attività nell'ultima ora della giornata per consentire uscite anticipate senza generare ore buche.
 
-### F. Consecutività Didattica (Teoria + Laboratorio ITP)
+### F. Consecutività Didattica (Teoria + Laboratorio)
 * **Interfaccia Eurario**: Modale Cattedra &rarr; *Lega in Consecutività Diretta*.
 * **Tag XML FET**: `<ConstraintTwoActivitiesConsecutive>`
 * **Codice XML Generato**:
@@ -181,19 +173,9 @@ Questa pagina documenta la corrispondenza biunivoca e analitica tra ogni singolo
     <Active>true</Active>
   </ConstraintTwoActivitiesConsecutive>
   ```
-* **Utilizzo pratico FET**: Impone che la seconda attività (es. laboratorio) sia collocata nello stesso giorno tassativamente nell'ora immediatamente successiva alla prima (teoria), senza buchi intermedi (salvo intervallo).
+* **Effetto**: La seconda attività si svolge nello stesso giorno nell'ora immediatamente successiva alla prima.
 
-### G. Raggruppamento nello Stesso Giorno (Ordine Flessibile)
-* **Interfaccia Eurario**: Modale Cattedra &rarr; *Raggruppa nello Stesso Giorno*.
-* **Tag XML FET**: `<ConstraintTwoActivitiesGrouped>`
-* **Utilizzo pratico FET**: Le attività sono collocate nello stesso giorno senza buchi intermedi, ma senza vincolare quale debba essere svolta per prima, riducendo drasticamente i tempi di calcolo per il solutore.
-
-### H. Propedeuticità Temporale nella Settimana
-* **Interfaccia Eurario**: Modale Cattedra &rarr; *Propedeuticità Settimanale (A prima di B)*.
-* **Tag XML FET**: `<ConstraintTwoActivitiesOrdered>`
-* **Utilizzo pratico FET**: Garantisce che l'attività teorica sia programmata nei primi giorni della settimana (es. Lun/Mar) prima dell'attività di verifica o esercitazione (es. Gio/Ven).
-
-### I. Sincronizzazione Oraria per Opzioni, Articolazioni & Pseudo-Attività
+### G. Sincronizzazione Oraria per Opzioni & Articolazioni
 * **Interfaccia Eurario**: Modale Articolazione &rarr; *Sincronizza Orario di Inizio*.
 * **Tag XML FET**: `<ConstraintActivitySameStartingTime>`
 * **Codice XML Generato**:
@@ -205,29 +187,16 @@ Questa pagina documenta la corrispondenza biunivoca e analitica tra ogni singolo
     <Active>true</Active>
   </ConstraintActivitySameStartingTime>
   ```
-* **Utilizzo pratico FET**: Utilizzato sia per sdoppiamenti paralleli (es. Francese e Spagnolo nella stessa classe) sia per sincronizzare le riunioni collegiali di dipartimento tra docenti senza studenti (*pseudo-attività*).
+* **Effetto**: Sincronizza l'inizio di due attività parallele (es. Francese e Spagnolo) nella stessa classe.
 
-### J. Riposo Notturno Minimo (Diurno & Serale)
+### H. Riposo Notturno Minimo (Serale & Diurno)
 * **Interfaccia Eurario**: Scheda Docente &rarr; *Intervallo Minimo di Riposo Notturno*.
 * **Tag XML FET**: `<ConstraintTeacherMinRestingHours>`
-* **Codice XML Generato**:
-  ```xml
-  <ConstraintTeacherMinRestingHours>
-    <Weight_Percentage>100</Weight_Percentage>
-    <Teacher_Name>Romani Elena</Teacher_Name>
-    <Min_Resting_Hours>11</Min_Resting_Hours>
-  </ConstraintTeacherMinRestingHours>
-  ```
-* **Utilizzo pratico FET**: Impedisce che un docente con incarico serale (termine alle 22:00) possa essere assegnato alla prima o seconda ora del mattino seguente ($08:00 - 10:00$).
-
-### K. Tetto di Contemporaneità su Risorse Condivise
-* **Interfaccia Eurario**: Vincoli Risorse &rarr; *Massimo Attività Simultanee per Tag*.
-* **Tag XML FET**: `<ConstraintActivitiesMaxSimultaneousInSelectedTimeSlots>`
-* **Utilizzo pratico FET**: Impedisce a un set di attività etichettate con lo stesso tag (es. `PALESTRA_A` o `USCITA_ESTERNA`) di superare una soglia massima istantanea (es. max 2 o 3 classi contemporaneamente).
+* **Effetto**: Impedisce che un docente con lezioni serali fino alle 22:00 sia assegnato alla prima ora del mattino seguente.
 
 ---
 
-## 5. Vincoli Spaziali & Gestione Multi-Plesso (`Space_Constraints_List`)
+## 5. Vincoli Spaziali & Multi-Plesso (`Space_Constraints_List`)
 
 ### A. Aula Base della Classe (Home Room)
 * **Interfaccia Eurario**: Modale Classe &rarr; *Aula Base*.
@@ -254,51 +223,31 @@ Questa pagina documenta la corrispondenza biunivoca e analitica tra ogni singolo
   </ConstraintActivityPreferredRooms>
   ```
 
-### C. Spostamento Docenti tra Sedi (Centrale & Succursale)
-* **Interfaccia Eurario**: Impostazioni Plessi & Sedi d'Istituto.
+### C. Spostamento Docenti tra Plessi
+* **Interfaccia Eurario**: Impostazioni Plessi & Sedi.
 * **Tag XML FET**:
-  1. `<ConstraintTeachersMaxBuildingChangesPerDay>`: Limita i cambi plesso nello stesso giorno a un massimo prefissato (tipicamente max 1).
-  2. `<ConstraintTeachersMaxBuildingChangesPerWeek>`: Limita i cambi plesso nell'arco dell'intera settimana (tipicamente max 2 o 3).
-  3. `<ConstraintTeachersMinGapsBetweenBuildingChanges>`: Impone un intervallo orario vuoto minimo (es. 1 ora di buco obbligatoria per il tempo di percorrenza stradale) prima che il docente possa iniziare la lezione nel nuovo plesso.
+  1. `<ConstraintTeachersMaxBuildingChangesPerDay>`: Limita i cambi plesso nello stesso giorno (default max 1).
+  2. `<ConstraintTeachersMaxBuildingChangesPerWeek>`: Limita i cambi plesso settimanali (default max 2 o 3).
+  3. `<ConstraintTeachersMinGapsBetweenBuildingChanges>`: Impone un intervallo vuoto minimo tra plessi per il tempo di viaggio.
 
 ### D. Stabilità d'Aula per Ore Consecutive
 * **Interfaccia Eurario**: Impostazioni Aule &rarr; *Stessa Aula se Ore Consecutive*.
 * **Tag XML FET**: `<ConstraintActivitiesSameRoomIfConsecutive>`
-* **Codice XML Generato**:
-  ```xml
-  <ConstraintActivitiesSameRoomIfConsecutive>
-    <Weight_Percentage>100</Weight_Percentage>
-    <Active>true</Active>
-  </ConstraintActivitiesSameRoomIfConsecutive>
-  ```
-* **Utilizzo pratico FET**: Garantisce che se due attività successive hanno gli stessi studenti o lo stesso docente, restino fisicamente nella medesima aula senza costringere a spostamenti intermedi.
-
-### E. Riduzione del Nomadismo delle Classi (Tetto Massimo Aule al Giorno)
-* **Interfaccia Eurario**: Impostazioni Classi &rarr; *Massimo Aule Diverse al Giorno*.
-* **Tag XML FET**: `<ConstraintStudentsSetMaxDifferentRoomsPerDay>`
-* **Codice XML Generato**:
-  ```xml
-  <ConstraintStudentsSetMaxDifferentRoomsPerDay>
-    <Weight_Percentage>95</Weight_Percentage>
-    <Students>1A</Students>
-    <Max_Different_Rooms>2</Max_Different_Rooms>
-  </ConstraintStudentsSetMaxDifferentRoomsPerDay>
-  ```
-* **Utilizzo pratico FET**: Impedisce che una classe cambi più di 2 aule nell'arco della mattinata (l'aula base e al più una rotazione verso palestra o laboratorio).
+* **Effetto**: Mantiene studenti e docenti nella stessa stanza se svolgono lezioni consecutive della stessa disciplina.
 
 ---
 
-## 6. Visualizzazione Risultati: FET Nativo vs Eurario
+## 6. Confronto: FET Nativo vs Eurario
 
 <div class="doc-figure">
   <img src="assets/fet-interfaccia.png" alt="Interfaccia grafica ufficiale del motore solutore FET" class="doc-screenshot">
-  <div class="doc-caption">Figura 4.1: Interfaccia desktop ufficiale di FET, con i menu per la gestione di vincoli temporali, vincoli spaziali e risoluzione orario.</div>
+  <div class="doc-caption">Figura 4.1: Interfaccia desktop ufficiale di FET con gestione vincoli temporali e spaziali.</div>
 </div>
 
-| Funzionalità | Interfaccia Web Nativa FET | Esperienza Eurario |
+| Funzionalità | Interfaccia Grafica Desktop FET | Suite Eurario |
 | :--- | :--- | :--- |
-| **Rappresentazione Cattedre** | Frammentata in sotto-attività isolate | Visualizzazione unificata per docente e classe con blocchi compatti |
-| **Multi-Plesso** | Segnalazioni testuali generiche | Badge colorati Centrale/Succursale e avviso automatico cambi sede |
-| **Disposizioni & Supplenze** | Non supportate (richiedono ore fittizie) | Algoritmo proprietario dedicato di riempimento buchi e bilanciamento |
-| **Modifiche Post-Calcolo** | Ricalcolo completo necessario | Griglia interattiva Drag & Drop con verifica collisioni in tempo reale |
-| **Esportazione Finale** | Tabelle HTML grezze | Word (.docx) A3 Orizzontale (Procedura 12) e PDF tipografici |
+| **Rappresentazione Cattedre** | Elenco frammentato in sotto-attività isolate | Visualizzazione unificata per docente e classe con blocchi didattici |
+| **Multi-Plesso** | Avvisi testuali generici | Badge colorati per plesso e calcolo automatico tempi di viaggio |
+| **Disposizioni & Supplenze** | Non supportate nativamente | Algoritmo proprietario di riempimento buchi e bilanciamento |
+| **Modifiche Post-Calcolo** | Ricalcolo completo obbligatorio | Griglia interattiva Drag & Drop con controllo collisioni in tempo reale |
+| **Esportazione Finale** | Tabelle HTML di base | Word (.docx) A3 Orizzontale ministeriale e PDF tipografici |

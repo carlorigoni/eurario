@@ -1,31 +1,33 @@
 ---
 title: Docker Installation & Deployment
-description: Comprehensive and professional guide to on-premise deployment of Eurario using Docker Hub, Docker Compose, Nginx, Traefik, Caddy, and Cloudflare Tunnel.
+description: Complete professional guide to on-premise deployment of Eurario using Docker Hub, Docker Compose, Nginx, Caddy, and Cloudflare Tunnel conforming to ASD-STE100 standards.
 ---
 
 # 🐳 Docker Installation & Deployment
 
-Eurario is published as a multi-architecture container image (**Linux `amd64`** for Intel/AMD servers and **Linux `arm64`** for Apple Silicon, Raspberry Pi 5, and ARM cloud servers) on the official Docker Hub registry:
+This guide describes how to install and run Eurario on dedicated servers, virtual machines, or school NAS appliances using Docker.
 
 > 📦 **Official Docker Hub Image**: [`carlorigoni/eurario:latest`](https://hub.docker.com/r/carlorigoni/eurario)
 
 ---
 
-## 1. System Requirements & Architecture
+## 1. System Requirements
 
-* **Supported Operating Systems**: Ubuntu Server 22.04/24.04 LTS, Debian 12, Rocky Linux / AlmaLinux 9, Synology DSM 7+ (Container Manager), QNAP QuTS, macOS, and Windows with Docker Desktop.
-* **Hardware Architectures**:
-  * `x86_64 / amd64` (Dedicated servers, VMware ESXi VMs, Proxmox VE, cloud VPS).
-  * `aarch64 / arm64` (ARM cloud instances, Apple Silicon M-Series, Raspberry Pi 5 with 4GB+ RAM).
-* **Software Prerequisites**: Docker Engine 24+ and Docker Compose v2+.
-* **Recommended Sizing**: Minimum 1 vCPU and 1 GB of RAM (2 GB recommended for institutions with 100+ teachers running intensive solver runs).
+### Supported Architectures
+* **Linux x86_64 / amd64**: Intel or AMD servers, Hetzner/OVH VPS, Proxmox VE, or VMware ESXi hypervisors.
+* **Linux aarch64 / arm64**: Hetzner ARM servers, Apple Silicon (M1/M2/M3/M4), Raspberry Pi 5 with 4 GB+ RAM.
+
+### Hardware and Software Requirements
+* **Operating System**: Ubuntu Server 22.04/24.04 LTS, Debian 12, Rocky Linux 9, Synology DSM 7+, macOS, or Windows.
+* **CPU and RAM**: Minimum 1 vCPU and 1 GB RAM (2 GB recommended for schools with over 100 teachers).
+* **Software**: Docker Engine 24+ and Docker Compose v2+.
 
 ```mermaid
 graph TD
-    Client["User Browser / Timetabling Committee"] -->|"HTTPS (Port 443)"| Proxy["Reverse Proxy\n(Nginx / Traefik / Caddy / Cloudflare)"]
-    Proxy -->|"HTTP (Port 8000) + SSE"| WebServer["Eurario Web Server\n(Multi-Threaded Python HTTP Server)"]
-    WebServer -->|"Asynchronous Subprocess"| FETCL["Native fet-cl Binary (C++)"]
-    WebServer -->|"Persistent Atomic File I/O"| Volume["Mounted Docker Volume\n(/app/data <--> ./data)"]
+    Client["Browser Client / Committee"] -->|"HTTPS (Port 443)"| Proxy["Reverse Proxy\n(Nginx / Caddy / Cloudflare)"]
+    Proxy -->|"HTTP (Port 8000) + SSE"| WebServer["Eurario Server\n(Async Python HTTP)"]
+    WebServer -->|"Async Subprocess"| FETCL["Native fet-cl (C++)"]
+    WebServer -->|"Persistent Atomic I/O"| Volume["Mounted Docker Volume\n(/app/data <--> ./data)"]
     Volume --> P1["data/<school_id>/project.json"]
     Volume --> P2["data/<school_id>/snapshots/*.fet"]
     Volume --> P3["data/<school_id>/solved_timetable.xml"]
@@ -33,148 +35,162 @@ graph TD
 
 ---
 
-## 2. Quickstart with Docker Compose
+## 2. Quick Deploy with Docker Compose
 
-Create a dedicated directory on your server:
+### Purpose
+Launch Eurario in seconds with persistent data storage and automatic container restarts.
 
-```bash
-mkdir -p /opt/eurario && cd /opt/eurario
-```
+### Deployment Procedure
+1. Create a project folder on your server and navigate into it:
+   ```bash
+   mkdir -p /opt/eurario && cd /opt/eurario
+   ```
+2. Create the `docker-compose.yml` file:
+   ```bash
+   nano docker-compose.yml
+   ```
+3. Paste the following configuration:
+   ```yaml
+   version: '3.8'
 
-Create the `docker-compose.yml` file:
-
-```yaml
-version: '3.8'
-
-services:
-  eurario:
-    image: carlorigoni/eurario:latest
-    container_name: eurario-app
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./data:/app/data
-    environment:
-      - PORT=8000
-      - PYTHONUNBUFFERED=1
-      # Optional: Google Workspace OAuth 2.0 Single Sign-On
-      # - GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-      # Optional: Auto-approved superadmin email address on initial launch
-      # - INITIAL_ADMIN_EMAIL=principal@school.edu
-    healthcheck:
-      test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/summary')\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-```
-
-Start the application daemon:
-
-```bash
-docker compose up -d
-```
-
-Verify status and container logs:
-
-```bash
-docker compose ps
-docker compose logs -f
-```
-
-The application will immediately be accessible at: `http://server-ip:8000/`.
+   services:
+     eurario:
+       image: carlorigoni/eurario:latest
+       container_name: eurario-app
+       restart: unless-stopped
+       ports:
+         - "8000:8000"
+       volumes:
+         - ./data:/app/data
+       environment:
+         - PORT=8000
+         - PYTHONUNBUFFERED=1
+         # Optional: Google Workspace OAuth 2.0 Client ID
+         # - GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+         # Optional: Superadmin email promoted on first login
+         # - INITIAL_ADMIN_EMAIL=principal@school.edu
+       healthcheck:
+         test: ["CMD-SHELL", "python3 -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/summary')\""]
+         interval: 30s
+         timeout: 10s
+         retries: 3
+         start_period: 10s
+   ```
+4. Save the file and start the container in detached mode:
+   ```bash
+   docker compose up -d
+   ```
+5. Verify container status:
+   ```bash
+   docker compose ps
+   ```
+6. Open your web browser and navigate to `http://server-ip-address:8000`.
 
 ---
 
-## 3. Environment Variable Reference
+## 3. Environment Variables
 
-| Variable | Default | Description |
+| Variable | Default Value | Description |
 | :--- | :---: | :--- |
-| `PORT` | `8000` | Internal HTTP web server listening port. |
-| `PYTHONUNBUFFERED` | `1` | Forces unbuffered stdout/stderr streaming for clean container logging. |
-| `GOOGLE_CLIENT_ID` | *(unset)* | Google Workspace OAuth 2.0 Client ID. When omitted, enables standalone mode. |
-| `INITIAL_ADMIN_EMAIL` | *(unset)* | Email address automatically granted Superadmin status on first authentication. |
+| `PORT` | `8000` | Internal HTTP listening port. |
+| `PYTHONUNBUFFERED` | `1` | Disables internal log buffering for real-time output. |
+| `GOOGLE_CLIENT_ID` | *(unset)* | Google Workspace OAuth 2.0 Client ID. If omitted, standalone local mode is enabled. |
+| `INITIAL_ADMIN_EMAIL` | *(unset)* | Institutional email automatically promoted to Superadmin on first login. |
 
 ---
 
-## 4. Data Persistence & Backup Strategy
+## 4. Data Persistence & Backup
 
-All school master data, teaching allocations, snapshots, and calculated schedules reside in the mounted `./data` volume.
+### Purpose
+Safeguard school master records and enable quick recovery in case of hardware failure.
 
-### Directory Layout:
+### Data Directory Layout
 ```text
 /opt/eurario/data/
-├── default/                         # Default school tenant
-│   ├── project.json                 # Primary database (teachers, classes, constraints)
-│   ├── solved_timetable.xml         # Latest FET solver result
-│   └── snapshots/                   # Historical milestone snapshots
+├── default/                         # Default school
+│   ├── project.json                 # Master data, teaching loads, constraints
+│   ├── solved_timetable.xml         # Latest solved timetable
+│   └── snapshots/                   # Historical timetable checkpoints
 │       ├── 20261027_baseline.fet
 │       └── 20261027_final.fet
-└── technical_college/               # Additional school tenants (Multi-Tenant)
+└── music_academy/                   # Additional school (Multi-Tenant)
     └── project.json
 ```
 
-### Automated Nightly Backup Cron
-Because data is stored in standard JSON and XML files, live backups do not require complex database locking:
+### Automated Backup Procedure
+1. Edit your server crontab:
+   ```bash
+   crontab -e
+   ```
+2. Add the scheduled backup job for 02:00 every night:
+   ```bash
+   0 2 * * * tar -czvf /backup/eurario-$(date +\%F).tar.gz -C /opt/eurario data/
+   ```
 
-```bash
-# Add to root crontab (crontab -e) to execute nightly at 02:00 AM
-0 2 * * * tar -czvf /backup/eurario-$(date +\%F).tar.gz -C /opt/eurario data/
-```
-
-To restore a backup archive:
-```bash
-docker compose stop
-tar -xzvf /backup/eurario-2026-10-27.tar.gz -C /opt/eurario/
-docker compose start
-```
+### Restore Procedure
+1. Stop the Eurario container:
+   ```bash
+   docker compose down
+   ```
+2. Extract the archive into your project directory:
+   ```bash
+   tar -xzvf /backup/eurario-2026-10-27.tar.gz -C /opt/eurario/
+   ```
+3. Restart the container:
+   ```bash
+   docker compose up -d
+   ```
 
 ---
 
-## 5. Reverse Proxy & SSL / HTTPS Termination
+## 5. Reverse Proxy & SSL / HTTPS Setup
 
-To enable HTTPS and ensure Google OAuth functionality, deploy Eurario behind a reverse proxy configured with **Server-Sent Events (SSE)** unbuffering.
+### Purpose
+Provide encrypted traffic and support Server-Sent Events (SSE) streaming for the FET solver.
 
-### A. Nginx Configuration (Recommended)
-Crucially, proxy buffering must be disabled for `/api/solver/stream`:
+### Option A: Setup with Nginx
+1. Install Nginx on the host server.
+2. Create `/etc/nginx/sites-available/eurario`:
+   ```nginx
+   server {
+       listen 80;
+       server_name timetable.school.edu;
+       return 301 https://$host$request_uri;
+   }
 
-```nginx
-server {
-    listen 80;
-    server_name timetable.school.edu;
-    return 301 https://$host$request_uri;
-}
+   server {
+       listen 443 ssl http2;
+       server_name timetable.school.edu;
 
-server {
-    listen 443 ssl http2;
-    server_name timetable.school.edu;
+       ssl_certificate /etc/letsencrypt/live/timetable.school.edu/fullchain.pem;
+       ssl_certificate_key /etc/letsencrypt/live/timetable.school.edu/privkey.pem;
+       ssl_protocols TLSv1.2 TLSv1.3;
 
-    ssl_certificate /etc/letsencrypt/live/timetable.school.edu/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/timetable.school.edu/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
+       location / {
+           proxy_pass http://127.0.0.1:8000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
 
-    location / {
-        proxy_pass http://127.0.0.1:8000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+           # Disable buffering for real-time SSE streaming
+           proxy_http_version 1.1;
+           proxy_set_header Connection '';
+           proxy_buffering off;
+           proxy_cache off;
+           chunked_transfer_encoding off;
+           proxy_read_timeout 600s;
+       }
+   }
+   ```
+3. Enable the site and reload Nginx:
+   ```bash
+   sudo ln -s /etc/nginx/sites-available/eurario /etc/nginx/sites-enabled/
+   sudo nginx -t && sudo systemctl reload nginx
+   ```
 
-        # Crucial for live FET solver SSE log streaming
-        proxy_http_version 1.1;
-        proxy_set_header Connection '';
-        proxy_buffering off;
-        proxy_cache off;
-        chunked_transfer_encoding off;
-        proxy_read_timeout 600s;
-    }
-}
-```
-
-### B. Caddy Configuration
-For automatic Let's Encrypt certificates with minimal syntax:
-
+### Option B: Setup with Caddy
+Add this block to your `Caddyfile`:
 ```caddyfile
 timetable.school.edu {
     reverse_proxy localhost:8000 {
@@ -184,20 +200,20 @@ timetable.school.edu {
 }
 ```
 
-### C. Secure Zero-Trust Publishing via Cloudflare Tunnel
-For institutions on dynamic IP connections or behind strict institutional firewalls with no inbound open ports:
-
-```bash
-# 1. Install the cloudflared daemon
-curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-sudo dpkg -i cloudflared.deb
-
-# 2. Authenticate and map your school subdomain
-cloudflared tunnel login
-cloudflared tunnel create eurario-school
-cloudflared tunnel route dns eurario-school timetable.school.edu
-
-# 3. Start the tunnel daemon
-cloudflared tunnel run --url http://localhost:8000 eurario-school
-```
-Your timetable application is now securely accessible globally over HTTPS with zero inbound ports exposed to the public internet.
+### Option C: Cloudflare Tunnel (Zero Open Ports)
+Ideal for schools with dynamic IP addresses or restrictive upstream firewalls:
+1. Install the `cloudflared` package:
+   ```bash
+   curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+   sudo dpkg -i cloudflared.deb
+   ```
+2. Log in and create the tunnel:
+   ```bash
+   cloudflared tunnel login
+   cloudflared tunnel create eurario-school
+   cloudflared tunnel route dns eurario-school timetable.school.edu
+   ```
+3. Run the tunnel targeting port 8000:
+   ```bash
+   cloudflared tunnel run --url http://localhost:8000 eurario-school
+   ```
