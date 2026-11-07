@@ -33,38 +33,43 @@ flowchart TD
 
 ---
 
-### Step 1: Institutional Time Grid Setup
+### Step 1: Institutional Time Grid Setup & Parameters
 
-**Purpose:** Configure the weekly grid structure before adding staff or student data.
+**Purpose:** Configure the weekly grid structure, bell periods, and academic year dates before adding staff or classes.
 
-1. Open **Timetable Settings**.
+1. Open **Timetable Settings** (or the **Parameters** view).
 2. Select **School Days**:
    * Choose *5-Day Week* (Monday–Friday).
    * Or choose *6-Day Week* (Monday–Saturday).
-3. Set **Daily Lesson Periods** (e.g., 6 periods: 08:00–14:00).
+3. Set **Daily Lesson Periods** (e.g., 6 regular periods: 08:00–14:00).
 4. Enable **Afternoon Sessions** (Periods 7 and 8) if required by the curriculum.
 5. Set the **School Recess** period (e.g., after Period 3) to apply the institutional break.
+6. Set the **Validity Start Date** and **School Year End Date** (defaults to June 8th): this parameter controls weekly recurrence in generated teacher `.ics` files.
+
+<img src="../assets/eurario-parametri.png" alt="Eurario — Comprehensive Educational and Institutional Parameters" class="doc-screenshot">
 
 ---
 
-### Step 2: Staffing Ingestion & Allocation Alignment
+### Step 2: Staffing Ingestion, Snapshots & Version History
 
-**Purpose:** Ingest teacher assignments from external files without manual data entry.
+**Purpose:** Ingest teacher assignments from external files and manage timetable rollback snapshots.
 
 1. Open **Snapshots & Staffing**.
-2. Click **Upload Staffing File**.
-3. Select your Excel (`.xlsx`), CSV, or official Word (`.docx`) file.
-4. Review the Visual Diff modal:
-   * 🟢 **Green**: New teachers or assignments.
+2. Click **Upload Staffing File** to select an Excel (`.xlsx`), CSV, or official Word (`.docx`) file.
+3. Review the Visual Diff modal:
+   * 🟢 **Green**: New teachers or course allocations.
    * 🟡 **Yellow**: Allocations with modified weekly hours.
    * 🔴 **Red**: Removed allocations.
-5. Click **Apply Changes with Snapshot**. The system creates a rollback checkpoint before updating data.
+4. Click **Apply Changes with Snapshot**. The system creates a rollback checkpoint before updating data.
+5. In **Snapshot Management**, browse version history, export the underlying `.fet` file, or restore an earlier milestone with one click.
+
+<img src="../assets/eurario-snapshots.png" alt="Eurario — Snapshot Management and Version Rollback" class="doc-screenshot">
 
 ---
 
 ### Step 3: Physical Facilities & Campus Logistics
 
-**Purpose:** Register campuses, rooms, and specialized labs with logistic limits.
+**Purpose:** Register campuses, classrooms, and specialized labs with logistic limits.
 
 1. Register **Campus Buildings**:
    * Create campuses (e.g., *Main Campus* and *Branch Annex*).
@@ -84,52 +89,70 @@ flowchart TD
 1. Register regular classes (e.g., `1A`, `2B`, `3CSA`).
 2. Enter student headcount to validate room seating capacity.
 3. Select the **Home Room** permanently assigned to each class.
-4. For articulated groups (e.g., foreign language splits), create linked sub-entities (`3A_FRA`, `3A_SPA`).
+4. For articulated groups (e.g., foreign language splits), switch to the **Articulated Groups** subview.
+5. Create linked sub-entities (`3A_FRA`, `3A_SPA`) and assign dedicated rooms or laboratories.
 
 <img src="../assets/eurario-classi.png" alt="Eurario — Classes and Articulated Groups" class="doc-screenshot">
 
+<img src="../assets/eurario-gruppi-articolati.png" alt="Eurario — Articulated Language and Elective Groups" class="doc-screenshot">
+
 ---
 
-### Step 5: Allocations, Pedagogical Blocks & Merging
+### Step 5: Allocations, Subjects, Pedagogical Blocks & Merging
 
-**Purpose:** Connect teachers, subjects, and classes, defining weekly lesson blocks.
+**Purpose:** Connect teachers, subjects, and classes, defining weekly lesson blocks and color codes.
 
-1. Assign the teacher, class, subject, and weekly hours to each allocation.
-2. Verify the automatic block distribution:
-   * 4 hours $\rightarrow$ `2+1+1` block.
-   * 6 hours $\rightarrow$ `2+2+1+1` block.
-   * 2 hours of Physical Education $\rightarrow$ single `2` block in the gym.
-3. Open **Merging Rules** to merge related disciplines taught by the same teacher (e.g., *Math & Physics* 7h $\rightarrow$ `2+2+2+1`).
+1. **Subject Management**: Open the **Subjects** view to configure the pastel palette and concise print abbreviations (`short_name`).
+2. **Assign Allocations**: Assign the teacher, class, subject, and weekly hours to each allocation.
+3. **Block Splitting Rules**: In **Block Rules**, verify automatic pedagogical splitting (`2+1+1` for 4 hours, `2+2+1+1` for 6 hours, single `2` block for gym).
+4. **Subject Merging**: Open **Merging Rules** to merge related disciplines taught by the same teacher (e.g., *Math & Physics* 7h $\rightarrow$ `2+2+2+1`).
+
+<img src="../assets/eurario-materie.png" alt="Eurario — Subjects and Didactic Color Palettes" class="doc-screenshot">
 
 <img src="../assets/eurario-cattedre.png" alt="Eurario — Teaching Assignments and Curriculum Blocks" class="doc-screenshot">
 
+<img src="../assets/eurario-regole-blocchi.png" alt="Eurario — Automatic Block Splitting Rules" class="doc-screenshot">
+
+<img src="../assets/eurario-accorpamenti.png" alt="Eurario — Subject Merging Module" class="doc-screenshot">
+
 ---
 
-### Step 6: Teacher Contractual Constraints & Privacy
+### Step 6: Teacher Contractual Constraints, Availability & Privacy
 
-**Purpose:** Configure contractual hours, days off, time slot preferences, and private calendar feeds.
+**Purpose:** Configure contractual hours, days off, shift preferences, faculty-wide availability, and private calendar feeds.
 
 1. Verify contractual target hours (`target_hours`: 18h full-time, or reduced for part-time).
 2. Set minimum and maximum active teaching days (`min_days` and `max_days`).
 3. In the **weekly availability grid**, click to mark unavailabilities and contractual days off in red.
-4. For shared faculty, enable the **COE** toggle and enter external school hours.
-5. In the teacher modal, inspect the **Private Calendar Feed & Cryptographic Token** panel to copy the link or revoke/regenerate the security key.
+4. Open **Faculty Availability Board** to inspect a synoptic master grid of all staff availabilities and days off.
+5. For shared faculty, enable the **COE** toggle and enter external school hours.
+6. In the teacher modal, inspect the **Private Calendar Feed & Cryptographic Token** panel to copy the link or revoke/regenerate the security key.
 
 <img src="../assets/eurario-docenti.png" alt="Eurario — Faculty Roster and Contractual Hours" class="doc-screenshot">
 
 <img src="../assets/eurario-modale-docente.png" alt="Eurario — Teacher Parameters, Shift Preferences, and Private Calendar Token" class="doc-screenshot">
 
+<img src="../assets/eurario-disponibilita-collegio.png" alt="Eurario — Faculty-Wide Weekly Availability Master Matrix" class="doc-screenshot">
+
 ---
 
-### Step 7: Mathematical Timetable Solving with FET
+### Step 7: Mathematical Timetable Solving with FET & Advanced Constraints
 
-**Purpose:** Execute algorithmic solving of all scheduling constraints.
+**Purpose:** Configure advanced constraints and execute algorithmic solving.
 
-1. Open **Timetable Solver**.
-2. Set the desired timeout limit (e.g., 300 seconds or unlimited).
-3. Click **Start FET Solver**.
-4. Monitor live progress and conflict reports streamed via Server-Sent Events (SSE).
-5. Stop execution at any time to save the best partial schedule.
+1. Open **Advanced Constraints** to configure:
+   * Maximum consecutive teaching hours (e.g., 4 periods).
+   * Maximum daily or weekly gaps/windows.
+   * Campus transit pause rules and total daily span.
+2. Open **Timetable Solver**.
+3. Set the desired timeout limit (e.g., 300 seconds or unlimited).
+4. Click **Start FET Solver**.
+5. Monitor live progress and conflict reports streamed via Server-Sent Events (SSE).
+6. Stop execution at any time to save the best partial schedule (*highest stage*).
+
+<img src="../assets/eurario-vincoli-avanzati.png" alt="Eurario — Advanced FET Timetabling Constraints" class="doc-screenshot">
+
+<img src="../assets/eurario-solver.png" alt="Eurario — Real-Time FET Solver Live Dashboard" class="doc-screenshot">
 
 <img src="../assets/eurario-attivita.png" alt="Eurario — Didactic Activities and FET Constraints" class="doc-screenshot">
 
@@ -139,10 +162,12 @@ flowchart TD
 
 **Purpose:** Isolate conflicting rules when a schedule is mathematically unsolvable.
 
-1. When the solver stops without a complete solution, open the **Relaxation Engine** report.
-2. Read the hierarchical conflict level (Level 1: total hours, Level 2: facilities, Level 3: gaps and active days).
-3. Apply the recommended minimal adjustment in the teacher or class profile.
-4. Re-run the FET solver.
+1. When the solver stops without finding a complete solution, open **Diagnostics & Relaxation Engine**.
+2. Read the hierarchical conflict level (Level 1: total hours, Level 2: facilities, Level 3: gaps and active days, Level 4: soft preferences).
+3. Review the analytic bottleneck report identifying the exact teachers and classes involved in deadlock.
+4. Apply the recommended minimal adjustment and re-run the FET solver.
+
+<img src="../assets/eurario-diagnostica.png" alt="Eurario — 4-Level Relaxation Engine Diagnostic Conflict Report" class="doc-screenshot">
 
 ---
 
@@ -164,12 +189,15 @@ flowchart TD
 
 ### Step 10: Interactive Drag & Drop Refinement & Timetable Board
 
-**Purpose:** Manually reposition periods, lock verified assignments, and access export options.
+**Purpose:** Manually reposition periods, inspect multiple views (Teachers, Classes, Rooms), lock verified assignments, and access export options.
 
 1. Open the **Solved Timetable** view.
-2. Drag and drop any lesson card to change its time or room.
-3. Click the lock icon (`🔒`) to **permanently pin** an activity (`locked="true"`). Pinned lessons show a thicker blue border and remain untouched during solver recalculations.
-4. Click **Save Snapshot** to archive the approved version.
+2. Toggle between three master viewports:
+   * **👨‍🏫 Teachers**: Individual teacher schedules with on-duty hours and quick export buttons.
+   * **🎓 Classes**: Cohort schedule with room assignments and articulated subgroups.
+   * **🏫 Rooms & Labs**: Facility utilization matrix to monitor occupancy and saturation.
+3. Drag and drop any lesson card to change its time or room.
+4. Click the lock icon (`🔒`) to **permanently pin** an activity (`locked="true"`). Pinned lessons show a thicker blue border and remain untouched during solver recalculations.
 5. Use header toolbar actions:
    * **🖨️ Print**: View the printable A4 sheet.
    * **📄 PDF**: Download vector A4 printable timetable.
@@ -177,7 +205,11 @@ flowchart TD
    * **➕ Google Calendar**: Subscribe to the schedule in Google Calendar with 1 click.
    * **📧 Email Timetable**: Open the individual delivery modal.
 
-<img src="../assets/eurario-tabellone.png" alt="Eurario — Solved Master Timetable Board with Action Shortcuts" class="doc-screenshot">
+<img src="../assets/eurario-tabellone.png" alt="Eurario — Solved Master Timetable Board (Teachers View)" class="doc-screenshot">
+
+<img src="../assets/eurario-tabellone-classi.png" alt="Eurario — Solved Master Timetable Board (Classes View)" class="doc-screenshot">
+
+<img src="../assets/eurario-tabellone-aule.png" alt="Eurario — Solved Master Timetable Board (Rooms & Labs View)" class="doc-screenshot">
 
 ---
 
@@ -193,19 +225,23 @@ flowchart TD
 
 <img src="../assets/eurario-timemachine.png" alt="Eurario — Campus TimeMachine and Travel Flow Simulation" class="doc-screenshot">
 
+<img src="../assets/eurario-timemachine-metro.png" alt="Eurario — TimeMachine Itinerant Faculty Metro Map" class="doc-screenshot">
+
 ---
 
 ### Step 12: Official Word (.docx) & PDF Export
 
 **Purpose:** Produce formal documentation for noticeboards, staff, and classes.
 
-1. Open **Official Printouts**.
-2. Select **Master Faculty Board (.docx)**:
-   * Generates an **A3 Landscape** Word document conforming to Procedure 12 standards.
-   * Repeats table headers across pages automatically.
-   * Highlights on-duty reserve hours ("D") in amber.
-3. Select **Class Timetables (PDF)**:
-   * Generates A4 class schedules in color-coded or toner-safe format.
+1. Click **🖨️ Print Classes (PDF)** to open the Procedure 9 generator (A4 Landscape per-class layout with articulated classes and toner-save option).
+2. Click **📄 Faculty Board (A3)** to open the Procedure 12 generator (master faculty grid in A3 Landscape Word/PDF with repeating headers).
+3. Click **🚗 Transfers (Noticeboard)** to print the campus travel roster for itinerant teachers.
+
+<img src="../assets/eurario-modale-stampa-classi.png" alt="Eurario — Procedure 9 Class Timetable PDF Print Generator" class="doc-screenshot">
+
+<img src="../assets/eurario-modale-stampa-docenti.png" alt="Eurario — Procedure 12 Master Faculty Board A3 Print Generator" class="doc-screenshot">
+
+<img src="../assets/eurario-modale-stampa-spostamenti.png" alt="Eurario — Campus Travel Noticeboard Print Generator" class="doc-screenshot">
 
 ---
 
@@ -231,6 +267,22 @@ flowchart TD
    * Administrators can view the private feed URL and regenerate keys in the teacher profile.
 
 <img src="../assets/eurario-email-modal.png" alt="Eurario — Individual Timetable Email Delivery Modal with Privacy Protection" class="doc-screenshot">
+
+---
+
+### Step 14: Security, User Roles & SMTP Server Configuration
+
+**Purpose:** Manage access permissions, inspect live audit trails, and configure outbound email delivery.
+
+1. Open **Access Management** from the top bar or administration settings.
+2. **Roles & Permissions**: Manage user accounts (*Superadmin, School Admin, Timetable Editor, Read-Only Viewer*).
+3. **Live Access Audit Log**: Review sign-in history, client IP addresses, and database changes in real time.
+4. **SMTP Configuration**: Switch to **Mail Server (SMTP)** to set school credentials (Host, Port, STARTTLS/SSL, User, and App Password).
+5. Send an integrated test email to verify server connectivity before emailing faculty timetables.
+
+<img src="../assets/eurario-modale-gestione-accessi.png" alt="Eurario — Access Management, User Roles, and Audit Log" class="doc-screenshot">
+
+<img src="../assets/eurario-modale-configurazione-smtp.png" alt="Eurario — Outgoing SMTP Mail Server Configuration and Test" class="doc-screenshot">
 
 ---
    * Administrators can view the private feed URL and regenerate the cryptographic token in the teacher edit modal, immediately revoking outdated links.
