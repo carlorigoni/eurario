@@ -76,19 +76,34 @@ class PDFCanvas:
     def line(self, x1, y1, x2, y2):
         self.ops.append(f"{x1:.2f} {y1:.2f} m {x2:.2f} {y2:.2f} l S".encode("ascii"))
 
+    def get_text_width(self, text, font="F1", size=10):
+        if not text:
+            return 0.0
+        bold_factor = 1.12 if font == "F2" else 1.0
+        w = 0.0
+        for ch in text:
+            if ch in "ijl|!.,:;' ":
+                w += 0.28 * size * bold_factor
+            elif ch in "mwMW_@#%":
+                w += 0.82 * size * bold_factor
+            elif ch.isupper() or ch in "0123456789":
+                w += 0.62 * size * bold_factor
+            else:
+                w += 0.52 * size * bold_factor
+        return w
+
     def draw_text(self, text, x, y, font="F1", size=10, r=0, g=0, b=0, align="left", max_width=None):
         if not text:
             return
         self.save_state()
         self.set_fill_color(r, g, b)
         
-        # Stima larghezza testo Helvetica (in media ~0.52 * size per carattere)
-        char_w = 0.52 * size
-        text_w = len(text) * char_w
-        if max_width and text_w > max_width and len(text) > 4:
-            avail_chars = max(3, int(max_width / char_w) - 2)
-            text = text[:avail_chars] + "..."
-            text_w = len(text) * char_w
+        text_w = self.get_text_width(text, font, size)
+        if max_width and text_w > max_width and len(text) > 3:
+            while len(text) > 3 and (self.get_text_width(text + "...", font, size) > max_width):
+                text = text[:-1]
+            text = text + "..."
+            text_w = self.get_text_width(text, font, size)
 
         tx = x
         if align == "center":
@@ -230,9 +245,9 @@ def generate_teacher_timetable_pdf(data, teacher_name, options=None):
 
     # 1. HEADER
     c.save_state()
-    # Titolo Istituto
-    c.draw_text(institution.upper(), ML, MT - 14, font="F2", size=14, r=0.06, g=0.09, b=0.16)
-    c.draw_text(f"ORARIO SETTIMANALE INDIVIDUALE DELLE LEZIONI • A.S. {school_year}", ML, MT - 27, font="F1", size=8.5, r=0.28, g=0.33, b=0.41)
+    # Titolo Istituto (con limite larghezza per evitare collisioni con la data di validità)
+    c.draw_text(institution.upper(), ML, MT - 14, font="F2", size=14, r=0.06, g=0.09, b=0.16, max_width=W - 220.0)
+    c.draw_text(f"ORARIO SETTIMANALE INDIVIDUALE DELLE LEZIONI • A.S. {school_year}", ML, MT - 27, font="F1", size=8.5, r=0.28, g=0.33, b=0.41, max_width=W - 220.0)
 
     # Box a destra: validità
     c.draw_text(f"In vigore dal: {validity_date}", MR, MT - 14, font="F2", size=9.5, r=0.06, g=0.09, b=0.16, align="right")
@@ -253,24 +268,61 @@ def generate_teacher_timetable_pdf(data, teacher_name, options=None):
     c.set_line_width(0.8)
     c.rect(ML, BY, W, BH, fill=True, stroke=True)
 
-    # Nome Docente
-    c.draw_text(f"Prof. {teacher_name}", ML + 8, BY + 8, font="F2", size=12, r=0.06, g=0.09, b=0.16)
-    
-    # Badge CDC
-    if cdc:
-        badge_x = ML + 10 + (len(teacher_name) + 6) * 6.5
+    # 1. Sezione Destra: Ore Cattedra (ancorato a destra con margine sicuro)
+    hours_txt = f"Ore Cattedra: {tot_h}h ({teach_h}h lez" + (f", {disp_h}h disp)" if disp_h else ")")
+    hours_w = c.get_text_width(hours_txt, font="F2", size=9.5)
+    c.draw_text(hours_txt, MR - 10.0, BY + 8.5, font="F2", size=9.5, r=0.114, g=0.306, b=0.847, align="right")
+    hours_left_bound = MR - 10.0 - hours_w
+
+    # 2. Sezione Sinistra: Nome Docente (Prof. ...)
+    name_txt = f"Prof. {teacher_name}"
+    name_w = c.get_text_width(name_txt, font="F2", size=11.5)
+    c.draw_text(name_txt, ML + 10.0, BY + 8.0, font="F2", size=11.5, r=0.06, g=0.09, b=0.16)
+    badge_start_x = ML + 10.0 + name_w + 10.0
+
+    # 3. Sezione Centro: Email istituzionale (dinamicamente posizionata per non collidere con destra/sinistra)
+    email_txt = f"Email: {email}" if email else "Email: non presente"
+    email_w = c.get_text_width(email_txt, font="F1", size=8.5)
+    center_x = (ML + MR) / 2.0
+    email_x_left = center_x - (email_w / 2.0)
+    email_x_right = center_x + (email_w / 2.0)
+    if email_x_right > hours_left_bound - 15.0:
+        email_x_right = hours_left_bound - 15.0
+        email_x_left = email_x_right - email_w
+    c.draw_text(email_txt, (email_x_left + email_x_right) / 2.0, BY + 8.5, font="F1", size=8.5, r=0.20, g=0.25, b=0.33, align="center")
+
+    # 4. Badge CDC e Descrizione Disciplina (dinamico, non si accavalla mai con nome docente o email)
+    avail_cdc_w = (email_x_left - 12.0) - badge_start_x
+    if cdc and avail_cdc_w > 15.0:
+        if " - " in cdc:
+            cdc_code, cdc_desc = cdc.split(" - ", 1)
+            cdc_code = cdc_code.strip()
+            cdc_desc = cdc_desc.strip()
+        elif " " in cdc and len(cdc.split()[0]) <= 8:
+            parts = cdc.split(None, 1)
+            cdc_code = parts[0].strip()
+            cdc_desc = parts[1].strip()
+        else:
+            cdc_code = cdc.strip()
+            cdc_desc = ""
+
+        code_w = c.get_text_width(cdc_code, font="F2", size=8.5)
+        badge_w = max(36.0, code_w + 12.0)
+        if badge_w > avail_cdc_w:
+            badge_w = max(24.0, avail_cdc_w)
+
         c.set_fill_color(0.878, 0.906, 0.996) # #e0e7ff
         c.set_stroke_color(0.757, 0.804, 0.988)
-        c.rect(badge_x, BY + 5.5, 45, 14, fill=True, stroke=True)
-        c.draw_text(cdc, badge_x + 22.5, BY + 9.5, font="F2", size=8.5, r=0.118, g=0.227, b=0.541, align="center")
+        c.rect(badge_start_x, BY + 5.5, badge_w, 14.0, fill=True, stroke=True)
+        c.draw_text(cdc_code, badge_start_x + (badge_w / 2.0), BY + 9.2, font="F2", size=8.5, r=0.118, g=0.227, b=0.541, align="center", max_width=badge_w - 4.0)
 
-    # Email istituzionale
-    email_txt = f"Email: {email}" if email else "Email: non presente"
-    c.draw_text(email_txt, ML + (W / 2.0), BY + 8.5, font="F1", size=8.5, r=0.20, g=0.25, b=0.33, align="center")
+        # Se è presente una descrizione della disciplina (es. "Scienze Matematiche Applicate")
+        if cdc_desc:
+            desc_x = badge_start_x + badge_w + 6.0
+            avail_desc_w = (email_x_left - 12.0) - desc_x
+            if avail_desc_w > 30.0:
+                c.draw_text(cdc_desc, desc_x, BY + 9.0, font="F1", size=8.5, r=0.28, g=0.33, b=0.45, align="left", max_width=avail_desc_w)
 
-    # Ore Cattedra
-    hours_txt = f"Ore Cattedra: {tot_h}h ({teach_h}h lez" + (f", {disp_h}h disp)" if disp_h else ")")
-    c.draw_text(hours_txt, MR - 8, BY + 8.5, font="F2", size=9.5, r=0.114, g=0.306, b=0.847, align="right")
     c.restore_state()
 
     # 3. TABELLA GRIGLIA ORARIO
