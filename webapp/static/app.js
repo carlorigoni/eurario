@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.58';
+let APP_VERSION = '1.9.59';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -6987,30 +6987,26 @@ async function renderTeachers() {
     ${getGlobalFilterBannerHtml()}
     ${getNavReturnBarHtml(isEn ? 'Faculty roster and teaching assignments.' : 'Organico docenti e gestione cattedre.')}
     <!-- Barra Filtri e Azioni -->
-    <div class="toolbar" style="margin-bottom:10px;">
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1;">
-        <input type="text" id="teacherSearch" class="search-input" placeholder="${isEn ? '🔍 Search teacher, short name, CDC, subject or class...' : '🔍 Cerca docente, nome breve, CDC, materia o classe...'}" oninput="applyTeacherFilters()" style="flex:1;min-width:240px;">
-        <button class="btn btn-outline" onclick="openAllineaCattedreModal()" title="${isEn ? 'Align teacher contract types (COE, Spezzoni, Part-Time, Full-Time, Hours and Days) from an Excel or CSV sheet' : 'Allinea la tipologia di cattedra dei docenti (COE, Spezzoni, Part-Time, Intera, Ore e Giorni) da foglio Excel o CSV'}" style="font-weight:700;border:1.5px solid #059669;color:#059669;background:var(--bg-main);white-space:nowrap;padding:7px 14px;">
-          📊 ${isEn ? 'Align Contract Types (Excel / CSV)' : 'Allinea Tipologia Cattedre (Excel / CSV)'}
-        </button>
-        <button class="btn btn-outline" onclick="openAggiornaOrganicoModal()" title="${isEn ? 'Update faculty roster by comparing with a Word (.docx) or Google Doc' : 'Aggiorna l\'organico docenti confrontandolo con un file Word (.docx) o Google Doc'}" style="font-weight:700;border:1.5px solid var(--primary);color:var(--primary);background:var(--bg-main);white-space:nowrap;padding:7px 14px;">
-          🔄 ${isEn ? 'Update Faculty (Docx / Google Doc)' : 'Aggiorna Organico (Docx / Google Doc)'}
-        </button>
-        <button class="btn btn-outline" onclick="openEmailTimetablesModal()" title="${isEn ? 'Send individual timetable to teachers via email (privacy mode)' : 'Invia l\'orario individuale via email ai docenti (massima privacy, nessun confronto)'}" style="font-weight:700;border:1.5px solid #2563eb;color:#2563eb;background:var(--bg-main);white-space:nowrap;padding:7px 14px;">
-          📧 ${isEn ? 'Email Timetables' : 'Invia Orari Email'}
-        </button>
-        <button class="btn btn-outline" onclick="window.open('/api/print/teacher_timetable?teachers=all', '_blank')" title="${isEn ? 'Print individual timetables for all teachers (one per sheet)' : 'Stampa orari individuali di tutti i docenti (un foglio A4 per docente)'}" style="font-weight:700;border:1.5px solid #475569;color:#475569;background:var(--bg-main);white-space:nowrap;padding:7px 14px;">
-          🖨️ ${isEn ? 'Print All (Single Sheets)' : 'Stampa Orari (Fogli Singoli)'}
-        </button>
-        <button class="btn btn-sm btn-sec" onclick="batchPrefillTeacherEmails()" title="${isEn ? 'Prefill missing emails with name.surname@domain' : 'Precompila email mancanti nel formato nome.cognome@dominio'}" style="white-space:nowrap;">
-          ⚡ ${isEn ? 'Prefill Emails' : 'Precompila Email'}
-        </button>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;">
-        <button class="btn btn-primary" onclick="openAddTeacherModal()" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:8px 18px;box-shadow:0 2px 6px rgba(37,99,235,0.25);">
-          ➕ ${isEn ? 'Add Teacher' : 'Aggiungi Docente'}
-        </button>
-      </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+      <input type="text" id="teacherSearch" class="search-input" placeholder="${isEn ? '🔍 Search teacher, short name, CDC, subject or class...' : '🔍 Cerca docente, nome breve, CDC, materia o classe...'}" oninput="applyTeacherFilters()" style="flex:1;min-width:240px;height:36px;box-sizing:border-box;">
+      <button class="btn btn-outline" onclick="openAllineaCattedreModal()" title="${isEn ? 'Align teacher contract types (COE, Spezzoni, Part-Time, Full-Time, Hours and Days) from an Excel or CSV sheet' : 'Allinea la tipologia di cattedra dei docenti (COE, Spezzoni, Part-Time, Intera, Ore e Giorni) da foglio Excel o CSV'}" style="font-weight:700;border:1.5px solid #059669;color:#059669;background:var(--bg-main);white-space:nowrap;padding:0 14px;height:36px;box-sizing:border-box;display:inline-flex;align-items:center;">
+        📊 ${isEn ? 'Align Contract Types (Excel / CSV)' : 'Allinea Tipologia Cattedre (Excel / CSV)'}
+      </button>
+      <button class="btn btn-outline" onclick="openAggiornaOrganicoModal()" title="${isEn ? 'Update faculty roster by comparing with a Word (.docx) or Google Doc' : 'Aggiorna l\'organico docenti confrontandolo con un file Word (.docx) o Google Doc'}" style="font-weight:700;border:1.5px solid var(--primary);color:var(--primary);background:var(--bg-main);white-space:nowrap;padding:0 14px;height:36px;box-sizing:border-box;display:inline-flex;align-items:center;">
+        🔄 ${isEn ? 'Update Faculty (Docx / Google Doc)' : 'Aggiorna Organico (Docx / Google Doc)'}
+      </button>
+      <button class="btn btn-outline" onclick="openEmailTimetablesModal()" title="${isEn ? 'Send individual timetable to teachers via email (privacy mode)' : 'Invia l\'orario individuale via email ai docenti (massima privacy, nessun confronto)'}" style="font-weight:700;border:1.5px solid #2563eb;color:#2563eb;background:var(--bg-main);white-space:nowrap;padding:0 14px;height:36px;box-sizing:border-box;display:inline-flex;align-items:center;">
+        📧 ${isEn ? 'Email Timetables' : 'Invia Orari Email'}
+      </button>
+      <button class="btn btn-outline" onclick="window.open('/api/print/teacher_timetable?teachers=all', '_blank')" title="${isEn ? 'Print individual timetables for all teachers (one per sheet)' : 'Stampa orari individuali di tutti i docenti (un foglio A4 per docente)'}" style="font-weight:700;border:1.5px solid #475569;color:#475569;background:var(--bg-main);white-space:nowrap;padding:0 14px;height:36px;box-sizing:border-box;display:inline-flex;align-items:center;">
+        🖨️ ${isEn ? 'Print All (Single Sheets)' : 'Stampa Orari (Fogli Singoli)'}
+      </button>
+      <button class="btn btn-sm btn-sec" onclick="batchPrefillTeacherEmails()" title="${isEn ? 'Prefill missing emails with name.surname@domain' : 'Precompila email mancanti nel formato nome.cognome@dominio'}" style="white-space:nowrap;padding:0 12px;height:36px;box-sizing:border-box;display:inline-flex;align-items:center;">
+        ⚡ ${isEn ? 'Prefill Emails' : 'Precompila Email'}
+      </button>
+      <button class="btn btn-primary" onclick="openAddTeacherModal()" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:0 18px;height:36px;box-sizing:border-box;box-shadow:0 2px 6px rgba(37,99,235,0.25);margin-left:auto;white-space:nowrap;">
+        ➕ ${isEn ? 'Add Teacher' : 'Aggiungi Docente'}
+      </button>
     </div>
 
     <!-- Barra Filtri Rapidi Cattedre & Disposizioni D -->
