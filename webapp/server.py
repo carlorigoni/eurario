@@ -1927,6 +1927,8 @@ class EurarioHandler(BaseHTTPRequestHandler):
                 is_coe=body.get("is_coe", False),
                 email=body.get("email", "")
             )
+            if ok and any(k in body for k in ("pref_shift", "free_day_1", "free_day_2", "free_day_strict", "max_span", "max_daily_lessons", "max_gaps_per_day", "pref_shift_weight", "custom_disp_hours")):
+                db.update_teacher(body["name"], body)
             self._json(200 if ok else 400, {"success": ok})
 
         elif path == "/api/teachers/update":

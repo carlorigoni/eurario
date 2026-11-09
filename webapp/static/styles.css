@@ -396,14 +396,21 @@
   background: #0f172a;
   color: #cbd5e1;
 }
-[data-theme="dark"] .matrix-table th.sticky-col,
+[data-theme="dark"] .matrix-table thead tr:nth-child(2) th {
+  background: #1e293b;
+  color: #f1f5f9;
+  border-bottom: 2px solid #475569;
+}
+[data-theme="dark"] .matrix-table th.sticky-col {
+  background: #0f172a !important;
+  color: #f8fafc;
+  border-right: 2px solid #334155 !important;
+  border-bottom: 2px solid #334155 !important;
+}
 [data-theme="dark"] .matrix-table td.sticky-col {
   background: #131b2e;
   color: #f1f5f9;
   border-right-color: #334155;
-}
-[data-theme="dark"] .matrix-table th.sticky-col {
-  background: #0f172a;
 }
 [data-theme="dark"] .matrix-day-header {
   background: #0c233c !important;
@@ -2799,6 +2806,10 @@ textarea:focus:not(:focus-visible) {
   text-align: center;
   padding: 8px 4px;
   border-right: 1px solid rgba(255,255,255,0.2);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .tt-hour-col {
@@ -2809,6 +2820,20 @@ textarea:focus:not(:focus-visible) {
   padding: 12px 6px;
   border-bottom: 1px solid var(--border-light);
   border-right: 1px solid var(--border);
+  position: sticky;
+  left: 0;
+  z-index: 5;
+}
+
+[data-theme="dark"] .tt-hour-col {
+  background: #1e293b;
+}
+
+.tt-header:first-child {
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 20;
 }
 
 .tt-cell {
@@ -3912,21 +3937,56 @@ input:checked + .slider:before {
   text-align: center;
 }
 
-.matrix-table th {
-  background: var(--bg-hover);
+/* Intestazione sticky a due livelli: Giorni (riga 1) + Ore (riga 2) */
+.matrix-table thead tr:first-child th {
   position: sticky;
   top: 0;
-  z-index: 10;
-  font-weight: 600;
-  color: var(--text-main);
+  z-index: 25;
+  height: 32px;
+}
+
+.matrix-table thead tr:first-child th.matrix-day-header {
+  background: #1e3a5f !important;
+  color: #ffffff !important;
+  font-size: 11.5px;
+  text-align: center;
+  padding: 6px 4px;
+  border-right: 1px solid rgba(255, 255, 255, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
   white-space: nowrap;
 }
 
-.matrix-table th.sticky-col,
+.matrix-table thead tr:nth-child(2) th {
+  position: sticky;
+  top: 32px;
+  z-index: 24;
+  height: 26px;
+  background: #f1f5f9;
+  color: var(--text-main);
+  font-size: 10.5px;
+  padding: 4px 2px;
+  border-bottom: 2px solid #94a3b8;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  white-space: nowrap;
+}
+
+.matrix-table th.sticky-col {
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 35 !important;
+  background: #e2e8f0 !important;
+  color: #0f172a;
+  border-right: 2px solid #94a3b8 !important;
+  border-bottom: 2px solid #94a3b8 !important;
+  vertical-align: middle;
+  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.12);
+}
+
 .matrix-table td.sticky-col {
   position: sticky;
   left: 0;
-  z-index: 11;
+  z-index: 15;
   background: var(--bg-card);
   text-align: left;
   font-weight: 600;
@@ -3936,11 +3996,38 @@ input:checked + .slider:before {
   text-overflow: ellipsis;
   white-space: nowrap;
   border-right: 2px solid #cbd5e1;
+  box-shadow: 2px 0 3px rgba(0, 0, 0, 0.05);
 }
 
-.matrix-table th.sticky-col {
-  z-index: 20;
-  background: #e2e8f0;
+/* Pulsanti Filtro Rapido Docenti (attivi in blu come Classi/Sedi) */
+.teacher-filter-btn {
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-sub);
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.teacher-filter-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+  border-color: #94a3b8;
+}
+
+.teacher-filter-btn.active {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #1d4ed8 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3) !important;
+}
+
+[data-theme="dark"] .teacher-filter-btn.active {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #3b82f6 !important;
 }
 
 .matrix-day-header {

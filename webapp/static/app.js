@@ -6930,14 +6930,9 @@ let currentTeacherFilterMode = 'all';
 
 function setTeacherFilter(mode) {
   currentTeacherFilterMode = mode;
-  document.querySelectorAll('.teacher-filter-btn').forEach(b => b.classList.remove('active'));
-  if (mode === 'all') document.getElementById('btnTeachAll')?.classList.add('active');
-  if (mode === 'intera') document.getElementById('btnTeachIntera')?.classList.add('active');
-  if (mode === 'coe') document.getElementById('btnTeachCoe')?.classList.add('active');
-  if (mode === 'spezzone') document.getElementById('btnTeachSpezzone')?.classList.add('active');
-  if (mode === 'pt') document.getElementById('btnTeachPt')?.classList.add('active');
-  if (mode === 'disp') document.getElementById('btnTeachDisp')?.classList.add('active');
-  if (mode === 'full') document.getElementById('btnTeachFull')?.classList.add('active');
+  document.querySelectorAll('.teacher-filter-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
   applyTeacherFilters();
 }
 
@@ -7011,43 +7006,35 @@ async function renderTeachers() {
           ⚡ ${isEn ? 'Prefill Emails' : 'Precompila Email'}
         </button>
       </div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-        <input type="text" id="newTeacherName" class="search-input" placeholder="${isEn ? 'Teacher name (e.g. John Doe)' : 'Nome docente (es. Rossi Mario)'}" style="width:175px;" oninput="onNewTeacherNameChange(this.value)">
-        <input type="text" id="newTeacherShortName" class="search-input" placeholder="${isEn ? 'Short Name (DOE J.)' : 'Nome Breve (ROSSI M.)'}" style="width:140px;font-family:var(--font-mono);font-weight:700;text-transform:uppercase;" title="${isEn ? 'Short Name for printouts (SURNAME I.)' : 'Nome Breve per le stampe (COGNOME N.)'}">
-        <input type="text" id="newTeacherCdc" class="search-input" placeholder="CDC" style="width:70px;">
-        <select id="newTeacherContractType" class="table-select" style="width:130px;" title="${isEn ? 'Assignment contract type: Full-Time, External COE, Part-Hours, Part-Time' : 'Tipologia di cattedra/contratto: Intera, COE, Spezzone, Part-Time'}">
-          <option value="intera">🏛️ ${isEn ? 'Full-Time (18h)' : 'Intera (18h)'}</option>
-          <option value="coe">🏫 ${isEn ? 'External (COE)' : 'COE'}</option>
-          <option value="spezzone">🧩 ${isEn ? 'Part-Hours' : 'Spezzone'}</option>
-          <option value="part_time">⏳ ${isEn ? 'Part-Time' : 'Part-Time'}</option>
-        </select>
-        <input type="number" id="newTeacherTarget" class="search-input" placeholder="${isEn ? 'Hours' : 'Ore'}" value="18" style="width:55px;" title="${isEn ? 'Contractual Assignment Hours' : 'Ore Cattedra Contrattuali'}">
-        <button class="btn btn-primary" onclick="addTeacher()">+ ${isEn ? 'Add Teacher' : 'Aggiungi Docente'}</button>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="btn btn-primary" onclick="openAddTeacherModal()" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:8px 18px;box-shadow:0 2px 6px rgba(37,99,235,0.25);">
+          ➕ ${isEn ? 'Add Teacher' : 'Aggiungi Docente'}
+        </button>
       </div>
     </div>
 
     <!-- Barra Filtri Rapidi Cattedre & Disposizioni D -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px;flex-wrap:wrap;">
       <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-        <button class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherFilterMode === 'all' ? 'active' : ''}" id="btnTeachAll" onclick="setTeacherFilter('all')">
+        <button class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherFilterMode === 'all' ? 'active' : ''}" data-mode="all" id="btnTeachAll" onclick="setTeacherFilter('all')">
           ${isEn ? 'All' : 'Tutti'} (${totalTeachers})
         </button>
-        <button class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherFilterMode === 'intera' ? 'active' : ''}" id="btnTeachIntera" onclick="setTeacherFilter('intera')" title="${isEn ? 'Teachers with standard full-time post (18 hours)' : 'Docenti con Cattedra Ordinaria Intera (18 ore)'}">
+        <button class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherFilterMode === 'intera' ? 'active' : ''}" data-mode="intera" id="btnTeachIntera" onclick="setTeacherFilter('intera')" title="${isEn ? 'Teachers with standard full-time post (18 hours)' : 'Docenti con Cattedra Ordinaria Intera (18 ore)'}">
           🏛️ ${isEn ? 'Full-Time' : 'Intere'} (${interaTeachers})
         </button>
-        <button class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherFilterMode === 'coe' ? 'active' : ''}" id="btnTeachCoe" onclick="setTeacherFilter('coe')" title="${isEn ? 'Teachers with external completion post (COE)' : 'Docenti con Cattedra Orario Esterna (COE)'}">
+        <button class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherFilterMode === 'coe' ? 'active' : ''}" data-mode="coe" id="btnTeachCoe" onclick="setTeacherFilter('coe')" title="${isEn ? 'Teachers with external completion post (COE)' : 'Docenti con Cattedra Orario Esterna (COE)'}">
           🏫 ${isEn ? 'External COE' : 'COE'} (${coeTeachers})
         </button>
-        <button class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherFilterMode === 'spezzone' ? 'active' : ''}" id="btnTeachSpezzone" onclick="setTeacherFilter('spezzone')" title="${isEn ? 'Teachers with reduced / residual hours post' : 'Docenti su Spezzone Orario (cattedre ridotte/residue)'}">
+        <button class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherFilterMode === 'spezzone' ? 'active' : ''}" data-mode="spezzone" id="btnTeachSpezzone" onclick="setTeacherFilter('spezzone')" title="${isEn ? 'Teachers with reduced / residual hours post' : 'Docenti su Spezzone Orario (cattedre ridotte/residue)'}">
           🧩 ${isEn ? 'Part-Hours' : 'Spezzoni'} (${spezzoneTeachers})
         </button>
-        <button class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherFilterMode === 'pt' ? 'active' : ''}" id="btnTeachPt" onclick="setTeacherFilter('pt')" title="${isEn ? 'Teachers with part-time contract' : 'Docenti con contratto Part-Time'}">
+        <button class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherFilterMode === 'pt' ? 'active' : ''}" data-mode="pt" id="btnTeachPt" onclick="setTeacherFilter('pt')" title="${isEn ? 'Teachers with part-time contract' : 'Docenti con contratto Part-Time'}">
           ⏳ ${isEn ? 'Part-Time' : 'Part-Time'} (${ptTeachers})
         </button>
-        <button class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherFilterMode === 'disp' ? 'active' : ''}" id="btnTeachDisp" onclick="setTeacherFilter('disp')" title="${isEn ? 'Teachers with unassigned hours designated as On-Duty D' : 'Docenti con ore cattedra non coperte da lezioni: assegnate a Disposizione'}">
+        <button class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherFilterMode === 'disp' ? 'active' : ''}" data-mode="disp" id="btnTeachDisp" onclick="setTeacherFilter('disp')" title="${isEn ? 'Teachers with unassigned hours designated as On-Duty D' : 'Docenti con ore cattedra non coperte da lezioni: assegnate a Disposizione'}">
           📌 ${isEn ? 'With On-Duty D' : 'Con Disposizione D'} (${dispTeachers} ${isEn ? 'teachers' : 'docenti'} — ${totalDispHours}h D tot.)
         </button>
-        <button class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherFilterMode === 'full' ? 'active' : ''}" id="btnTeachFull" onclick="setTeacherFilter('full')" title="${isEn ? 'Teachers with fully covered assignment hours' : 'Docenti con cattedra completamente coperta'}">
+        <button class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherFilterMode === 'full' ? 'active' : ''}" data-mode="full" id="btnTeachFull" onclick="setTeacherFilter('full')" title="${isEn ? 'Teachers with fully covered assignment hours' : 'Docenti con cattedra completamente coperta'}">
           ✓ ${isEn ? 'Complete Assignments' : 'Cattedre Piene'} (${fullTeachers})
         </button>
       </div>
@@ -7211,6 +7198,9 @@ async function renderTeachers() {
       </table>
     </div>
   `;
+
+  // Applica immediatamente il filtro attivo (e la ricerca) per mantenere lo stato dopo modifiche/salvataggio
+  applyTeacherFilters();
 }
 
 function updateDispPreview(lessonH) {
@@ -7246,6 +7236,317 @@ function onContractTypeChange(ctype) {
   } else {
     hintEl.innerText = isEn ? `🏛️ Full Standard Contract (${targetVal} contractual hours).` : `🏛️ Cattedra Ordinaria Intera (${targetVal} ore contrattuali).`;
   }
+}
+
+function openAddTeacherModal() {
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+  const defaultDomain = stateData.settings?.teacher_email_domain || (stateData.parameters && stateData.parameters["Dominio email istituzionale docenti"]) || 'scuola.edu.it';
+
+  showModal(`
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">👨‍🏫 ${isEn ? 'Add New Teacher' : 'Aggiungi Nuovo Docente'}</div>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="form-group">
+            <label class="form-label">${isEn ? 'Full Teacher Name' : 'Nome e Cognome Docente'} *</label>
+            <input type="text" id="addTeacherFullName" class="form-input" placeholder="${isEn ? 'e.g. SMITH JOHN' : 'es. ROSSI MARIO'}" oninput="onAddTeacherNameChange(this.value)" autofocus>
+          </div>
+          <div class="form-group">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <label class="form-label" style="margin-bottom:0;">${isEn ? 'Short Name for Printing' : 'Nome Breve per Stampe'}</label>
+              <button type="button" class="btn btn-sm btn-sec" style="font-size:10.5px;padding:1px 6px;" onclick="autoComputeAddShortName()">
+                ⚡ Standard
+              </button>
+            </div>
+            <input type="text" id="addTeacherShortName" class="form-input" placeholder="${isEn ? 'e.g. SMITH J.' : 'es. ROSSI M.'}" style="font-family:var(--font-mono);font-weight:700;text-transform:uppercase;">
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:12px;">
+          <div class="form-group">
+            <label class="form-label">CDC (${isEn ? 'Competition Class' : 'Classe di Concorso'})</label>
+            <input type="text" id="addTeacherCdc" class="form-input" placeholder="es. A047 o A019">
+          </div>
+          <div class="form-group">
+            <label class="form-label">📧 ${isEn ? 'Institutional Email' : 'Email Istituzionale'}</label>
+            <input type="email" id="addTeacherEmail" class="form-input" placeholder="nome.cognome@${defaultDomain}">
+          </div>
+        </div>
+
+        <!-- Selezione Tipologia di Cattedra -->
+        <div class="form-group" style="margin-top:6px;">
+          <label class="form-label">${isEn ? 'Contract / Assignment Type' : 'Tipologia di Cattedra / Contratto'}</label>
+          <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:8px;">
+            <label class="radio-pill active" id="addPillIntera" style="border:1px solid var(--border);padding:8px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;">
+              <input type="radio" name="addTeacherContractType" value="intera" checked onchange="onAddContractTypeChange('intera')">
+              <span>🏛️ <b>${isEn ? 'Full (18h)' : 'Intera (18h)'}</b></span>
+            </label>
+            <label class="radio-pill" id="addPillCoe" style="border:1px solid var(--border);padding:8px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;">
+              <input type="radio" name="addTeacherContractType" value="coe" onchange="onAddContractTypeChange('coe')">
+              <span>🏫 <b>COE</b></span>
+            </label>
+            <label class="radio-pill" id="addPillSpezzone" style="border:1px solid var(--border);padding:8px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;">
+              <input type="radio" name="addTeacherContractType" value="spezzone" onchange="onAddContractTypeChange('spezzone')">
+              <span>🧩 <b>${isEn ? 'Fraction' : 'Spezzone'}</b></span>
+            </label>
+            <label class="radio-pill" id="addPillPt" style="border:1px solid var(--border);padding:8px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;">
+              <input type="radio" name="addTeacherContractType" value="part_time" onchange="onAddContractTypeChange('part_time')">
+              <span>⏳ <b>Part-Time</b></span>
+            </label>
+          </div>
+          <div id="addContractTypeHint" style="font-size:11.5px;color:var(--text-muted);margin-top:4px;">
+            🏛️ Cattedra Ordinaria Intera (18 ore contrattuali).
+          </div>
+        </div>
+
+        <!-- Parametri Ore e Giorni -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;background:var(--bg-main);padding:12px;border-radius:8px;border:1px solid var(--border);margin-bottom:12px;">
+          <div>
+            <label class="form-label" style="font-size:12px;">🎯 ${isEn ? 'Contract Hours' : 'Ore Cattedra'}</label>
+            <input type="number" id="addTeacherTarget" class="form-input" value="18" min="1" max="25" oninput="onAddTargetHoursChange(this.value)">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:12px;">📅 ${isEn ? 'Min Days / Week' : 'Giorni Minimi'}</label>
+            <input type="number" id="addTeacherMinDays" class="form-input" value="4" min="1" max="6">
+          </div>
+          <div>
+            <label class="form-label" style="font-size:12px;">📅 ${isEn ? 'Max Days / Week' : 'Giorni Massimi'}</label>
+            <input type="number" id="addTeacherMaxDays" class="form-input" value="5" min="1" max="6">
+          </div>
+        </div>
+
+        <!-- Sezione Preferenze & Desiderata -->
+        <div style="border-top:1px dashed var(--border);padding-top:12px;margin-bottom:12px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text-main);margin-bottom:8px;">
+            ⚙️ ${isEn ? 'Timetable Preferences & Desiderata (Optional)' : 'Preferenze & Desiderata Orario (Opzionali)'}
+          </div>
+
+          <!-- Fascia Oraria -->
+          <div style="margin-bottom:10px;">
+            <label class="form-label" style="font-size:12px;margin-bottom:4px;">1. ${isEn ? 'Preferred Time Shift' : 'Fascia Oraria Preferita'}</label>
+            <input type="hidden" id="addTeacherPrefShift" value="none">
+            <div style="display:grid;grid-template-columns:repeat(4, 1fr);gap:8px;">
+              <div class="pref-card" onclick="selectAddPrefShift('prime', event)">
+                <div class="pref-card-icon">🌅</div>
+                <div class="pref-card-title">${isEn ? 'Early' : 'Prime Ore'}</div>
+                <div class="pref-card-desc">1ª-4ª ora</div>
+              </div>
+              <div class="pref-card" onclick="selectAddPrefShift('ultime', event)">
+                <div class="pref-card-icon">🌆</div>
+                <div class="pref-card-title">${isEn ? 'Late' : 'Ultime Ore'}</div>
+                <div class="pref-card-desc">3ª-6ª ora</div>
+              </div>
+              <div class="pref-card" onclick="selectAddPrefShift('bilanciato', event)">
+                <div class="pref-card-icon">⚖️</div>
+                <div class="pref-card-title">${isEn ? 'Balanced' : 'Bilanciato'}</div>
+                <div class="pref-card-desc">2ª-5ª ora</div>
+              </div>
+              <div class="pref-card selected" onclick="selectAddPrefShift('none', event)">
+                <div class="pref-card-icon">🎲</div>
+                <div class="pref-card-title">${isEn ? 'Flexible' : 'Flessibile'}</div>
+                <div class="pref-card-desc">Nessuna pref.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Giorno Libero -->
+          <div style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+              <label class="form-label" style="font-size:12px;margin-bottom:0;">2. ${isEn ? 'Desired Weekly Free Day' : 'Giorno Libero Settimanale Desiderato'}</label>
+              <span style="font-size:11px;color:var(--text-muted);">1° click: ⭐ 1ª scelta | 2° click: 👍 2ª scelta | 3° click: reset</span>
+            </div>
+            <input type="hidden" id="addTeacherFreeDay1" value="">
+            <input type="hidden" id="addTeacherFreeDay2" value="">
+            <div class="pref-pills-row" style="margin-bottom:8px;" id="addFreeDayPillContainer">
+              ${['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'].map(d => `<button type="button" class="pref-day-btn" onclick="cycleAddFreeDay('${d}')">${formatDayName(d)}</button>`).join('')}
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;margin:0;">
+              <input type="checkbox" id="addTeacherFreeDayStrict" style="cursor:pointer;">
+              <span>🔒 <b>${isEn ? '100% Strict Free Day' : 'Giorno Libero 100% Tassativo'}</b></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">${isEn ? 'Notes / Didactic Instructions' : 'Note / Istruzioni Didattiche'}</label>
+          <textarea id="addTeacherComments" class="form-input" rows="2" placeholder="${isEn ? 'Optional notes or constraints' : 'Note opzionali o vincoli specifici'}"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sec" onclick="closeModal()">${isEn ? 'Cancel' : 'Annulla'}</button>
+        <button class="btn btn-primary" onclick="submitAddTeacher()">➕ ${isEn ? 'Add Teacher' : 'Aggiungi Docente'}</button>
+      </div>
+    </div>
+  `);
+}
+
+function onAddTeacherNameChange(val) {
+  const sn = document.getElementById('addTeacherShortName');
+  if (sn && (!sn.dataset.manuallyEdited || sn.dataset.manuallyEdited === '0')) {
+    sn.value = computeShortNameJs(val);
+  }
+  const em = document.getElementById('addTeacherEmail');
+  if (em && (!em.dataset.manuallyEdited || em.dataset.manuallyEdited === '0')) {
+    em.value = computeTeacherEmailJs(val, stateData.settings?.teacher_email_domain);
+  }
+}
+
+function autoComputeAddShortName() {
+  const name = document.getElementById('addTeacherFullName')?.value || '';
+  const sn = document.getElementById('addTeacherShortName');
+  if (sn) sn.value = computeShortNameJs(name);
+}
+
+function onAddContractTypeChange(ctype) {
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+  const hintEl = document.getElementById('addContractTypeHint');
+  const targetEl = document.getElementById('addTeacherTarget');
+
+  document.querySelectorAll('#addPillIntera, #addPillCoe, #addPillSpezzone, #addPillPt').forEach(p => p.classList.remove('active'));
+  if (ctype === 'intera') document.getElementById('addPillIntera')?.classList.add('active');
+  if (ctype === 'coe') document.getElementById('addPillCoe')?.classList.add('active');
+  if (ctype === 'spezzone') document.getElementById('addPillSpezzone')?.classList.add('active');
+  if (ctype === 'part_time') document.getElementById('addPillPt')?.classList.add('active');
+
+  if (ctype === 'coe') {
+    if (hintEl) hintEl.innerText = isEn ? "🏫 External Timetable Assignment (COE): teacher completes hours in another school." : "🏫 Cattedra Orario Esterna (COE): il docente completa l'orario in un altro istituto scolastico (solitamente max 3-4 giorni nel nostro istituto).";
+  } else if (ctype === 'spezzone') {
+    if (hintEl) hintEl.innerText = isEn ? "🧩 Fractional Assignment: residual teaching hours." : "🧩 Spezzone Orario: cattedra su frazione o spezzone residuo a ore.";
+    if (targetEl && parseInt(targetEl.value, 10) >= 18) { targetEl.value = '9'; }
+  } else if (ctype === 'part_time') {
+    if (hintEl) hintEl.innerText = isEn ? "⏳ Part-Time: reduced working hours upon teacher request." : "⏳ Part-Time: docente con contratto a orario parziale su propria richiesta.";
+    if (targetEl && parseInt(targetEl.value, 10) >= 18) { targetEl.value = '12'; }
+  } else {
+    if (hintEl) hintEl.innerText = isEn ? "🏛️ Full Standard Contract (18 contractual hours)." : "🏛️ Cattedra Ordinaria Intera (18 ore contrattuali).";
+    if (targetEl) targetEl.value = '18';
+  }
+  if (targetEl) onAddTargetHoursChange(targetEl.value);
+}
+
+function onAddTargetHoursChange(val) {
+  const hours = parseInt(val, 10) || 18;
+  const minDaysEl = document.getElementById('addTeacherMinDays');
+  const maxDaysEl = document.getElementById('addTeacherMaxDays');
+  if (minDaysEl && maxDaysEl) {
+    if (hours <= 6) { minDaysEl.value = '2'; maxDaysEl.value = '3'; }
+    else if (hours <= 11) { minDaysEl.value = '2'; maxDaysEl.value = '4'; }
+    else if (hours <= 14) { minDaysEl.value = '3'; maxDaysEl.value = '4'; }
+    else { minDaysEl.value = '4'; maxDaysEl.value = '5'; }
+  }
+}
+
+function selectAddPrefShift(shift, evt) {
+  const inp = document.getElementById('addTeacherPrefShift');
+  if (inp) inp.value = shift;
+  evt?.currentTarget?.parentElement?.querySelectorAll('.pref-card')?.forEach(c => c.classList.remove('selected'));
+  if (evt && evt.currentTarget) evt.currentTarget.classList.add('selected');
+}
+
+function cycleAddFreeDay(day) {
+  const f1Inp = document.getElementById('addTeacherFreeDay1');
+  const f2Inp = document.getElementById('addTeacherFreeDay2');
+  if (!f1Inp || !f2Inp) return;
+  let f1 = f1Inp.value;
+  let f2 = f2Inp.value;
+
+  if (f1 === day) { f1 = ''; f2 = day; }
+  else if (f2 === day) { f2 = ''; }
+  else if (!f1) { f1 = day; }
+  else if (!f2) { f2 = day; }
+  else { f1 = day; }
+
+  f1Inp.value = f1;
+  f2Inp.value = f2;
+  renderAddFreeDayPills();
+}
+
+function renderAddFreeDayPills() {
+  const f1 = document.getElementById('addTeacherFreeDay1')?.value || '';
+  const f2 = document.getElementById('addTeacherFreeDay2')?.value || '';
+  const container = document.getElementById('addFreeDayPillContainer');
+  if (!container) return;
+
+  const days = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'];
+  container.innerHTML = days.map(d => {
+    const isFirst = (f1 === d);
+    const isSecond = (f2 === d);
+    let label = formatDayName(d);
+    let cls = '';
+    if (isFirst) { cls = 'is-first'; label = `⭐ ${label} (1ª)`; }
+    else if (isSecond) { cls = 'is-second'; label = `👍 ${label} (2ª)`; }
+    return `<button type="button" class="pref-day-btn ${cls}" onclick="cycleAddFreeDay('${d}')">${label}</button>`;
+  }).join('');
+}
+
+async function submitAddTeacher() {
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+  const name = (document.getElementById('addTeacherFullName')?.value || '').trim();
+  if (!name) {
+    alert(isEn ? 'Please enter teacher full name.' : 'Inserisci il nome e cognome del docente.');
+    document.getElementById('addTeacherFullName')?.focus();
+    return;
+  }
+  const shortName = (document.getElementById('addTeacherShortName')?.value || '').trim().toUpperCase() || computeShortNameJs(name);
+  const cdc = (document.getElementById('addTeacherCdc')?.value || '').trim();
+  const targetH = parseInt(document.getElementById('addTeacherTarget')?.value, 10) || 18;
+  const minDays = parseInt(document.getElementById('addTeacherMinDays')?.value, 10) || (targetH <= 9 ? 2 : (targetH <= 12 ? 3 : 4));
+  const maxDays = parseInt(document.getElementById('addTeacherMaxDays')?.value, 10) || (targetH <= 12 ? 4 : 5);
+  
+  const contractRadio = document.querySelector('input[name="addTeacherContractType"]:checked');
+  const contractType = contractRadio ? contractRadio.value : 'intera';
+  const isCoe = (contractType === 'coe');
+  const comments = (document.getElementById('addTeacherComments')?.value || '').trim();
+  const email = (document.getElementById('addTeacherEmail')?.value || '').trim().toLowerCase() || computeTeacherEmailJs(name, stateData.settings?.teacher_email_domain);
+
+  const prefShift = document.getElementById('addTeacherPrefShift')?.value || 'none';
+  const freeDay1 = document.getElementById('addTeacherFreeDay1')?.value || '';
+  const freeDay2 = document.getElementById('addTeacherFreeDay2')?.value || '';
+  const freeDayStrict = Boolean(document.getElementById('addTeacherFreeDayStrict')?.checked);
+
+  try {
+    const res = await fetch('/api/teachers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: name,
+        short_name: shortName,
+        cdc: cdc,
+        contract_type: contractType,
+        target_hours: targetH,
+        min_days: minDays,
+        max_days: maxDays,
+        is_coe: isCoe,
+        email: email,
+        comments: comments,
+        pref_shift: prefShift,
+        pref_shift_weight: 85,
+        free_day_1: freeDay1,
+        free_day_2: freeDay2,
+        free_day_strict: freeDayStrict
+      })
+    });
+    if (res.ok) {
+      closeModal();
+      showToast(isEn ? `Teacher "${name}" added successfully!` : `Docente "${name}" aggiunto con successo!`, 'success');
+      if (currentView === 'activities') {
+        renderActivities();
+      } else {
+        await renderTeachers();
+      }
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || (isEn ? 'Failed to add teacher. Check if teacher already exists.' : 'Errore: docente già esistente o dati non validi.'));
+    }
+  } catch (e) {
+    alert('Errore di connessione: ' + e.message);
+  }
+}
+
+async function addTeacher() {
+  openAddTeacherModal();
 }
 
 function openEditTeacherModal(name) {
@@ -9272,6 +9573,191 @@ function deriveSectionsFromClasses(classes) {
   return Object.values(map).sort((a, b) => a.section.localeCompare(b.section));
 }
 
+function openAddSectionModal() {
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+  
+  // Raccogli plessi/edifici disponibili
+  const bldSet = new Set();
+  (stateData.buildings || []).forEach(b => { if (b) bldSet.add(b.trim()); });
+  (stateData.rooms || []).forEach(r => { if (r.building) bldSet.add(r.building.trim()); });
+  (stateData.classes || []).forEach(c => { if (c.building) bldSet.add(c.building.trim()); });
+  if (bldSet.size === 0) {
+    bldSet.add('Centrale');
+    bldSet.add('Succursale');
+  }
+  const bldList = Array.from(bldSet).sort();
+  const bldOptions = bldList.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+
+  showModal(`
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">🏷️ ${isEn ? 'Add New Section' : 'Aggiungi Nuova Sezione'}</div>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:grid;grid-template-columns:120px 1fr;gap:14px;margin-bottom:14px;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">${isEn ? 'Section Letter' : 'Lettera Sezione'} *</label>
+            <input type="text" id="addSecLetter" class="form-input" maxlength="2" placeholder="es. M" style="text-transform:uppercase;text-align:center;font-size:18px;font-weight:800;letter-spacing:1px;" autofocus oninput="this.value = this.value.toUpperCase(); updateAddSectionPreview();">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">${isEn ? 'Default Campus / Building' : 'Plesso / Sede di Riferimento'}</label>
+            <select id="addSecBuilding" class="form-input" onchange="updateAddSectionPreview()">
+              ${bldOptions}
+            </select>
+          </div>
+        </div>
+
+        <!-- Selezione Indirizzo di Studio / Percorso -->
+        <div class="form-group">
+          <label class="form-label">${isEn ? 'Study Track / Curriculum' : 'Indirizzo di Studio / Percorso Didattico'} *</label>
+          <input type="hidden" id="addSecTrack" value="tecnico">
+          <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:10px;">
+            <div class="pref-card" id="cardTrackLiceo" onclick="selectAddSecTrack('liceo', event)" style="border-left:4px solid #2563eb;">
+              <div class="pref-card-icon">🎓</div>
+              <div class="pref-card-title">${isEn ? 'High School' : 'Liceo'}</div>
+              <div class="pref-card-desc">${isEn ? 'Max 6h / no 7th-8th' : 'Max 6h / 7ª-8ª bloccate'}</div>
+            </div>
+            <div class="pref-card selected" id="cardTrackTecnico" onclick="selectAddSecTrack('tecnico', event)" style="border-left:4px solid #059669;">
+              <div class="pref-card-icon">⚙️</div>
+              <div class="pref-card-title">${isEn ? 'Technical' : 'Tecnico'}</div>
+              <div class="pref-card-desc">${isEn ? 'Labs / 32h week' : 'Laboratori / 32-33h'}</div>
+            </div>
+            <div class="pref-card" id="cardTrackProf" onclick="selectAddSecTrack('professionale', event)" style="border-left:4px solid #7c3aed;">
+              <div class="pref-card-icon">🏥</div>
+              <div class="pref-card-title">${isEn ? 'Vocational' : 'Professionale'}</div>
+              <div class="pref-card-desc">${isEn ? 'Workshops / Stage' : 'Laboratori e stage'}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Opzione Generazione Automatica Classi del Corso -->
+        <div style="background:var(--bg-main);border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:14px;">
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;margin:0;">
+            <input type="checkbox" id="addSecAutoClasses" checked style="margin-top:3px;cursor:pointer;" onchange="document.getElementById('secAutoClassesConfig').style.display = this.checked ? 'block' : 'none'; updateAddSectionPreview();">
+            <div>
+              <b style="font-size:13px;color:var(--text-main);">${isEn ? 'Automatically generate the 5 cohort classes for this section' : 'Genera automaticamente le 5 classi del corso (1ª, 2ª, 3ª, 4ª, 5ª)'}</b>
+              <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">
+                ${isEn ? 'Immediately creates classes 1X, 2X, 3X, 4X, 5X mapped to the selected study track and campus.' : 'Crea subito le classi del quinquennio associate all\'indirizzo di studio e al plesso selezionato.'}
+              </div>
+            </div>
+          </label>
+
+          <div id="secAutoClassesConfig" style="margin-top:12px;padding-top:10px;border-top:1px dashed var(--border);display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <label class="form-label" style="font-size:11.5px;margin-bottom:3px;">👥 ${isEn ? 'Average Students / Class' : 'Alunni Medi per Classe'}</label>
+              <input type="number" id="addSecAvgStudents" class="form-input" value="25" min="5" max="35" style="font-size:12px;padding:5px 8px;">
+            </div>
+            <div>
+              <label class="form-label" style="font-size:11.5px;margin-bottom:3px;">🚪 ${isEn ? 'Classroom Assignment' : 'Aula Base Predefinita'}</label>
+              <select id="addSecRoomPolicy" class="form-input" style="font-size:12px;padding:5px 8px;">
+                <option value="auto">${isEn ? 'Automatic (e.g. Room 1M, Room 2M...)' : 'Automatica (es. Aula 1M, Aula 2M...)'}</option>
+                <option value="none">${isEn ? 'Assign later' : 'Da assegnare successivamente'}</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="addSectionPreviewBox" style="font-size:12px;color:var(--primary);background:rgba(37,99,235,0.06);border:1px solid rgba(37,99,235,0.2);border-radius:6px;padding:8px 12px;margin-top:12px;">
+          💡 Verrà registrata la Sezione con indirizzo Tecnico.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-sec" onclick="closeModal()">${isEn ? 'Cancel' : 'Annulla'}</button>
+        <button class="btn btn-primary" onclick="submitAddSection()">➕ ${isEn ? 'Add Section' : 'Aggiungi Sezione'}</button>
+      </div>
+    </div>
+  `);
+}
+
+function selectAddSecTrack(track, evt) {
+  document.getElementById('addSecTrack').value = track;
+  document.querySelectorAll('#cardTrackLiceo, #cardTrackTecnico, #cardTrackProf').forEach(c => c.classList.remove('selected'));
+  if (evt && evt.currentTarget) evt.currentTarget.classList.add('selected');
+  updateAddSectionPreview();
+}
+
+function updateAddSectionPreview() {
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+  const letter = (document.getElementById('addSecLetter')?.value || '').trim().toUpperCase();
+  const track = document.getElementById('addSecTrack')?.value || 'tecnico';
+  const autoClasses = document.getElementById('addSecAutoClasses')?.checked;
+  const bld = document.getElementById('addSecBuilding')?.value || 'Centrale';
+  const box = document.getElementById('addSectionPreviewBox');
+  if (!box) return;
+
+  const trackLabel = track === 'liceo' ? 'Liceo' : (track === 'tecnico' ? 'Tecnico' : 'Professionale');
+  if (!letter) {
+    box.innerHTML = isEn ? '💡 Enter section letter (e.g. M)' : '💡 Inserisci la lettera della sezione (es. M)';
+    return;
+  }
+  if (autoClasses) {
+    box.innerHTML = isEn
+      ? `✓ Will create Section <b>${letter}</b> (${trackLabel}) and classes <b>1${letter}, 2${letter}, 3${letter}, 4${letter}, 5${letter}</b> in <i>${bld}</i>.`
+      : `✓ Verrà creata la Sezione <b>${letter}</b> (${trackLabel}) con le 5 classi: <b>1${letter}, 2${letter}, 3${letter}, 4${letter}, 5${letter}</b> in <i>${bld}</i>.`;
+  } else {
+    box.innerHTML = isEn
+      ? `✓ Will register Section <b>${letter}</b> with study track <b>${trackLabel}</b>.`
+      : `✓ Verrà registrata la Sezione <b>${letter}</b> con indirizzo di studio <b>${trackLabel}</b>.`;
+  }
+}
+
+async function submitAddSection() {
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+  const letter = (document.getElementById('addSecLetter')?.value || '').trim().toUpperCase();
+  const track = (document.getElementById('addSecTrack')?.value || 'tecnico').trim().toLowerCase();
+  const autoClasses = document.getElementById('addSecAutoClasses')?.checked;
+  const bld = document.getElementById('addSecBuilding')?.value || 'Centrale';
+  const avgStudents = parseInt(document.getElementById('addSecAvgStudents')?.value, 10) || 25;
+  const roomPolicy = document.getElementById('addSecRoomPolicy')?.value || 'auto';
+
+  if (!letter || !letter.match(/^[A-Z0-9]{1,2}$/)) {
+    alert(isEn ? 'Please enter a valid section code (e.g. A, B, C, M, N...)' : 'Inserisci una lettera di sezione valida (es. A, B, C, M, N...)');
+    document.getElementById('addSecLetter')?.focus();
+    return;
+  }
+
+  try {
+    // 1. Salva la sezione e il percorso didattico
+    await updateSectionPercorso(letter, track);
+
+    // 2. Se selezionato, crea automaticamente le classi del corso (1..5)
+    if (autoClasses) {
+      const existingClasses = new Set((stateData.classes || []).map(c => c.name.toUpperCase()));
+      const years = [1, 2, 3, 4, 5];
+      for (const y of years) {
+        const clsName = `${y}${letter}`;
+        if (!existingClasses.has(clsName.toUpperCase())) {
+          const baseRoom = roomPolicy === 'auto' ? `Aula ${clsName}` : '';
+          await fetch('/api/classes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: clsName,
+              students: avgStudents,
+              building: bld,
+              base_room: baseRoom,
+              percorso: track,
+              building_change_policy: 'no_transfer',
+              max_building_changes: 0
+            })
+          });
+        }
+      }
+    }
+
+    closeModal();
+    showToast(isEn ? `Section "${letter}" added successfully!` : `Sezione "${letter}" creata con successo!`, 'success');
+    if (currentView === 'sections') {
+      await renderSections();
+    } else {
+      await renderClasses();
+    }
+  } catch (e) {
+    alert('Errore creazione sezione: ' + e.message);
+  }
+}
+
 async function renderSections() {
   const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
   const [sectionsData, resClasses] = await Promise.all([
@@ -9310,8 +9796,8 @@ async function renderSections() {
           </div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-          <button class="btn btn-primary" onclick="openAddClassModal()" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:9px 16px;box-shadow:0 2px 6px rgba(37,99,235,0.25);">
-            ➕ ${isEn ? 'Add Class' : 'Aggiungi Classe'}
+          <button class="btn btn-primary" onclick="openAddSectionModal()" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:9px 16px;box-shadow:0 2px 6px rgba(37,99,235,0.25);">
+            ➕ ${isEn ? 'Add Section' : 'Aggiungi Sezione'}
           </button>
           <button class="btn btn-sec" onclick="navigate('block_rules')" title="${isEn ? 'Configure or view complete default rules table' : 'Configura o visualizza la tabella completa delle regole di default'}">
             📐 ${isEn ? 'Block & Section Rules' : 'Regole Blocchi & Sezioni'}
@@ -9361,21 +9847,19 @@ async function renderSections() {
         </div>
       </div>
 
-      <!-- AGGIUNGI SEZIONE & AZIONI RAPIDE BAR -->
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;background:#f8fafc;padding:14px 18px;border-radius:8px;border:1px solid var(--border);margin-bottom:22px;">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <span style="font-size:13px;font-weight:700;color:var(--text-main);">➕ ${isEn ? 'Register New Section:' : 'Registra Nuova Sezione:'}</span>
-          <input type="text" id="newSectionLetter" class="search-input" maxlength="2" placeholder="${isEn ? 'Letter (e.g. M)' : 'Lettera (es. M)'}" style="width:115px;text-transform:uppercase;text-align:center;font-weight:700;">
-          <select id="newSectionTrack" class="search-input" style="width:160px;">
-            <option value="tecnico">${isEn ? '⚙️ Technical' : '⚙️ Tecnico'}</option>
-            <option value="liceo">${isEn ? '🎓 High School' : '🎓 Liceo'}</option>
-            <option value="professionale">${isEn ? '🏥 Vocational' : '🏥 Professionale'}</option>
-          </select>
-          <button class="btn btn-primary" onclick="addNewSection()">+ ${isEn ? 'Add Section' : 'Aggiungi Sezione'}</button>
+      <!-- AGGIUNGI SEZIONE BAR -->
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;background:var(--bg-card);padding:14px 18px;border-radius:8px;border:1px solid var(--border);margin-bottom:22px;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="openAddSectionModal()" style="font-weight:700;display:inline-flex;align-items:center;gap:8px;padding:9px 18px;box-shadow:0 2px 6px rgba(37,99,235,0.25);">
+            ➕ ${isEn ? 'Add Section' : 'Aggiungi Sezione'}
+          </button>
+          <span style="font-size:12.5px;color:var(--text-muted);">
+            ${isEn ? 'Configure section letter, study track (High School / Technical / Vocational) and automatic cohort classes' : 'Configura lettera della sezione, indirizzo di studio e classi del corso'}
+          </span>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
-          <button class="btn btn-outline" onclick="openAddClassModal()" style="font-weight:700;border:1.5px solid var(--primary);color:var(--primary);background:var(--bg-main);">
-            ➕ ${isEn ? 'Add Class to Section...' : 'Aggiungi Classe a una Sezione...'}
+          <button class="btn btn-outline" onclick="navigate('block_rules')" title="${isEn ? 'View default rules per section' : 'Regole blocchi orari per sezione'}">
+            📐 ${isEn ? 'Block Rules' : 'Regole Blocchi'}
           </button>
         </div>
       </div>
@@ -14972,7 +15456,7 @@ function renderAvailabilityMatrixHtml(av, teacherList, classList, liceoSet) {
   let tableHeaderHours = '';
   days.forEach(d => {
     numericHours.forEach(h => {
-      tableHeaderHours += `<th style="width:26px;font-size:10.5px;padding:3px 2px;">${h}</th>`;
+      tableHeaderHours += `<th class="matrix-hour-header" style="width:26px;font-size:10.5px;padding:3px 2px;">${h}</th>`;
     });
   });
 
@@ -15014,7 +15498,7 @@ function renderAvailabilityMatrixHtml(av, teacherList, classList, liceoSet) {
   }).join('');
 
   return `
-    <div class="matrix-container" style="max-height:calc(100vh - 270px);min-height:380px;overflow:auto;">
+    <div class="matrix-container" style="max-height:calc(100vh - 220px);min-height:380px;overflow:auto;">
       <table class="matrix-table" id="matrixTable">
         <thead>
           <tr>${tableHeaderDays}</tr>
