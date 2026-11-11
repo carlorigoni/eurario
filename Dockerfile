@@ -11,7 +11,7 @@
 FROM ubuntu:24.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
-ARG FET_VER=7.12.0
+ARG FET_VER=7.12.1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
