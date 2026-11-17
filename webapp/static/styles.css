@@ -4030,6 +4030,29 @@ input:checked + .slider:before {
   border-color: #3b82f6 !important;
 }
 
+/* Chip Classe di Concorso (CDC) interattivo */
+.cdc-chip {
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.cdc-chip:hover {
+  border-color: #2563eb !important;
+  color: #2563eb !important;
+  transform: translateY(-1px);
+}
+.cdc-chip.active {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #1d4ed8 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 4px rgba(37, 99, 235, 0.3) !important;
+}
+[data-theme="dark"] .cdc-chip.active {
+  background: #2563eb !important;
+  color: #ffffff !important;
+  border-color: #3b82f6 !important;
+}
+
 .matrix-day-header {
   background: #1e3a5f !important;
   color: #fff !important;

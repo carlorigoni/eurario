@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.59';
+let APP_VERSION = '1.9.60';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -4105,8 +4105,9 @@ function navigateBack() {
   if (prev.view === 'classes' && prev.activeClassSubView) {
     activeClassSubView = prev.activeClassSubView;
   }
-  if (prev.view === 'teachers' && prev.currentTeacherFilterMode) {
-    currentTeacherFilterMode = prev.currentTeacherFilterMode;
+  if (prev.view === 'teachers') {
+    if (prev.currentTeacherFilterMode) currentTeacherFilterMode = prev.currentTeacherFilterMode;
+    if (prev.currentTeacherCdcFilter !== undefined) currentTeacherCdcFilter = prev.currentTeacherCdcFilter;
   }
   if (prev.view === 'availability') {
     if (prev.activeAvailMode) activeAvailMode = prev.activeAvailMode;
@@ -4155,6 +4156,7 @@ async function navigate(view, pushHistory = true, customLabel = null) {
       label: lbl,
       activeClassSubView: typeof activeClassSubView !== 'undefined' ? activeClassSubView : 'classes',
       currentTeacherFilterMode: typeof currentTeacherFilterMode !== 'undefined' ? currentTeacherFilterMode : 'all',
+      currentTeacherCdcFilter: typeof currentTeacherCdcFilter !== 'undefined' ? currentTeacherCdcFilter : '',
       activeAvailMode: typeof activeAvailMode !== 'undefined' ? activeAvailMode : 'teacher',
       activeAvailLayout: typeof activeAvailLayout !== 'undefined' ? activeAvailLayout : 'single',
       activeAvailEntity: typeof activeAvailEntity !== 'undefined' ? activeAvailEntity : '',
@@ -6927,12 +6929,51 @@ function onNewTeacherNameChange(val) {
 }
 
 let currentTeacherFilterMode = 'all';
+let currentTeacherCdcFilter = '';
 
 function setTeacherFilter(mode) {
   currentTeacherFilterMode = mode;
-  document.querySelectorAll('.teacher-filter-btn').forEach(b => {
+  document.querySelectorAll('.teacher-filter-btn[data-mode]').forEach(b => {
     b.classList.toggle('active', b.dataset.mode === mode);
   });
+  applyTeacherFilters();
+}
+
+function setTeacherCdcFilter(cdc) {
+  const cleanCdc = (cdc || '').trim();
+  if (cleanCdc === '') {
+    currentTeacherCdcFilter = '';
+  } else if (cleanCdc === '-' || cleanCdc === 'none') {
+    currentTeacherCdcFilter = (currentTeacherCdcFilter === '__NONE__') ? '' : '__NONE__';
+  } else if (currentTeacherCdcFilter && currentTeacherCdcFilter.toUpperCase() === cleanCdc.toUpperCase()) {
+    currentTeacherCdcFilter = '';
+  } else {
+    currentTeacherCdcFilter = cleanCdc;
+  }
+
+  const sel = document.getElementById('teacherCdcFilterSelect');
+  if (sel) {
+    sel.value = currentTeacherCdcFilter;
+    sel.classList.toggle('active', !!currentTeacherCdcFilter);
+  }
+  const resetBtn = document.getElementById('btnResetCdc');
+  if (resetBtn) {
+    resetBtn.style.display = currentTeacherCdcFilter ? 'inline-flex' : 'none';
+  }
+  // Evidenzia visivamente i chip CDC nella tabella
+  document.querySelectorAll('#teacherTable tbody tr').forEach(tr => {
+    const rowCdc = (tr.getAttribute('data-cdc') || '').trim().toUpperCase();
+    const chip = tr.querySelector('.cdc-chip');
+    if (chip) {
+      const isMatch = currentTeacherCdcFilter && (
+        (currentTeacherCdcFilter === '__NONE__' && (!rowCdc || rowCdc === '-')) ||
+        (rowCdc === currentTeacherCdcFilter.toUpperCase())
+      );
+      chip.classList.toggle('primary', !!isMatch);
+      chip.classList.toggle('active', !!isMatch);
+    }
+  });
+
   applyTeacherFilters();
 }
 
@@ -6944,6 +6985,7 @@ function applyTeacherFilters() {
     const contract = tr.getAttribute('data-contract') || '';
     const hasDisp = tr.getAttribute('data-has-disp') === '1';
     const isFull = tr.getAttribute('data-is-full') === '1';
+    const cdc = (tr.getAttribute('data-cdc') || '').trim();
 
     let matchesMode = true;
     if (currentTeacherFilterMode === 'disp') matchesMode = hasDisp;
@@ -6953,8 +6995,17 @@ function applyTeacherFilters() {
     else if (currentTeacherFilterMode === 'pt') matchesMode = (contract === 'part_time');
     else if (currentTeacherFilterMode === 'full') matchesMode = isFull;
 
+    let matchesCdc = true;
+    if (currentTeacherCdcFilter) {
+      if (currentTeacherCdcFilter === '__NONE__') {
+        matchesCdc = (!cdc || cdc === '-');
+      } else {
+        matchesCdc = (cdc.toUpperCase() === currentTeacherCdcFilter.toUpperCase());
+      }
+    }
+
     const matchesSearch = text.includes(q);
-    tr.style.display = (matchesSearch && matchesMode) ? '' : 'none';
+    tr.style.display = (matchesSearch && matchesMode && matchesCdc) ? '' : 'none';
   });
 }
 
@@ -6980,6 +7031,16 @@ async function renderTeachers() {
   const spezzoneTeachers = teachers.filter(t => t.contract_type === 'spezzone').length;
   const ptTeachers = teachers.filter(t => t.contract_type === 'part_time').length;
   const fullTeachers = teachers.filter(t => (t.total_hours || 0) >= (t.target_hours !== undefined ? t.target_hours : 18)).length;
+
+  const cdcCounts = {};
+  teachers.forEach(t => {
+    const c = (t.cdc || '').trim().toUpperCase();
+    if (c) {
+      cdcCounts[c] = (cdcCounts[c] || 0) + 1;
+    }
+  });
+  const sortedCdcs = Object.keys(cdcCounts).sort();
+  const noCdcTeachers = teachers.filter(t => !(t.cdc || '').trim()).length;
 
   const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
   const container = document.getElementById('mainContent');
@@ -7033,6 +7094,26 @@ async function renderTeachers() {
         <button class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherFilterMode === 'full' ? 'active' : ''}" data-mode="full" id="btnTeachFull" onclick="setTeacherFilter('full')" title="${isEn ? 'Teachers with fully covered assignment hours' : 'Docenti con cattedra completamente coperta'}">
           ✓ ${isEn ? 'Complete Assignments' : 'Cattedre Piene'} (${fullTeachers})
         </button>
+
+        <!-- Filtro Classe di Concorso (CDC) -->
+        <div style="display:inline-flex;align-items:center;gap:4px;margin-left:4px;">
+          <select id="teacherCdcFilterSelect" class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherCdcFilter ? 'active' : ''}" onchange="setTeacherCdcFilter(this.value)" style="font-weight:700;height:28px;padding:2px 8px;cursor:pointer;border-radius:var(--radius-sm);font-size:12px;outline:none;" title="${isEn ? 'Filter teachers by Competition Class (CDC)' : 'Filtra docenti per Classe di Concorso (CDC)'}">
+            <option value="" style="background:var(--bg-card);color:var(--text-main);">🎯 ${isEn ? 'All CDCs' : 'Tutte le CDC'} (${sortedCdcs.length})</option>
+            ${sortedCdcs.map(c => `
+              <option value="${escapeHtml(c)}" ${currentTeacherCdcFilter.toUpperCase() === c.toUpperCase() ? 'selected' : ''} style="background:var(--bg-card);color:var(--text-main);">
+                🎯 CDC: ${escapeHtml(c)} (${cdcCounts[c]} ${cdcCounts[c] === 1 ? (isEn ? 'teacher' : 'docente') : (isEn ? 'teachers' : 'docenti')})
+              </option>
+            `).join('')}
+            ${noCdcTeachers > 0 ? `
+              <option value="__NONE__" ${currentTeacherCdcFilter === '__NONE__' ? 'selected' : ''} style="background:var(--bg-card);color:var(--text-main);">
+                ⚠️ ${isEn ? 'Without CDC' : 'Senza CDC'} (${noCdcTeachers})
+              </option>
+            ` : ''}
+          </select>
+          <button type="button" id="btnResetCdc" class="btn btn-xs btn-sec" onclick="setTeacherCdcFilter('')" title="${isEn ? 'Reset CDC filter' : 'Azzera filtro CDC'}" style="padding:2px 7px;font-weight:700;color:var(--text-muted);border-radius:var(--radius-sm);display:${currentTeacherCdcFilter ? 'inline-flex' : 'none'};align-items:center;height:28px;" aria-label="Reset CDC">
+            ✕
+          </button>
+        </div>
       </div>
       <div style="font-size:12px;color:var(--text-muted);">
         🏷️ <b>${isEn ? 'Short Name' : 'Nome Breve'}</b> (${isEn ? 'e.g.' : 'es.'} <code>ROSSI M.</code>): ${isEn ? 'used in compact printouts and class timetables' : 'utilizzato nelle stampe compatte e orari classi'}
@@ -7088,7 +7169,7 @@ async function renderTeachers() {
             const isManualDisp = t.custom_disp_hours !== undefined && t.custom_disp_hours !== null && String(t.custom_disp_hours).trim() !== '';
 
             return `
-            <tr data-contract="${contractType}" data-has-disp="${dispH > 0 ? '1' : '0'}" data-is-full="${isComplete ? '1' : '0'}">
+            <tr data-contract="${contractType}" data-has-disp="${dispH > 0 ? '1' : '0'}" data-is-full="${isComplete ? '1' : '0'}" data-cdc="${escapeHtml((t.cdc || '').trim())}">
               <td style="color:var(--text-sub);">${idx + 1}</td>
               <td>
                 <b style="color:var(--text-main);font-size:13.5px;cursor:pointer;" onclick="openEditTeacherModal('${escapeJs(t.name)}')" title="Clicca per modificare parametri docente">
@@ -7104,7 +7185,9 @@ async function renderTeachers() {
                 </span>
               </td>
               <td style="text-align:center;">
-                <span class="item-chip" style="font-weight:600;font-size:11.5px;">${escapeHtml(t.cdc || '-')}</span>
+                <span class="item-chip cdc-chip ${currentTeacherCdcFilter && ((currentTeacherCdcFilter === '__NONE__' && !t.cdc) || (currentTeacherCdcFilter.toUpperCase() === (t.cdc || '').trim().toUpperCase())) ? 'primary active' : ''}" style="font-weight:600;font-size:11.5px;cursor:pointer;" onclick="setTeacherCdcFilter('${escapeJs(t.cdc || '-')}')" title="${t.cdc ? (isEn ? 'Click to filter by CDC ' + escapeHtml(t.cdc) : 'Clicca per filtrare per CDC ' + escapeHtml(t.cdc)) : (isEn ? 'Click to filter teachers without CDC' : 'Clicca per filtrare docenti senza CDC')}">
+                  ${escapeHtml(t.cdc || '-')}
+                </span>
               </td>
               <td style="text-align:center;">
                 <div>
