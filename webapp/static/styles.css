@@ -4053,6 +4053,42 @@ input:checked + .slider:before {
   border-color: #3b82f6 !important;
 }
 
+/* Pillole CDC selezionate rimovibili */
+.cdc-pill-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #eff6ff;
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.cdc-pill-active:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+  transform: translateY(-1px);
+}
+[data-theme="dark"] .cdc-pill-active {
+  background: rgba(37, 99, 235, 0.2);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.35);
+}
+[data-theme="dark"] .cdc-pill-active:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.45);
+}
+.cdc-item-label:hover {
+  background: var(--bg-hover) !important;
+}
+
 .matrix-day-header {
   background: #1e3a5f !important;
   color: #fff !important;

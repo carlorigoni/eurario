@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.61';
+let APP_VERSION = '1.9.62';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -4107,7 +4107,9 @@ function navigateBack() {
   }
   if (prev.view === 'teachers') {
     if (prev.currentTeacherFilterMode) currentTeacherFilterMode = prev.currentTeacherFilterMode;
-    if (prev.currentTeacherCdcFilter !== undefined) currentTeacherCdcFilter = prev.currentTeacherCdcFilter;
+    if (prev.currentTeacherCdcFilters) {
+      currentTeacherCdcFilters = new Set(prev.currentTeacherCdcFilters);
+    }
   }
   if (prev.view === 'availability') {
     if (prev.activeAvailMode) activeAvailMode = prev.activeAvailMode;
@@ -4156,7 +4158,7 @@ async function navigate(view, pushHistory = true, customLabel = null) {
       label: lbl,
       activeClassSubView: typeof activeClassSubView !== 'undefined' ? activeClassSubView : 'classes',
       currentTeacherFilterMode: typeof currentTeacherFilterMode !== 'undefined' ? currentTeacherFilterMode : 'all',
-      currentTeacherCdcFilter: typeof currentTeacherCdcFilter !== 'undefined' ? currentTeacherCdcFilter : '',
+      currentTeacherCdcFilters: typeof currentTeacherCdcFilters !== 'undefined' ? Array.from(currentTeacherCdcFilters) : [],
       activeAvailMode: typeof activeAvailMode !== 'undefined' ? activeAvailMode : 'teacher',
       activeAvailLayout: typeof activeAvailLayout !== 'undefined' ? activeAvailLayout : 'single',
       activeAvailEntity: typeof activeAvailEntity !== 'undefined' ? activeAvailEntity : '',
@@ -6929,7 +6931,7 @@ function onNewTeacherNameChange(val) {
 }
 
 let currentTeacherFilterMode = 'all';
-let currentTeacherCdcFilter = '';
+let currentTeacherCdcFilters = new Set();
 
 function setTeacherFilter(mode) {
   currentTeacherFilterMode = mode;
@@ -6939,42 +6941,147 @@ function setTeacherFilter(mode) {
   applyTeacherFilters();
 }
 
-function setTeacherCdcFilter(cdc) {
-  const cleanCdc = (cdc || '').trim();
-  if (cleanCdc === '') {
-    currentTeacherCdcFilter = '';
-  } else if (cleanCdc === '-' || cleanCdc === 'none') {
-    currentTeacherCdcFilter = (currentTeacherCdcFilter === '__NONE__') ? '' : '__NONE__';
-  } else if (currentTeacherCdcFilter && currentTeacherCdcFilter.toUpperCase() === cleanCdc.toUpperCase()) {
-    currentTeacherCdcFilter = '';
+function toggleTeacherCdcFilter(cdc) {
+  let cleanCdc = (cdc || '').trim().toUpperCase();
+  if (!cleanCdc || cleanCdc === '-' || cleanCdc === 'NONE') cleanCdc = '__NONE__';
+
+  if (currentTeacherCdcFilters.has(cleanCdc)) {
+    currentTeacherCdcFilters.delete(cleanCdc);
   } else {
-    currentTeacherCdcFilter = cleanCdc;
+    currentTeacherCdcFilters.add(cleanCdc);
+  }
+  updateCdcFilterUi();
+  applyTeacherFilters();
+}
+
+function clearTeacherCdcFilters() {
+  currentTeacherCdcFilters.clear();
+  updateCdcFilterUi();
+  applyTeacherFilters();
+}
+
+function setAllTeacherCdcFilters(allCdcs) {
+  currentTeacherCdcFilters = new Set(allCdcs.map(c => String(c).trim().toUpperCase()));
+  updateCdcFilterUi();
+  applyTeacherFilters();
+}
+
+function updateCdcFilterUi() {
+  const count = currentTeacherCdcFilters.size;
+  const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
+
+  const toggleBtn = document.getElementById('btnCdcDropdownToggle');
+  const labelEl = document.getElementById('cdcFilterBtnLabel');
+  if (toggleBtn) {
+    toggleBtn.classList.toggle('active', count > 0);
+  }
+  if (labelEl) {
+    labelEl.textContent = count === 0
+      ? (isEn ? 'All' : 'Tutte')
+      : `${count} ${isEn ? (count === 1 ? 'selected' : 'selected') : (count === 1 ? 'attiva' : 'attive')}`;
   }
 
-  const sel = document.getElementById('teacherCdcFilterSelect');
-  if (sel) {
-    sel.value = currentTeacherCdcFilter;
-    sel.classList.toggle('active', !!currentTeacherCdcFilter);
-  }
-  const resetBtn = document.getElementById('btnResetCdc');
+  const resetBtn = document.getElementById('btnResetAllCdc');
   if (resetBtn) {
-    resetBtn.style.display = currentTeacherCdcFilter ? 'inline-flex' : 'none';
+    resetBtn.style.display = count > 0 ? 'inline-flex' : 'none';
   }
-  // Evidenzia visivamente i chip CDC nella tabella
-  document.querySelectorAll('#teacherTable tbody tr').forEach(tr => {
-    const rowCdc = (tr.getAttribute('data-cdc') || '').trim().toUpperCase();
-    const chip = tr.querySelector('.cdc-chip');
-    if (chip) {
-      const isMatch = currentTeacherCdcFilter && (
-        (currentTeacherCdcFilter === '__NONE__' && (!rowCdc || rowCdc === '-')) ||
-        (rowCdc === currentTeacherCdcFilter.toUpperCase())
-      );
-      chip.classList.toggle('primary', !!isMatch);
-      chip.classList.toggle('active', !!isMatch);
-    }
+
+  const countInside = document.getElementById('cdcDropdownActiveCount');
+  if (countInside) {
+    countInside.textContent = `${count} ${isEn ? 'active' : 'attive'}`;
+  }
+
+  // Aggiorna checkbox nel dropdown
+  document.querySelectorAll('.cdc-checkbox').forEach(cb => {
+    cb.checked = currentTeacherCdcFilters.has(cb.value.toUpperCase());
   });
 
-  applyTeacherFilters();
+  // Aggiorna pillole attive veloci accanto al pulsante
+  const pillsContainer = document.getElementById('cdcActivePillsContainer');
+  if (pillsContainer) {
+    if (count > 0 && count <= 5) {
+      pillsContainer.innerHTML = Array.from(currentTeacherCdcFilters).map(c => {
+        const displayLabel = (c === '__NONE__') ? (isEn ? 'No CDC' : 'Senza CDC') : c;
+        return `
+          <span class="cdc-pill-active" onclick="toggleTeacherCdcFilter('${escapeJs(c)}')" title="${isEn ? 'Click to remove ' + displayLabel : 'Clicca per rimuovere ' + displayLabel}">
+            ${escapeHtml(displayLabel)} <span style="font-size:11px;opacity:0.7;">✕</span>
+          </span>
+        `;
+      }).join('');
+      pillsContainer.style.display = 'inline-flex';
+    } else {
+      pillsContainer.innerHTML = '';
+      pillsContainer.style.display = 'none';
+    }
+  }
+
+  // Evidenzia visivamente i chip CDC nella tabella dei docenti
+  document.querySelectorAll('#teacherTable tbody tr').forEach(tr => {
+    let rowCdc = (tr.getAttribute('data-cdc') || '').trim().toUpperCase();
+    if (!rowCdc || rowCdc === '-') rowCdc = '__NONE__';
+    const chip = tr.querySelector('.cdc-chip');
+    if (chip) {
+      const isMatch = count > 0 && currentTeacherCdcFilters.has(rowCdc);
+      chip.classList.toggle('primary', isMatch);
+      chip.classList.toggle('active', isMatch);
+    }
+  });
+}
+
+function toggleCdcDropdown(evt) {
+  if (evt) {
+    evt.stopPropagation();
+    evt.preventDefault();
+  }
+  const menu = document.getElementById('cdcDropdownMenu');
+  if (!menu) return;
+  const isHidden = (menu.style.display === 'none' || !menu.style.display);
+  if (isHidden) {
+    menu.style.display = 'flex';
+    setTimeout(() => {
+      document.getElementById('cdcSearchInput')?.focus();
+    }, 50);
+  } else {
+    menu.style.display = 'none';
+  }
+}
+
+function closeCdcDropdown() {
+  const menu = document.getElementById('cdcDropdownMenu');
+  if (menu) menu.style.display = 'none';
+}
+
+function filterCdcDropdownList(query) {
+  const q = (query || '').trim().toLowerCase();
+  document.querySelectorAll('.cdc-item-label').forEach(lbl => {
+    const cdc = lbl.getAttribute('data-cdc') || '';
+    const text = lbl.innerText.toLowerCase();
+    lbl.style.display = (!q || text.includes(q) || cdc.toLowerCase().includes(q)) ? 'flex' : 'none';
+  });
+}
+
+function selectAllCdcs() {
+  const allCdcs = [];
+  document.querySelectorAll('.cdc-checkbox').forEach(cb => {
+    allCdcs.push(cb.value);
+  });
+  setAllTeacherCdcFilters(allCdcs);
+}
+
+// Chiusura al click fuori dal menu
+if (!window._cdcDropdownListenerAttached) {
+  window._cdcDropdownListenerAttached = true;
+  document.addEventListener('click', (e) => {
+    const container = document.getElementById('teacherCdcFilterContainer');
+    if (container && !container.contains(e.target)) {
+      closeCdcDropdown();
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeCdcDropdown();
+    }
+  });
 }
 
 function applyTeacherFilters() {
@@ -6985,7 +7092,8 @@ function applyTeacherFilters() {
     const contract = tr.getAttribute('data-contract') || '';
     const hasDisp = tr.getAttribute('data-has-disp') === '1';
     const isFull = tr.getAttribute('data-is-full') === '1';
-    const cdc = (tr.getAttribute('data-cdc') || '').trim();
+    let cdc = (tr.getAttribute('data-cdc') || '').trim().toUpperCase();
+    if (!cdc || cdc === '-') cdc = '__NONE__';
 
     let matchesMode = true;
     if (currentTeacherFilterMode === 'disp') matchesMode = hasDisp;
@@ -6996,12 +7104,8 @@ function applyTeacherFilters() {
     else if (currentTeacherFilterMode === 'full') matchesMode = isFull;
 
     let matchesCdc = true;
-    if (currentTeacherCdcFilter) {
-      if (currentTeacherCdcFilter === '__NONE__') {
-        matchesCdc = (!cdc || cdc === '-');
-      } else {
-        matchesCdc = (cdc.toUpperCase() === currentTeacherCdcFilter.toUpperCase());
-      }
+    if (currentTeacherCdcFilters && currentTeacherCdcFilters.size > 0) {
+      matchesCdc = currentTeacherCdcFilters.has(cdc);
     }
 
     const matchesSearch = text.includes(q);
@@ -7095,24 +7199,73 @@ async function renderTeachers() {
           ✓ ${isEn ? 'Complete Assignments' : 'Cattedre Piene'} (${fullTeachers})
         </button>
 
-        <!-- Filtro Classe di Concorso (CDC) -->
-        <div style="display:inline-flex;align-items:center;gap:4px;margin-left:4px;">
-          <select id="teacherCdcFilterSelect" class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherCdcFilter ? 'active' : ''}" onchange="setTeacherCdcFilter(this.value)" style="font-weight:700;height:28px;padding:2px 8px;cursor:pointer;border-radius:var(--radius-sm);font-size:12px;outline:none;" title="${isEn ? 'Filter teachers by Competition Class (CDC)' : 'Filtra docenti per Classe di Concorso (CDC)'}">
-            <option value="" style="background:var(--bg-card);color:var(--text-main);">🎯 ${isEn ? 'All CDCs' : 'Tutte le CDC'} (${sortedCdcs.length})</option>
-            ${sortedCdcs.map(c => `
-              <option value="${escapeHtml(c)}" ${currentTeacherCdcFilter.toUpperCase() === c.toUpperCase() ? 'selected' : ''} style="background:var(--bg-card);color:var(--text-main);">
-                🎯 CDC: ${escapeHtml(c)} (${cdcCounts[c]} ${cdcCounts[c] === 1 ? (isEn ? 'teacher' : 'docente') : (isEn ? 'teachers' : 'docenti')})
-              </option>
-            `).join('')}
-            ${noCdcTeachers > 0 ? `
-              <option value="__NONE__" ${currentTeacherCdcFilter === '__NONE__' ? 'selected' : ''} style="background:var(--bg-card);color:var(--text-main);">
-                ⚠️ ${isEn ? 'Without CDC' : 'Senza CDC'} (${noCdcTeachers})
-              </option>
-            ` : ''}
-          </select>
-          <button type="button" id="btnResetCdc" class="btn btn-xs btn-sec" onclick="setTeacherCdcFilter('')" title="${isEn ? 'Reset CDC filter' : 'Azzera filtro CDC'}" style="padding:2px 7px;font-weight:700;color:var(--text-muted);border-radius:var(--radius-sm);display:${currentTeacherCdcFilter ? 'inline-flex' : 'none'};align-items:center;height:28px;" aria-label="Reset CDC">
+        <!-- Filtro Multiplo Classe di Concorso (CDC) -->
+        <div style="position:relative;display:inline-flex;align-items:center;gap:4px;margin-left:4px;" id="teacherCdcFilterContainer">
+          <button type="button" id="btnCdcDropdownToggle" class="btn btn-sm btn-sec teacher-filter-btn ${currentTeacherCdcFilters.size > 0 ? 'active' : ''}" onclick="toggleCdcDropdown(event)" style="font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:3px 10px;height:28px;" title="${isEn ? 'Filter by one or multiple Competition Classes (CDC)' : 'Filtro multiplo per Classi di Concorso (CDC)'}">
+            <span>🎯 ${isEn ? 'CDC:' : 'CDC:'}</span>
+            <span id="cdcFilterBtnLabel">
+              ${currentTeacherCdcFilters.size === 0 
+                ? (isEn ? 'All' : 'Tutte') 
+                : `${currentTeacherCdcFilters.size} ${isEn ? (currentTeacherCdcFilters.size === 1 ? 'active' : 'active') : (currentTeacherCdcFilters.size === 1 ? 'attiva' : 'attive')}`
+              }
+            </span>
+            <span style="font-size:10px;margin-left:2px;">▾</span>
+          </button>
+
+          <button type="button" id="btnResetAllCdc" class="btn btn-xs btn-sec" onclick="clearTeacherCdcFilters()" title="${isEn ? 'Clear all CDC filters' : 'Azzera tutti i filtri CDC'}" style="padding:2px 7px;font-weight:700;color:var(--text-muted);border-radius:var(--radius-sm);height:28px;display:${currentTeacherCdcFilters.size > 0 ? 'inline-flex' : 'none'};align-items:center;" aria-label="Reset CDC">
             ✕
           </button>
+
+          <!-- Pillole delle CDC attive per rimozione rapida -->
+          <div id="cdcActivePillsContainer" style="display:${currentTeacherCdcFilters.size > 0 && currentTeacherCdcFilters.size <= 5 ? 'inline-flex' : 'none'};align-items:center;gap:4px;">
+            ${Array.from(currentTeacherCdcFilters).map(c => {
+              const displayLabel = (c === '__NONE__') ? (isEn ? 'No CDC' : 'Senza CDC') : c;
+              return `
+                <span class="cdc-pill-active" onclick="toggleTeacherCdcFilter('${escapeJs(c)}')" title="${isEn ? 'Click to remove ' + displayLabel : 'Clicca per rimuovere ' + displayLabel}">
+                  ${escapeHtml(displayLabel)} <span style="font-size:11px;opacity:0.7;">✕</span>
+                </span>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Dropdown Menu Multi-Select -->
+          <div id="cdcDropdownMenu" style="display:none;position:absolute;top:calc(100% + 4px);left:0;z-index:1050;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,0.18);padding:10px;width:300px;max-height:420px;flex-direction:column;gap:8px;">
+            <!-- Intestazione & Azioni Rapide -->
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:12px;font-weight:700;color:var(--text-main);">🎯 ${isEn ? 'Competition Classes' : 'Classi di Concorso'}</span>
+              <div style="display:flex;gap:4px;">
+                <button type="button" class="btn btn-xs btn-outline" onclick="selectAllCdcs()" style="font-size:10.5px;padding:1px 6px;">${isEn ? 'All' : 'Tutte'}</button>
+                <button type="button" class="btn btn-xs btn-sec" onclick="clearTeacherCdcFilters()" style="font-size:10.5px;padding:1px 6px;">${isEn ? 'Clear' : 'Azzera'}</button>
+              </div>
+            </div>
+            
+            <!-- Ricerca rapida CDC -->
+            <input type="text" id="cdcSearchInput" class="form-input" placeholder="${isEn ? '🔍 Search CDC...' : '🔍 Cerca CDC...'}" oninput="filterCdcDropdownList(this.value)" style="font-size:11.5px;padding:4px 8px;height:26px;">
+
+            <!-- Elenco con scroll delle CDC con Checkbox -->
+            <div id="cdcCheckboxList" style="overflow-y:auto;max-height:260px;display:flex;flex-direction:column;gap:2px;padding-right:2px;">
+              ${sortedCdcs.map(c => `
+                <label class="cdc-item-label" data-cdc="${escapeHtml(c)}" style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:4px;cursor:pointer;font-size:12px;user-select:none;transition:background 0.1s ease;">
+                  <input type="checkbox" class="cdc-checkbox" value="${escapeHtml(c)}" ${currentTeacherCdcFilters.has(c) ? 'checked' : ''} onchange="toggleTeacherCdcFilter('${escapeJs(c)}')" style="cursor:pointer;width:14px;height:14px;">
+                  <span style="font-weight:700;color:var(--text-main);font-family:var(--font-mono);">${escapeHtml(c)}</span>
+                  <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">${cdcCounts[c]} ${cdcCounts[c] === 1 ? (isEn ? 'teacher' : 'docente') : (isEn ? 'teachers' : 'docenti')}</span>
+                </label>
+              `).join('')}
+              ${noCdcTeachers > 0 ? `
+                <label class="cdc-item-label" data-cdc="__NONE__" style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:4px;cursor:pointer;font-size:12px;user-select:none;transition:background 0.1s ease;border-top:1px dashed var(--border);margin-top:4px;">
+                  <input type="checkbox" class="cdc-checkbox" value="__NONE__" ${currentTeacherCdcFilters.has('__NONE__') ? 'checked' : ''} onchange="toggleTeacherCdcFilter('__NONE__')" style="cursor:pointer;width:14px;height:14px;">
+                  <span style="font-weight:700;color:#d97706;">⚠️ ${isEn ? 'Without CDC' : 'Senza CDC'}</span>
+                  <span style="margin-left:auto;font-size:11px;color:var(--text-muted);">${noCdcTeachers}</span>
+                </label>
+              ` : ''}
+            </div>
+
+            <!-- Piede dropdown con conteggio attivi e chiudi -->
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-top:6px;border-top:1px solid var(--border);font-size:11px;color:var(--text-muted);">
+              <span id="cdcDropdownActiveCount">${currentTeacherCdcFilters.size} ${isEn ? 'active' : 'attive'}</span>
+              <button type="button" class="btn btn-xs btn-primary" onclick="closeCdcDropdown()" style="padding:2px 10px;font-weight:600;">${isEn ? 'Done' : 'Fatto'}</button>
+            </div>
+          </div>
         </div>
       </div>
       <div style="font-size:12px;color:var(--text-muted);">
@@ -7185,7 +7338,7 @@ async function renderTeachers() {
                 </span>
               </td>
               <td style="text-align:center;">
-                <span class="item-chip cdc-chip ${currentTeacherCdcFilter && ((currentTeacherCdcFilter === '__NONE__' && !t.cdc) || (currentTeacherCdcFilter.toUpperCase() === (t.cdc || '').trim().toUpperCase())) ? 'primary active' : ''}" style="font-weight:600;font-size:11.5px;cursor:pointer;" onclick="setTeacherCdcFilter('${escapeJs(t.cdc || '-')}')" title="${t.cdc ? (isEn ? 'Click to filter by CDC ' + escapeHtml(t.cdc) : 'Clicca per filtrare per CDC ' + escapeHtml(t.cdc)) : (isEn ? 'Click to filter teachers without CDC' : 'Clicca per filtrare docenti senza CDC')}">
+                <span class="item-chip cdc-chip ${currentTeacherCdcFilters && currentTeacherCdcFilters.size > 0 && currentTeacherCdcFilters.has((t.cdc || '').trim().toUpperCase() || '__NONE__') ? 'primary active' : ''}" style="font-weight:600;font-size:11.5px;cursor:pointer;" onclick="toggleTeacherCdcFilter('${escapeJs(t.cdc || '-')}')" title="${t.cdc ? (isEn ? 'Click to add/remove CDC ' + escapeHtml(t.cdc) + ' from active filter' : 'Clicca per aggiungere/rimuovere CDC ' + escapeHtml(t.cdc) + ' dal filtro') : (isEn ? 'Click to add/remove teachers without CDC' : 'Clicca per aggiungere/rimuovere docenti senza CDC')}">
                   ${escapeHtml(t.cdc || '-')}
                 </span>
               </td>
@@ -7280,6 +7433,7 @@ async function renderTeachers() {
 
   // Applica immediatamente il filtro attivo (e la ricerca) per mantenere lo stato dopo modifiche/salvataggio
   applyTeacherFilters();
+  updateCdcFilterUi();
 }
 
 function updateDispPreview(lessonH) {
