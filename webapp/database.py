@@ -43,16 +43,27 @@ SEED_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seed_d
 
 def sync_seed_templates_to_data():
     """
-    Assicura che tutti i template dimostrativi e di seed (demo_scuola_atene, demo_athens, etc.)
+    Assicura che ESCLUSIVAMENTE i template dimostrativi (demo_scuola_atene, demo_athens, etc.)
     presenti in webapp/seed_data vengano replicati in DATA_DIR se mancanti.
-    Questo garantisce l'immediata disponibilità delle demo anche in ambienti Docker
-    in cui DATA_DIR (/app/webapp/data) è montato come volume host esterno vuoto o parziale.
+    NON DEVE MAI copiare file di produzione operativi (current_project.json, schools.json,
+    auth_config.json, sessions.json, solved_timetable.fet, access_logs.json) per evitare
+    qualsiasi sovrascrittura o reset accidentale dei dati di produzione.
     """
     if not os.path.exists(SEED_DATA_DIR):
         return
+    PROTECTED_FILES = {
+        "current_project.json",
+        "solved_timetable.fet",
+        "schools.json",
+        "auth_config.json",
+        "sessions.json",
+        "access_logs.json"
+    }
     try:
         os.makedirs(DATA_DIR, exist_ok=True)
         for fname in os.listdir(SEED_DATA_DIR):
+            if fname in PROTECTED_FILES:
+                continue
             src = os.path.join(SEED_DATA_DIR, fname)
             dst = os.path.join(DATA_DIR, fname)
             if os.path.isfile(src) and not os.path.exists(dst):
@@ -491,6 +502,68 @@ class Database:
         os.makedirs(self.snapshots_dir, exist_ok=True)
         self.data = {}
         self.data = self._init_data()
+        self.create_startup_safety_backup()
+
+    def create_startup_safety_backup(self):
+        """
+        Crea uno snapshot automatico di sicurezza pre-avvio/pre-deploy.
+        Mantiene le ultime 5 copie congelate ed evita sovrascritture o perdite di dati accidentali.
+        """
+        try:
+            if not self.data or not isinstance(self.data, dict):
+                return
+            teachers = self.data.get("teachers", [])
+            if len(teachers) < 3:
+                return
+            os.makedirs(self.snapshots_dir, exist_ok=True)
+            existing = [f for f in os.listdir(self.snapshots_dir) if f.startswith("snap_safety_startup_") and f.endswith(".json")]
+            now = datetime.now()
+            if existing:
+                latest = sorted(existing)[-1]
+                try:
+                    ts_part = latest.replace("snap_safety_startup_", "").replace(".json", "")
+                    ts_date = datetime.strptime(ts_part, "%Y%m%d_%H%M%S")
+                    if (now - ts_date).total_seconds() < 3600:
+                        return  # Già protetto nell'ultima ora
+                except Exception:
+                    pass
+
+            now_str = now.strftime("%Y%m%d_%H%M%S")
+            snap_id = f"snap_safety_startup_{now_str}"
+            inst_name = self.data.get("institution", "Istituto")
+            meta = {
+                "id": snap_id,
+                "name": f"Backup Sicurezza Avvio - {now.strftime('%d/%m/%Y %H:%M')}",
+                "description": f"Snapshot automatico di sicurezza congelato all'avvio del container per {inst_name}.",
+                "created_at": now.strftime("%Y-%m-%d %H:%M:%S"),
+                "has_timetable": bool(self.data.get("has_timetable")),
+                "stats": {
+                    "teachers_count": len(self.data.get("teachers", [])),
+                    "classes_count": len(self.data.get("classes", [])),
+                    "activities_count": len(self.data.get("activities", [])),
+                    "rooms_count": len(self.data.get("rooms", [])),
+                    "has_timetable": bool(self.data.get("has_timetable"))
+                },
+                "data": copy.deepcopy(self.data)
+            }
+            snap_json_path = os.path.join(self.snapshots_dir, f"{snap_id}.json")
+            with open(snap_json_path, "w", encoding="utf-8") as f:
+                json.dump(meta, f, ensure_ascii=False, indent=2)
+            if os.path.exists(self.solved_file):
+                shutil.copyfile(self.solved_file, os.path.join(self.snapshots_dir, f"{snap_id}.fet"))
+
+            # Mantieni al massimo gli ultimi 5 backup di sicurezza
+            all_safety = sorted([f for f in os.listdir(self.snapshots_dir) if f.startswith("snap_safety_startup_")])
+            if len(all_safety) > 10:
+                to_delete = all_safety[:-10]
+                for old_f in to_delete:
+                    try:
+                        os.remove(os.path.join(self.snapshots_dir, old_f))
+                    except Exception:
+                        pass
+            print(f"[SAFETY] Creato snapshot automatico pre-avvio di sicurezza: {snap_id}")
+        except Exception as e:
+            print(f"[SAFETY] Avviso backup sicurezza: {e}")
 
     def _init_data(self):
         data = None
@@ -540,6 +613,35 @@ class Database:
             return data
 
         if not os.path.exists(self.project_file):
+            # Controllo prioritario di sicurezza: se esistono già snapshot salvati in snapshots_dir,
+            # ripristina automaticamente l'ultimo snapshot valido invece di copiare template demo!
+            snap_files = [f for f in os.listdir(self.snapshots_dir) if f.endswith(".json")] if os.path.exists(self.snapshots_dir) else []
+            if snap_files:
+                latest_snap_file = None
+                for sf in sorted(snap_files, reverse=True):
+                    try:
+                        with open(os.path.join(self.snapshots_dir, sf), "r", encoding="utf-8") as f:
+                            sdata = json.load(f)
+                        if sdata.get("data") and len(sdata.get("data", {}).get("teachers", [])) > 0:
+                            latest_snap_file = sf
+                            break
+                    except Exception:
+                        pass
+                if latest_snap_file:
+                    try:
+                        with open(os.path.join(self.snapshots_dir, latest_snap_file), "r", encoding="utf-8") as f:
+                            meta = json.load(f)
+                        data_to_restore = meta.get("data")
+                        if data_to_restore:
+                            print(f"[RECOVERY] Ripristino automatico prioritario dall'ultimo snapshot valido {latest_snap_file}")
+                            self._save_to_disk(data_to_restore, ignore_occ=True)
+                            fet_file = os.path.join(self.snapshots_dir, latest_snap_file.replace(".json", ".fet"))
+                            if os.path.exists(fet_file):
+                                shutil.copyfile(fet_file, self.solved_file)
+                            return data_to_restore
+                    except Exception as e:
+                        print(f"[RECOVERY] Errore ripristino snapshot: {e}")
+
             if os.path.exists(seed_proj):
                 try:
                     shutil.copyfile(seed_proj, self.project_file)

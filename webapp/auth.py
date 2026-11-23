@@ -41,6 +41,7 @@ def get_local_now() -> datetime:
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 AUTH_FILE = os.path.join(DATA_DIR, "auth_config.json")
+SESSIONS_FILE = os.path.join(DATA_DIR, "sessions.json")
 LOGS_FILE = os.path.join(DATA_DIR, "access_logs.json")
 MAX_LOG_ENTRIES = 1500
 DEFAULT_ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL", "admin@scuolaatene.edu.it").lower().strip()
@@ -134,6 +135,34 @@ class AuthManager:
             }
         }
         self._load()
+        self._load_sessions()
+
+    def _load_sessions(self):
+        """Carica le sessioni persistenti da disco per preservare il login attraverso i riavvii del container."""
+        try:
+            if os.path.exists(SESSIONS_FILE):
+                with open(SESSIONS_FILE, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    now = time.time()
+                    valid = {}
+                    for tok, s in data.items():
+                        if isinstance(s, dict) and s.get("expires_at", 0) > now:
+                            valid[tok] = s
+                    self.sessions = valid
+        except Exception as e:
+            print(f"[AUTH] Avviso lettura sessioni persistenti {SESSIONS_FILE}: {e}")
+
+    def _save_sessions(self):
+        """Salva atomicamente le sessioni su disco per garantire zero session drops."""
+        try:
+            os.makedirs(DATA_DIR, exist_ok=True)
+            tmp = SESSIONS_FILE + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(self.sessions, f, indent=2, ensure_ascii=False)
+            os.replace(tmp, SESSIONS_FILE)
+        except Exception as e:
+            print(f"[AUTH] Errore salvataggio sessioni {SESSIONS_FILE}: {e}")
 
     def _load(self):
         os.makedirs(DATA_DIR, exist_ok=True)
@@ -189,6 +218,31 @@ class AuthManager:
                         else:
                             users[admin]["role"] = "admin"
                             users[admin]["status"] = "approved"
+
+                        # Blindatura automatica via Environment: se GOOGLE_CLIENT_ID è impostato via env ma manca o è vuoto nel file, usalo
+                        if DEFAULT_GOOGLE_CLIENT_ID and not self.config.get("google_client_id"):
+                            self.config["google_client_id"] = DEFAULT_GOOGLE_CLIENT_ID
+
+                        # Blindatura automatica via Environment: se ADMIN_EMAIL è impostato via env, assicurati che sia sempre superadmin e approvato
+                        if DEFAULT_ADMIN_EMAIL and DEFAULT_ADMIN_EMAIL != "admin@scuolaatene.edu.it":
+                            clean_def = DEFAULT_ADMIN_EMAIL.lower().strip()
+                            if clean_def not in self.config.get("superadmins", []):
+                                self.config.setdefault("superadmins", []).append(clean_def)
+                            if clean_def not in users:
+                                users[clean_def] = {
+                                    "email": clean_def,
+                                    "name": clean_def.split("@")[0].title(),
+                                    "picture": "",
+                                    "role": "admin",
+                                    "status": "approved",
+                                    "created_at": get_local_now().isoformat(),
+                                    "approved_at": get_local_now().isoformat(),
+                                    "last_login": None
+                                }
+                            else:
+                                users[clean_def]["role"] = "admin"
+                                users[clean_def]["status"] = "approved"
+
                         self.config["users"] = users
             except Exception as e:
                 print(f"[AUTH] Avviso: errore nel caricamento di {AUTH_FILE}: {e}")
@@ -342,6 +396,7 @@ class AuthManager:
             "created_at": now,
             "expires_at": now + (86400 * 30)  # 30 giorni
         }
+        self._save_sessions()
         return token
 
     def get_user_by_session(self, token):
@@ -350,6 +405,7 @@ class AuthManager:
         sess = self.sessions[token]
         if time.time() > sess.get("expires_at", 0):
             del self.sessions[token]
+            self._save_sessions()
             return None
         email = sess.get("email")
         self._load()
@@ -381,6 +437,7 @@ class AuthManager:
     def set_session_school(self, token, school_id):
         if token and token in self.sessions:
             self.sessions[token]["active_school_id"] = str(school_id or "default").strip()
+            self._save_sessions()
             return True
         return False
 
@@ -417,6 +474,7 @@ class AuthManager:
             u = self.config["users"].get(email, {})
             self.log_access("LOGOUT", email, u.get("role", "-"), "SUCCESS", ip, user_agent, "Disconnessione utente (Logout)")
             del self.sessions[token]
+            self._save_sessions()
 
     # --- GOOGLE TOKEN VERIFICATION ---
 
@@ -1056,6 +1114,7 @@ Eurario Automated Security Notification
                 if s.get("email") == email:
                     del self.sessions[tok]
             self._save()
+            self._save_sessions()
             self.log_access("USER_REVOKED", email, "-", "SUCCESS", ip, "-", f"Autorizzazione utente revocata da {admin_email or 'admin'}")
             return u
         raise ValueError("Utente non trovato")
@@ -1073,6 +1132,7 @@ Eurario Automated Security Notification
                 if s.get("email") == email:
                     del self.sessions[tok]
             self._save()
+            self._save_sessions()
             self.log_access("USER_DELETED", email, "-", "SUCCESS", ip, "-", f"Account eliminato da {admin_email or 'admin'}")
             return True
         return False
@@ -1107,6 +1167,7 @@ Eurario Automated Security Notification
                 s["role"] = role
 
         self._save()
+        self._save_sessions()
         self.log_access("ROLE_CHANGED", email, role, "SUCCESS", ip, "-", f"Ruolo modificato da '{old_role}' a '{role}' da {admin_email or 'admin'}")
         return u
 
@@ -1211,6 +1272,7 @@ Eurario Automated Security Notification
                 s["role"] = role
 
         self._save()
+        self._save_sessions()
         self.log_access("SCHOOL_ROLE_CHANGED", email, role, "SUCCESS", ip, "-", f"Ruolo nella scuola '{school_id}' modificato da '{old_role}' a '{role}' da {admin_email or 'admin'}")
         return user_mems[school_id]
 
@@ -1246,6 +1308,7 @@ Eurario Automated Security Notification
                 s["active_school_id"] = "none"
 
         self._save()
+        self._save_sessions()
         self.log_access("USER_REMOVED_FROM_SCHOOL", email, "-", "SUCCESS", ip, "-", f"Accesso alla scuola '{school_id}' revocato da {admin_email or 'admin'}")
         return True
 

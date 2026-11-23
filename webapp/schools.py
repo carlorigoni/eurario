@@ -52,8 +52,8 @@ class SchoolManager:
 
             # Assicura che la scuola principale 'default' esista sempre nel registro
             if "default" not in self.schools:
-                # Prova a leggere il nome reale dal current_project.json esistente
-                inst_name = "Liceo Classico e Scientifico Statale \"Scuola di Atene\""
+                # Prova a leggere il nome reale dal current_project.json o dagli snapshot esistenti
+                inst_name = "Istituto Scolastico"
                 proj_file = os.path.join(DATA_DIR, "current_project.json")
                 if os.path.exists(proj_file):
                     try:
@@ -63,16 +63,33 @@ class SchoolManager:
                                 inst_name = pj["institution"]
                     except Exception:
                         pass
+                
+                # Se ancora generico, prova a cercare negli snapshot
+                if inst_name == "Istituto Scolastico":
+                    snaps_dir = os.path.join(DATA_DIR, "snapshots")
+                    if os.path.exists(snaps_dir):
+                        for sf in sorted(os.listdir(snaps_dir), reverse=True):
+                            if sf.endswith(".json"):
+                                try:
+                                    with open(os.path.join(snaps_dir, sf), "r", encoding="utf-8") as sfp:
+                                        sm = json.load(sfp)
+                                        in_name = sm.get("data", {}).get("institution") or sm.get("institution")
+                                        if in_name:
+                                            inst_name = in_name
+                                            break
+                                except Exception:
+                                    pass
 
+                owner_mail = os.environ.get("ADMIN_EMAIL", "admin@eurario.it").strip().lower()
                 self.schools["default"] = {
                     "id": "default",
                     "name": inst_name,
                     "city": "Sede Principale",
                     "country": "Italia",
                     "school_year": "2026/2027",
-                    "meccanografico": "PDIS017007",
+                    "meccanografico": "PDIS01900V",
                     "status": "active",
-                    "owner_email": "admin@scuolaatene.edu.it",
+                    "owner_email": owner_mail,
                     "created_at": datetime.now().isoformat(),
                     "approved_at": datetime.now().isoformat(),
                     "approved_by": "system",
