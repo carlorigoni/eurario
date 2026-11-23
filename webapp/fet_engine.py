@@ -1722,9 +1722,20 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
             lines.append('    </ConstraintStudentsSetMaxBuildingChangesPerDay>')
 
     valid_rooms = {r["name"] if isinstance(r, dict) else str(r) for r in data.get("rooms", [])}
-    has_gym = any("palestra" in r.lower() for r in valid_rooms)
+    gym_names_raw = {r["name"] if isinstance(r, dict) else str(r) for r in data.get("rooms", []) if (r["name"] if isinstance(r, dict) else str(r)).lower().startswith("palestra") or "gym" in (r["name"] if isinstance(r, dict) else str(r)).lower() or (isinstance(r, dict) and r.get("room_type") == "gym")}
+    has_gym = bool(gym_names_raw) or any("palestra" in r.lower() for r in valid_rooms)
     gym_rooms = ["Palestra-1", "Palestra-2", "Palestra-3"] if has_gym else []
     info_rooms = sorted([r for r in valid_rooms if "info" in r.lower()])
+
+    # Aule effettivamente presenti nel blocco <Rooms_List> di FET (la palestra è espansa nei 3 moduli Palestra-1/2/3)
+    fet_room_names = {r for r in valid_rooms if r not in gym_names_raw and not r.lower().startswith("palestra")}
+    fet_room_names.update(gym_rooms)
+
+    def is_gym_room(r_name):
+        if not r_name:
+            return False
+        rn = str(r_name).strip().lower()
+        return r_name in gym_names_raw or rn.startswith("palestra") or rn == "gym"
 
     assigned_act_pref_rooms = set()
 
@@ -1837,11 +1848,27 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
                 xml_str = xml_str.replace("</Number_of_Preferred_Rooms>", f"</Number_of_Preferred_Rooms>{rooms_tags}")
         elif tag in ("ConstraintActivityPreferredRoom", "ConstraintStudentsSetHomeRoom"):
             m_r = re.search(r"<Room>(.*?)</Room>", xml_str)
-            if m_r and m_r.group(1) not in valid_rooms:
-                if m_r.group(1) == "Aula 2L" and "Aula 41" in valid_rooms:
-                    xml_str = xml_str.replace("<Room>Aula 2L</Room>", "<Room>Aula 41</Room>")
-                else:
+            if m_r:
+                r_val = m_r.group(1)
+                if is_gym_room(r_val):
+                    for m_aid in act_matches:
+                        if m_aid not in assigned_act_pref_rooms and gym_rooms:
+                            lines.append('    <ConstraintActivityPreferredRooms>')
+                            lines.append('      <Weight_Percentage>100</Weight_Percentage>')
+                            lines.append(f'      <Activity_Id>{m_aid}</Activity_Id>')
+                            lines.append(f'      <Number_of_Preferred_Rooms>{len(gym_rooms)}</Number_of_Preferred_Rooms>')
+                            for gr in gym_rooms:
+                                lines.append(f'      <Preferred_Room>{xml_escape(gr)}</Preferred_Room>')
+                            lines.append('      <Active>true</Active>')
+                            lines.append('      <Comments></Comments>')
+                            lines.append('    </ConstraintActivityPreferredRooms>')
+                            assigned_act_pref_rooms.add(m_aid)
                     continue
+                if r_val not in fet_room_names:
+                    if r_val == "Aula 2L" and "Aula 41" in fet_room_names:
+                        xml_str = xml_str.replace("<Room>Aula 2L</Room>", "<Room>Aula 41</Room>")
+                    else:
+                        continue
             # Se è un vincolo aula base per una classe con attività fuori plesso, normalizza il peso al 95%
             if tag == "ConstraintStudentsSetHomeRoom":
                 m_cl = re.search(r"<Students>(.*?)</Students>", xml_str)
@@ -1863,7 +1890,7 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
 
     for c in data.get("classes", []):
         broom = c.get("base_room")
-        if broom and c["name"] not in existing_homerooms:
+        if broom and broom in fet_room_names and c["name"] not in existing_homerooms:
             # Calcolo peso aula base: se la classe ha attività fisse in un altro plesso (es. Palestra in Centrale per una classe di Succursale),
             # usiamo peso 95% affinché FET possa usare aule di appoggio nel plesso ospite durante l'intera giornata in trasferta,
             # rispettando rigidamente il vincolo 100% di 0 cambi plesso al giorno (permanenza dalla prima all'ultima ora).
@@ -1880,39 +1907,82 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
 
     timetable_acts = set(data.get("timetable", {}).keys()) if include_timetable else set()
     for a in emitted_activities:
-        if a.get("room") and str(a["id"]) not in timetable_acts:
-            lines.append('    <ConstraintActivityPreferredRoom>')
-            lines.append('      <Weight_Percentage>100</Weight_Percentage>')
-            lines.append(f'      <Activity_Id>{a["id"]}</Activity_Id>')
-            lines.append(f'      <Room>{xml_escape(a["room"])}</Room>')
-            lines.append('      <Permanently_Locked>true</Permanently_Locked>')
-            lines.append('      <Active>true</Active>')
-            lines.append('      <Comments></Comments>')
-            lines.append('    </ConstraintActivityPreferredRoom>')
+        aid_str = str(a["id"])
+        r_name = a.get("room")
+        if r_name and aid_str not in timetable_acts:
+            if is_gym_room(r_name):
+                if aid_str not in assigned_act_pref_rooms and gym_rooms:
+                    lines.append('    <ConstraintActivityPreferredRooms>')
+                    lines.append('      <Weight_Percentage>100</Weight_Percentage>')
+                    lines.append(f'      <Activity_Id>{aid_str}</Activity_Id>')
+                    lines.append(f'      <Number_of_Preferred_Rooms>{len(gym_rooms)}</Number_of_Preferred_Rooms>')
+                    for gr in gym_rooms:
+                        lines.append(f'      <Preferred_Room>{xml_escape(gr)}</Preferred_Room>')
+                    lines.append('      <Active>true</Active>')
+                    lines.append('      <Comments></Comments>')
+                    lines.append('    </ConstraintActivityPreferredRooms>')
+                    assigned_act_pref_rooms.add(aid_str)
+            elif r_name in fet_room_names:
+                lines.append('    <ConstraintActivityPreferredRoom>')
+                lines.append('      <Weight_Percentage>100</Weight_Percentage>')
+                lines.append(f'      <Activity_Id>{aid_str}</Activity_Id>')
+                lines.append(f'      <Room>{xml_escape(r_name)}</Room>')
+                lines.append('      <Permanently_Locked>true</Permanently_Locked>')
+                lines.append('      <Active>true</Active>')
+                lines.append('      <Comments></Comments>')
+                lines.append('    </ConstraintActivityPreferredRoom>')
 
     for c_aid, c_room in companion_room_constraints:
-        if c_room and c_aid not in timetable_acts:
-            lines.append('    <ConstraintActivityPreferredRoom>')
-            lines.append('      <Weight_Percentage>100</Weight_Percentage>')
-            lines.append(f'      <Activity_Id>{c_aid}</Activity_Id>')
-            lines.append(f'      <Room>{xml_escape(c_room)}</Room>')
-            lines.append('      <Permanently_Locked>true</Permanently_Locked>')
-            lines.append('      <Active>true</Active>')
-            lines.append('      <Comments></Comments>')
-            lines.append('    </ConstraintActivityPreferredRoom>')
+        c_aid_str = str(c_aid)
+        if c_room and c_aid_str not in timetable_acts:
+            if is_gym_room(c_room):
+                if c_aid_str not in assigned_act_pref_rooms and gym_rooms:
+                    lines.append('    <ConstraintActivityPreferredRooms>')
+                    lines.append('      <Weight_Percentage>100</Weight_Percentage>')
+                    lines.append(f'      <Activity_Id>{c_aid_str}</Activity_Id>')
+                    lines.append(f'      <Number_of_Preferred_Rooms>{len(gym_rooms)}</Number_of_Preferred_Rooms>')
+                    for gr in gym_rooms:
+                        lines.append(f'      <Preferred_Room>{xml_escape(gr)}</Preferred_Room>')
+                    lines.append('      <Active>true</Active>')
+                    lines.append('      <Comments></Comments>')
+                    lines.append('    </ConstraintActivityPreferredRooms>')
+                    assigned_act_pref_rooms.add(c_aid_str)
+            elif c_room in fet_room_names:
+                lines.append('    <ConstraintActivityPreferredRoom>')
+                lines.append('      <Weight_Percentage>100</Weight_Percentage>')
+                lines.append(f'      <Activity_Id>{c_aid_str}</Activity_Id>')
+                lines.append(f'      <Room>{xml_escape(c_room)}</Room>')
+                lines.append('      <Permanently_Locked>true</Permanently_Locked>')
+                lines.append('      <Active>true</Active>')
+                lines.append('      <Comments></Comments>')
+                lines.append('    </ConstraintActivityPreferredRoom>')
 
     if include_timetable or (locked_set & emitted_act_ids):
         for aid, pl in data.get("timetable", {}).items():
             aid_str = str(aid)
-            if aid_str in emitted_act_ids and (include_timetable or aid_str in locked_set) and pl.get("room"):
-                lines.append('    <ConstraintActivityPreferredRoom>')
-                lines.append('      <Weight_Percentage>100</Weight_Percentage>')
-                lines.append(f'      <Activity_Id>{aid}</Activity_Id>')
-                lines.append(f'      <Room>{xml_escape(pl["room"])}</Room>')
-                lines.append('      <Permanently_Locked>true</Permanently_Locked>')
-                lines.append('      <Active>true</Active>')
-                lines.append('      <Comments>Bloccato da utente</Comments>')
-                lines.append('    </ConstraintActivityPreferredRoom>')
+            r_name = pl.get("room")
+            if aid_str in emitted_act_ids and (include_timetable or aid_str in locked_set) and r_name:
+                if is_gym_room(r_name):
+                    if aid_str not in assigned_act_pref_rooms and gym_rooms:
+                        lines.append('    <ConstraintActivityPreferredRooms>')
+                        lines.append('      <Weight_Percentage>100</Weight_Percentage>')
+                        lines.append(f'      <Activity_Id>{aid_str}</Activity_Id>')
+                        lines.append(f'      <Number_of_Preferred_Rooms>{len(gym_rooms)}</Number_of_Preferred_Rooms>')
+                        for gr in gym_rooms:
+                            lines.append(f'      <Preferred_Room>{xml_escape(gr)}</Preferred_Room>')
+                        lines.append('      <Active>true</Active>')
+                        lines.append('      <Comments>Palestra (modulo dinamico)</Comments>')
+                        lines.append('    </ConstraintActivityPreferredRooms>')
+                        assigned_act_pref_rooms.add(aid_str)
+                elif r_name in fet_room_names:
+                    lines.append('    <ConstraintActivityPreferredRoom>')
+                    lines.append('      <Weight_Percentage>100</Weight_Percentage>')
+                    lines.append(f'      <Activity_Id>{aid_str}</Activity_Id>')
+                    lines.append(f'      <Room>{xml_escape(r_name)}</Room>')
+                    lines.append('      <Permanently_Locked>true</Permanently_Locked>')
+                    lines.append('      <Active>true</Active>')
+                    lines.append('      <Comments>Bloccato da utente</Comments>')
+                    lines.append('    </ConstraintActivityPreferredRoom>')
     lines.append('  </Space_Constraints_List>')
 
     lines.append('</fet>')
