@@ -41,10 +41,8 @@ fet-*/
 fet_workspace/
 logs/
 timetables/
-webapp/data/solver_run/
-webapp/data/access_logs.json
-webapp/data/snapshots/
-webapp/data/tenants/
+webapp/data/*
+!webapp/data/.gitkeep
 
 # Docker compose local volume (if created in root)
 /data/

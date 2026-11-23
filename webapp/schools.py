@@ -44,7 +44,10 @@ class SchoolManager:
                     with open(SCHOOLS_FILE, "r", encoding="utf-8") as f:
                         data = json.load(f)
                         if isinstance(data, dict):
-                            self.schools = data
+                            if "schools" in data and isinstance(data["schools"], dict):
+                                self.schools = {k: v for k, v in data["schools"].items() if isinstance(v, dict)}
+                            else:
+                                self.schools = {k: v for k, v in data.items() if isinstance(v, dict)}
                         elif isinstance(data, list):
                             self.schools = {s["id"]: s for s in data if isinstance(s, dict) and "id" in s}
                 except Exception as e:
@@ -106,6 +109,8 @@ class SchoolManager:
                 self._sync_school_from_project(sid, s)
 
     def _sync_school_from_project(self, school_id, s):
+        if not isinstance(s, dict):
+            return
         changed = False
         proj_file = os.path.join(TENANTS_DIR, school_id, "current_project.json") if school_id != "default" else os.path.join(DATA_DIR, "current_project.json")
         if os.path.exists(proj_file):
