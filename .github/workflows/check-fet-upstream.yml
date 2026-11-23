@@ -50,6 +50,8 @@ jobs:
           FET_VER="${{ steps.check.outputs.fet_version }}"
           echo "Commit modifiche per FET $FET_VER..."
           
-          git add Dockerfile webapp/ README.md
-          git commit -m "chore(fet): upgrade FET engine to v${FET_VER} [Sanity Check PASSED]"
-          git push origin main
+          git add Dockerfile webapp/ README.md scripts/
+          NEW_APP_VER=$(python3 -c "import re; print(re.search(r'APP_VERSION\s*=\s*[\"\'\']([0-9\.]+)[\"\'\']', open('webapp/server.py').read()).group(1))")
+          git commit -m "chore(fet): upgrade FET engine to v${FET_VER} (app v${NEW_APP_VER}) [Sanity Check PASSED]"
+          git tag "v${NEW_APP_VER}"
+          git push origin main --tags

@@ -131,14 +131,18 @@ class TimetablePreValidator:
         issues = []
         teacher_hours: Dict[str, int] = {}
         teacher_acts_count: Dict[str, int] = {}
+        teacher_fet_acts_count: Dict[str, int] = {}
 
         for a in self.activities:
             if not a.get("active", True):
                 continue
             dur = a.get("duration", 1)
+            is_disp = (a.get("subject") or "").strip().lower().startswith("disposiz") or a.get("is_disposizione", False)
             for t in a.get("teachers", []):
                 teacher_hours[t] = teacher_hours.get(t, 0) + dur
                 teacher_acts_count[t] = teacher_acts_count.get(t, 0) + 1
+                if not is_disp:
+                    teacher_fet_acts_count[t] = teacher_fet_acts_count.get(t, 0) + 1
 
         # Limite ore giornaliere istituzionale
         max_daily_default = 6
@@ -243,6 +247,7 @@ class TimetablePreValidator:
                 })
 
             if min_days is not None:
+                fet_acts = teacher_fet_acts_count.get(tname, 0)
                 if min_days > avail_days_count:
                     issues.append({
                         "id": f"teacher_min_days_unreachable_{tname}",
@@ -256,6 +261,22 @@ class TimetablePreValidator:
                         "entities": [{"type": "teacher", "id": tname, "name": tname}],
                         "recommendation": f"Riduci il vincolo di presenza minima a {avail_days_count} giorni o apri disponibilità.",
                         "quick_action": {"type": "navigate", "target": "constraints", "payload": {"teacher": tname}}
+                    })
+                elif fet_acts > 0 and min_days > fet_acts:
+                    issues.append({
+                        "id": f"teacher_min_days_gt_activities_{tname}",
+                        "category": "teachers",
+                        "severity": "critical",
+                        "title": f"Minimo Giorni Impossibile per FET: {tname}",
+                        "description": (
+                            f"Il docente ha un vincolo di minimo {min_days} giorni di presenza, ma ha soltanto {fet_acts} "
+                            f"attività di lezione effettive da orario (le ore a disposizione non sono conteggiate dal compilatore FET). "
+                            f"FET rifiuterà categoricamente la compilazione con errore bloccante: 'min days per week {min_days} and only {fet_acts} activities'."
+                        ),
+                        "entities": [{"type": "teacher", "id": tname, "name": tname}],
+                        "recommendation": f"Imposta il minimo di giorni a {fet_acts} o meno per consentire l'avvio di FET.",
+                        "quick_action": {"type": "navigate", "target": "constraints", "payload": {"teacher": tname}},
+                        "target_min": fet_acts
                     })
                 elif min_days > assigned and assigned > 0:
                     issues.append({
@@ -501,6 +522,40 @@ class TimetablePreValidator:
                 "capacity_slots": info_capacity,
                 "pct": pct_info,
                 "status": status
+            })
+
+        # 3. Check Aule Inesistenti / Orfane nelle attività e nei vincoli
+        valid_room_names = {r["name"] for r in self.rooms if isinstance(r, dict) and r.get("name")}
+        gym_names = {r["name"] for r in self.rooms if isinstance(r, dict) and (r.get("room_type") == "gym" or "palestra" in r.get("name", "").lower())}
+
+        orphan_rooms = set()
+        for a in self.activities:
+            if not a.get("active", True):
+                continue
+            r = a.get("room") or a.get("preferred_room")
+            if r:
+                r_str = str(r).strip()
+                # Se è palestra generica e ci sono palestre configurate, il compilatore espande in Palestra-1/2/3
+                if r_str.lower() in ("palestra", "gym") and gym_names:
+                    continue
+                if r_str not in valid_room_names and not any(r_str.lower() == vr.lower() for vr in valid_room_names):
+                    orphan_rooms.add((r_str, a.get("id"), a.get("subject", "")))
+
+        for r_name, aid, subj in sorted(orphan_rooms, key=lambda x: str(x[1])):
+            issues.append({
+                "id": f"activity_room_not_found_{aid}",
+                "category": "rooms",
+                "severity": "critical",
+                "title": f"Aula Inesistente: '{r_name}' (Attività #{aid})",
+                "description": (
+                    f"L'attività #{aid} ({subj}) richiede l'aula '{r_name}', che non è presente nell'anagrafica aule della scuola. "
+                    f"Il motore FET bloccherà la compilazione segnalando che l'aula non esiste ('preferred room {r_name} does not exist')."
+                ),
+                "entities": [{"type": "room", "id": r_name, "name": r_name}],
+                "recommendation": f"Crea l'aula '{r_name}' nella sezione Spazi & Aule oppure riassegna l'attività a un'aula esistente.",
+                "quick_action": {"type": "navigate", "target": "rooms", "payload": {"room": r_name}},
+                "activity_id": aid,
+                "room_name": r_name
             })
 
         return saturations, issues

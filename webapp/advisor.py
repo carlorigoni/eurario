@@ -650,22 +650,70 @@ class TimetableAdvisor:
                 if ent_name:
                     t_obj = teachers_dict.get(ent_name, {})
                     curr_min = t_obj.get("min_days", 5)
+                    is_fatal_fet = iss.get("id", "").startswith("teacher_min_days_gt_activities_")
+                    target_min = iss.get("target_min")
+                    new_val = target_min if target_min is not None else max(1, int(curr_min) - 1)
+
+                    if is_fatal_fet:
+                        recommendations.append({
+                            "id": f"auto_fix_min_days_{ent_name}",
+                            "level": 1,
+                            "level_label": "Livello 1: Risoluzione Automatica Crash FET",
+                            "title": f"Allinea Minimo Giorni di Presenza per: {ent_name}",
+                            "description": (
+                                f"Il docente {ent_name} ha un vincolo di minimo {curr_min} giorni di presenza, "
+                                f"ma soltanto {new_val} attività didattiche inviate al compilatore FET. "
+                                f"Adatta istantaneamente il vincolo a {new_val} {'giorno' if new_val == 1 else 'giorni'} per evitare il crash immediato di FET."
+                            ),
+                            "impact": "CRITICO",
+                            "badge": "Crash FET",
+                            "badge_color": "danger",
+                            "action_type": "relax_min_days",
+                            "action_payload": {"teacher": ent_name, "new_val": new_val},
+                            "button_text": f"Allinea Min Giorni ({curr_min} → {new_val})",
+                            "auto_applicable": True
+                        })
+                    else:
+                        recommendations.append({
+                            "id": f"relax_min_days_{ent_name}",
+                            "level": 2,
+                            "level_label": "Livello 2: Flessibilità Mirata",
+                            "title": f"Riduci Minimo Giorni di Presenza per: {ent_name}",
+                            "description": (
+                                f"Il docente {ent_name} ha un vincolo di minimo {curr_min} giorni di presenza, "
+                                "incompatibile con la disponibilità reale o con il monte ore assegnato. "
+                                "Portare il vincolo a un valore compatibile risolve il blocco."
+                            ),
+                            "impact": "ALTO",
+                            "badge": "Min Giorni",
+                            "badge_color": "warn",
+                            "action_type": "relax_min_days",
+                            "action_payload": {"teacher": ent_name, "new_val": new_val},
+                            "button_text": f"Riduci Min Giorni ({curr_min} → {new_val})",
+                            "auto_applicable": True
+                        })
+
+        # C2. Aule Inesistenti / Orfane nelle Attività
+        for iss in v_report.get("issues", []):
+            if iss.get("id", "").startswith("activity_room_not_found_"):
+                aid = iss.get("activity_id")
+                r_name = iss.get("room_name")
+                if aid:
                     recommendations.append({
-                        "id": f"relax_min_days_{ent_name}",
-                        "level": 2,
-                        "level_label": "Livello 2: Flessibilità Mirata",
-                        "title": f"Riduci Minimo Giorni di Presenza per: {ent_name}",
+                        "id": f"fix_orphan_room_{aid}",
+                        "level": 1,
+                        "level_label": "Livello 1: Risoluzione Automatica Crash FET",
+                        "title": f"Rimuovi Riferimento Aula Inesistente '{r_name}' (Attività #{aid})",
                         "description": (
-                            f"Il docente {ent_name} ha un vincolo di minimo {curr_min} giorni di presenza, "
-                            "incompatibile con la disponibilità reale o con il monte ore assegnato. "
-                            "Portare il vincolo a un valore compatibile risolve il blocco."
+                            f"L'attività #{aid} richiede l'aula '{r_name}' non presente nell'anagrafica. "
+                            f"Rimuovendo il vincolo rigido su quest'aula inesistente, FET potrà generare l'orario senza interruzioni."
                         ),
-                        "impact": "ALTO",
-                        "badge": "Min Giorni",
-                        "badge_color": "warn",
-                        "action_type": "relax_min_days",
-                        "action_payload": {"teacher": ent_name, "new_val": max(1, int(curr_min) - 1)},
-                        "button_text": f"Riduci Min Giorni ({curr_min} → {max(1, int(curr_min) - 1)})",
+                        "impact": "CRITICO",
+                        "badge": "Aula Inesistente",
+                        "badge_color": "danger",
+                        "action_type": "clear_orphan_room_in_activity",
+                        "action_payload": {"activity_id": aid},
+                        "button_text": f"Rimuovi Vincolo Aula #{aid}",
                         "auto_applicable": True
                     })
 
@@ -958,6 +1006,18 @@ class TimetableAdvisor:
             msg = (f"Successfully unlocked {len(act_ids)} fixed activities."
                    if is_en else
                    f"Sbloccate con successo {len(act_ids)} attività fisse.")
+
+        elif action_type == "clear_orphan_room_in_activity":
+            act_id = str(payload.get("activity_id"))
+            found = False
+            for a in data.get("activities", []):
+                if str(a.get("id")) == act_id:
+                    a.pop("room", None)
+                    a.pop("preferred_room", None)
+                    found = True
+            msg = (f"Orphan room constraint removed from activity #{act_id}."
+                   if is_en else
+                   f"Rimosso vincolo aula inesistente dall'attività #{act_id}.")
 
         elif action_type == "set_class_campus_exception":
             cname = payload.get("class")

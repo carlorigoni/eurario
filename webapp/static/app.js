@@ -22,7 +22,7 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.64';
+let APP_VERSION = '1.9.65';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -367,7 +367,7 @@ function _t(key, fallback = '') {
   }
   return fallback || key;
 }
-const FET_VERSION = '7.12.0';
+const FET_VERSION = '7.12.1';
 const APP_AUTHOR = 'Carlo Rigoni';
 
 // --- GESTIONE INTERNAZIONALIZZAZIONE (i18n) & TEMI (DARK/LIGHT/AUTO) ---
@@ -5761,7 +5761,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ============================================================================
-// 3. COMPILATORE FET CLI 7.12.0
+// 3. COMPILATORE FET CLI 7.12.1
 // ============================================================================
 let currentSolverLogMode = 'formatted'; // 'formatted' | 'raw'
 let solverAutoScroll = true;

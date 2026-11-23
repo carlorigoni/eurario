@@ -890,6 +890,12 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
     ]
     emitted_act_ids = {str(a["id"]) for a in emitted_activities}
 
+    # Conteggio attività effettivamente emesse per docente (per proteggere i vincoli di giorni minimi da crash FET)
+    teacher_emitted_acts_count = {}
+    for a in emitted_activities:
+        for t in a.get("teachers", []):
+            teacher_emitted_acts_count[t] = teacher_emitted_acts_count.get(t, 0) + 1
+
     lines.append('  <Days_List>')
     lines.append(f'    <Number_of_Days>{len(active_days)}</Number_of_Days>')
     for d in active_days:
@@ -1291,10 +1297,22 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
                 emitted_max_days_teachers.add(m_t.group(1))
         elif tag == "ConstraintTeacherMinDaysPerWeek":
             m_t = re.search(r"<Teacher>(.*?)</Teacher>", xml_str)
-            if m_t and m_t.group(1) in teacher_custom_min:
-                continue
             if m_t:
-                emitted_min_days_teachers.add(m_t.group(1))
+                t_target = m_t.group(1)
+                if t_target in teacher_custom_min:
+                    continue
+                num_acts = teacher_emitted_acts_count.get(t_target, 0)
+                if num_acts == 0:
+                    continue  # Nessuna attività emessa per il docente: FET andrebbe in errore bloccante se emesso
+                m_d = re.search(r"<Minimum_Days_Per_Week>(\d+)</Minimum_Days_Per_Week>", xml_str)
+                if m_d and int(m_d.group(1)) > num_acts:
+                    # Auto-cappa al numero reale di attività didattiche emesse (Scudo 2: anti-crash FET)
+                    xml_str = re.sub(
+                        r"<Minimum_Days_Per_Week>\d+</Minimum_Days_Per_Week>",
+                        f"<Minimum_Days_Per_Week>{num_acts}</Minimum_Days_Per_Week>",
+                        xml_str
+                    )
+                emitted_min_days_teachers.add(t_target)
         # Se il vincolo contiene riferimenti ad Activity_Id, verifica che appartengano alle attività emesse in FET
         act_matches = re.findall(r"<Activity_Id>(\d+)</Activity_Id>", xml_str)
         if any(aid not in emitted_act_ids for aid in act_matches):
@@ -1316,12 +1334,17 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
 
     for tname, mind_val in teacher_custom_min.items():
         if 1 <= mind_val <= len(active_days) and tname not in emitted_min_days_teachers:
+            num_acts = teacher_emitted_acts_count.get(tname, 0)
+            if num_acts == 0:
+                continue  # Nessuna attività per questo docente: evita crash di FET
+            # Auto-cappa mind_val al numero reale di attività emesse in FET (Scudo 2: anti-crash FET)
+            capped_mind = min(mind_val, num_acts)
             lines.append('    <ConstraintTeacherMinDaysPerWeek>')
             lines.append('      <Weight_Percentage>100</Weight_Percentage>')
             lines.append(f'      <Teacher>{xml_escape(tname)}</Teacher>')
-            lines.append(f'      <Minimum_Days_Per_Week>{mind_val}</Minimum_Days_Per_Week>')
+            lines.append(f'      <Minimum_Days_Per_Week>{capped_mind}</Minimum_Days_Per_Week>')
             lines.append('      <Active>true</Active>')
-            lines.append('      <Comments>giorni minimi configurati nel profilo docente</Comments>')
+            lines.append(f'      <Comments>giorni minimi configurati nel profilo docente{" (auto-cappato su " + str(num_acts) + " attività)" if capped_mind < mind_val else ""}</Comments>')
             lines.append('    </ConstraintTeacherMinDaysPerWeek>')
             emitted_min_days_teachers.add(tname)
 
@@ -1908,7 +1931,7 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
     timetable_acts = set(data.get("timetable", {}).keys()) if include_timetable else set()
     for a in emitted_activities:
         aid_str = str(a["id"])
-        r_name = a.get("room")
+        r_name = a.get("room") or a.get("preferred_room")
         if r_name and aid_str not in timetable_acts:
             if is_gym_room(r_name):
                 if aid_str not in assigned_act_pref_rooms and gym_rooms:

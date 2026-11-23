@@ -238,11 +238,22 @@ def update_project_files_to_new_fet(new_fet_version):
 
     # 4. webapp/static/app.js
     app_js = ROOT_DIR / "webapp" / "static" / "app.js"
-    if app_js.is_file() and app_ver_new:
+    if app_js.is_file():
         js_content = app_js.read_text(encoding="utf-8")
-        js_content = re.sub(r"const APP_VERSION = '[\d\.]+';", f"const APP_VERSION = '{app_ver_new}';", js_content)
+        if app_ver_new:
+            js_content = re.sub(r"const APP_VERSION = '[\d\.]+';", f"const APP_VERSION = '{app_ver_new}';", js_content)
+        js_content = re.sub(r"const FET_VERSION = '[\d\.]+';", f"const FET_VERSION = '{new_fet_version}';", js_content)
         app_js.write_text(js_content, encoding="utf-8")
         print("   ✅ webapp/static/app.js aggiornato.")
+
+    # 4b. webapp/fet_engine.py
+    fet_engine_py = ROOT_DIR / "webapp" / "fet_engine.py"
+    if fet_engine_py.is_file():
+        fe_content = fet_engine_py.read_text(encoding="utf-8")
+        fe_content = re.sub(r'\"Versione FET dichiarata\":\s*\"[^\"]+\"', f'\"Versione FET dichiarata\": \"{new_fet_version}\"', fe_content)
+        fe_content = re.sub(r'FET \d+\.\d+(\.\d+)?', f'FET {new_fet_version}', fe_content)
+        fet_engine_py.write_text(fe_content, encoding="utf-8")
+        print("   ✅ webapp/fet_engine.py aggiornato.")
 
     # 5. webapp/static/index.html
     index_html = ROOT_DIR / "webapp" / "static" / "index.html"
