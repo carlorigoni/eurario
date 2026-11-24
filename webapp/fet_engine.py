@@ -1,5 +1,5 @@
 """
-FET Engine - Parser, Serializer e Generatore di viste orario per FET 7.12.0.
+FET Engine - Parser, Serializer e Generatore di viste orario per FET 7.13.0.
 100% Compatibile con il formato XML ufficiale di FET e con i file di configurazione generati dallo script.
 """
 
@@ -201,7 +201,7 @@ DEFAULT_PARAMETERS = {
     "Nome istituto": 'Liceo Classico e Scientifico Statale "Scuola di Atene"',
     "Commenti": "Orario configurato con Eurario Suite FET",
     "Nome file .fet": "ParametriOrario",
-    "Versione FET dichiarata": "7.12.0",
+    "Versione FET dichiarata": "7.13.0",
     "Crea aula per classi senza aula (SI/NO)": "SI",
     "Peso aula classe %": 100,
     "Nomi ore in FET con orario (SI/NO)": "SI",
@@ -228,7 +228,7 @@ PARAM_HELP = {
     "Nome istituto": "Nome della scuola: compare nell'intestazione delle stampe di FET.",
     "Commenti": "Testo libero salvato nel file .fet (visibile in FET, Dati > Informazioni istituto).",
     "Nome file .fet": "Nome base del file esportato per FET CLI.",
-    "Versione FET dichiarata": "Numero di versione scritto nel file (7.12.0 evita il messaggio di conversione all'apertura).",
+    "Versione FET dichiarata": "7.13.0",
     "Crea aula per classi senza aula (SI/NO)": "SI: per ogni classe senza aula crea 'Aula <classe>' nel suo plesso, fondamentale per i vincoli di plesso.",
     "Peso aula classe %": "Percentuale di rigidità (100 = sempre) affinché la classe svolga le lezioni nella sua aula base.",
     "Le classi non cambiano plesso durante la giornata (SI/NO)": "SI: le classi restano nello stesso plesso tutto il giorno; si spostano solo i docenti.",
@@ -866,7 +866,7 @@ def build_timetable_views(data):
 
 def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
     """
-    Genera un file .fet XML valido al 100% per FET 7.12.0 a partire dal dizionario interno.
+    Genera un file .fet XML valido al 100% per FET 7.13.0 a partire dal dizionario interno.
     Include tutti i vincoli orari istituzionali, le pause e le disponibilità configurate.
     Garantisce il rispetto rigoroso dell'ordine sequenziale dei tag richiesto dal parser C++ di FET.
     Se include_timetable=False, non blocca l'orario precedente consentendo a FET di generare un nuovo orario da zero.

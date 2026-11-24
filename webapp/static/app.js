@@ -367,7 +367,7 @@ function _t(key, fallback = '') {
   }
   return fallback || key;
 }
-const FET_VERSION = '7.12.1';
+const FET_VERSION = '7.13.0';
 const APP_AUTHOR = 'Carlo Rigoni';
 
 // --- GESTIONE INTERNAZIONALIZZAZIONE (i18n) & TEMI (DARK/LIGHT/AUTO) ---
