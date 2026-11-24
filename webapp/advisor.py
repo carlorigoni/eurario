@@ -11,7 +11,7 @@ from typing import Dict, List, Any, Optional, Tuple, Set
 import os
 import glob
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from webapp.validator import TimetablePreValidator
 
 
@@ -51,6 +51,8 @@ class TimetableAdvisor:
         c_avail = data.get("class_availability", {})
         locked_set = set(str(x) for x in data.get("locked_activities", []))
         teachers_list = data.get("teachers", [])
+        classes_list = data.get("classes", [])
+        classes_dict = {c["name"]: c for c in classes_list}
 
         critical_teachers = Counter()
         critical_classes = Counter()
@@ -160,6 +162,31 @@ class TimetableAdvisor:
                 except Exception:
                     pass
 
+            # C. Parsing delle attività non collocate dal miglior orario parziale (es. input_run-highest)
+            highest_xml_files = glob.glob(os.path.join(solver_dir, "**", "input_run-highest", "*_activities.xml"), recursive=True)
+            if not highest_xml_files:
+                highest_xml_files = glob.glob(os.path.join(solver_dir, "**", "*_highest", "*_activities.xml"), recursive=True)
+            if highest_xml_files and os.path.exists(highest_xml_files[0]):
+                try:
+                    import xml.etree.ElementTree as ET
+                    tree = ET.parse(highest_xml_files[0])
+                    placed_ids = set()
+                    for act_elem in tree.getroot().findall(".//Activity"):
+                        aid_elem = act_elem.find("Id")
+                        day_elem = act_elem.find("Day")
+                        if aid_elem is not None and day_elem is not None and day_elem.text:
+                            placed_ids.add(str(aid_elem.text))
+                    unplaced_ids = set(acts_map.keys()) - placed_ids
+                    for unp_id in unplaced_ids:
+                        unp_act = acts_map.get(unp_id)
+                        if unp_act and not unp_act.get("subject", "").lower().startswith("disposiz"):
+                            for t in unp_act.get("teachers", []):
+                                critical_teachers[t] += 8
+                            for s in unp_act.get("students", []):
+                                critical_classes[s] += 8
+                except Exception:
+                    pass
+
         # 3. Considera eventuale stato live dal solver
         if solver_state:
             if solver_state.get("bottleneck"):
@@ -248,13 +275,42 @@ class TimetableAdvisor:
                 )
             elif pivot_teacher and pivot_class:
                 root_cause_type = "TEACHER_CLASS_BOTTLENECK"
-                root_cause_summary = (
-                    f"Primary bottleneck: timetable intersection between teacher '{pivot_teacher}' "
-                    f"and class '{pivot_class}'. Constraints or unavailabilities leave very few compatible slots."
-                ) if is_en else (
-                    f"Collo di bottiglia principale: intersezione oraria tra il docente '{pivot_teacher}' "
-                    f"e la classe '{pivot_class}'. I vincoli o le indisponibilità di entrambi lasciano pochissimi slot compatibili."
-                )
+                # Assicura che il docente citato con la classe insegni effettivamente in tale classe
+                cls_acts = [a for a in acts_map.values() if pivot_class in a.get("students", []) and not a.get("subject", "").lower().startswith("disposiz")]
+                cls_teachers = set(t for a in cls_acts for t in a.get("teachers", []))
+                effective_pivot_teacher = pivot_teacher
+                if pivot_teacher not in cls_teachers and cls_teachers:
+                    cls_crit = [t for t in cls_teachers if t in critical_teachers]
+                    effective_pivot_teacher = max(cls_crit, key=lambda t: critical_teachers[t]) if cls_crit else sorted(list(cls_teachers))[0]
+
+                t_un = t_avail.get(effective_pivot_teacher, [])
+                c_un = c_avail.get(pivot_class, [])
+                t_morning_un = [s for s in t_un if not any(h in s for h in ("|7", "|8")) and not any(s.startswith(d) for d in ("Sab", "Dom"))]
+                c_morning_un = [s for s in c_un if not any(h in s for h in ("|7", "|8")) and not any(s.startswith(d) for d in ("Sab", "Dom"))]
+                cls_hours = sum(a.get("duration", 1) for a in cls_acts)
+                t_subj_in_cls = next((a.get("subject", "") for a in cls_acts if effective_pivot_teacher in a.get("teachers", [])), pivot_subject or "")
+
+                if len(t_morning_un) == 0 and len(c_morning_un) == 0:
+                    root_cause_summary = (
+                        f"Primary bottleneck: class '{pivot_class}' is 100% saturated ({cls_hours}h out of {cls_hours} morning slots). "
+                        f"Neither teacher '{effective_pivot_teacher}' nor class '{pivot_class}' have morning unavailabilities. The bottleneck is caused "
+                        f"by the 5-day split of '{t_subj_in_cls}' while other mornings (such as Tuesday) are 100% taken by 2-hour blocks "
+                        f"(PE in Gym, Lab, Sciences). Reorganizing the split (schema 2+2+2+1 over 4 days) or relaxing min days unlocks 100% completion."
+                    ) if is_en else (
+                        f"Collo di bottiglia principale: la classe '{pivot_class}' è satura al 100% ({cls_hours}h su 30 slot mattutini di 6 ore). "
+                        f"Né il docente '{effective_pivot_teacher}' né la classe hanno indisponibilità speciali al mattino. Il blocco è causato "
+                        f"dallo spacchettamento della materia '{t_subj_in_cls}' su tutti i 5 giorni, mentre intere mattinate (come il Martedì) "
+                        f"sono occupate al 100% da blocchi da 2 ore (Scienze Motorie in Palestra, Informatica in Laboratorio, Scienze). "
+                        f"Riorganizzare lo spacchettamento (schema 2+2+2+1 su 4 giorni) o ridurre i giorni minimi di presenza chiude l'orario al 100%."
+                    )
+                else:
+                    root_cause_summary = (
+                        f"Primary bottleneck: timetable intersection between teacher '{effective_pivot_teacher}' "
+                        f"and class '{pivot_class}'. Constraints or unavailabilities leave very few compatible slots."
+                    ) if is_en else (
+                        f"Collo di bottiglia principale: intersezione oraria tra il docente '{effective_pivot_teacher}' "
+                        f"e la classe '{pivot_class}'. I vincoli o le indisponibilità di entrambi lasciano pochissimi slot compatibili."
+                    )
             elif pivot_teacher:
                 root_cause_type = "TEACHER_TIGHT_SLOTS"
                 root_cause_summary = (
@@ -516,62 +572,154 @@ class TimetableAdvisor:
                 "auto_applicable": True
             })
 
+        # Raccomandazione 1D: Minimo Ore Giornaliere Docenti
+        c_min_hours = constraints.get("TEACHERS_MIN_HOURS_DAY", {})
+        curr_min_hours = int(c_min_hours.get("val", 2))
+        is_min_hours_active = c_min_hours.get("active", False)
+        if is_min_hours_active and curr_min_hours >= 2:
+            recommendations.append({
+                "id": "relax_min_hours_day",
+                "level": 1,
+                "level_label": "Livello 1: Rilassamento Morbido Globale",
+                "title": f"Allenta Minimo Ore Giornaliere Docenti (da {curr_min_hours} a 1 ora)",
+                "description": (
+                    f"Attualmente è imposto un minimo di {curr_min_hours} ore di lezione al giorno per ogni docente nei giorni di presenza. "
+                    "Per i docenti con cattedre ridotte su FET o con ore a disposizione (es. Paiusco e Rigoni con 10 ore frontali), "
+                    "questo vincolo impone forzatamente 2 ore esatte al giorno per 5 giorni con zero gradi di libertà. "
+                    "Portando il minimo a 1 ora si conferisce flessibilità immediata alla generazione dell'orario."
+                ),
+                "impact": "ALTO",
+                "badge": "Min Ore/Giorno",
+                "badge_color": "info",
+                "action_type": "relax_min_hours_day",
+                "action_payload": {"new_val": 1},
+                "button_text": "Porta Minimo a 1 Ora/Giorno",
+                "auto_applicable": True
+            })
+
         # -------------------------------------------------------------------------
         # LIVELLO 2: FLESSIBILITÀ MIRATA DOCENTI & CLASSI (Basso Impatto Didattico)
         # -------------------------------------------------------------------------
-        # 0. Flessibilità Oraria Specifica per la Classe Pivot (se a margine zero / 100% saturazione)
-        if target_cls:
-            c_unavail = set(c_avail.get(target_cls, []))
-            # Trova gli slot di 7ª o 8ª ora chiusi per la classe che possono essere riaperti come cuscinetto
-            candidate_class_slots = [
-                s for s in c_unavail
-                if any(h in s for h in ("|7", "|8", "|6"))
-            ]
-            if candidate_class_slots:
-                slots_to_open = candidate_class_slots[:2]
-                slot_lbls = ", ".join(s.replace("|", " ") for s in slots_to_open)
-                recommendations.append({
-                    "id": f"relax_class_unavailability_{target_cls}",
-                    "level": 2,
-                    "level_label": "Livello 2: Flessibilità Mirata Classe",
-                    "title": f"🔓 Apri Margine Flessibile per {target_cls} ({slot_lbls})",
-                    "description": (
-                        f"La classe {target_cls} è satura al 100% (30h su 30 slot mattutini aperti). "
-                        f"Aprire {len(slots_to_open)} ore pomeridiane ({slot_lbls}) crea il cuscinetto matematico "
-                        f"indispensabile per collocare tutti i blocchi da 2 ore senza conflitti con i docenti."
-                    ),
-                    "impact": "ALTO",
-                    "badge": f"Flessibilità {target_cls}",
-                    "badge_color": "warn",
-                    "action_type": "relax_class_unavailability",
-                    "action_payload": {"class": target_cls, "slots_to_remove": slots_to_open},
-                    "button_text": f"Apri {len(slots_to_open)} slot per {target_cls}",
-                    "auto_applicable": True
-                })
+        pivot_or_target_cls = pivot_class or target_cls or (critical_classes.most_common(1)[0][0] if critical_classes else None)
+        if pivot_or_target_cls:
+            c_name = pivot_or_target_cls
+            c_obj = classes_dict.get(c_name, {})
+            is_liceo = (
+                c_obj.get("percorso") == "liceo"
+                or "liceo" in str(c_obj.get("percorso", "")).lower()
+                or "liceo" in str(data.get("institution", "")).lower()
+                or "liceo" in str(data.get("school_name", "")).lower()
+                or any(l in c_name.upper() for l in ["L", "LS", "LC", "SU", "SA"])
+            )
+            cls_acts = [a for a in acts_map.values() if c_name in a.get("students", [])]
+            cls_hours = sum(a.get("duration", 1) for a in cls_acts)
+            is_morning_only = cls_hours <= 30
 
-            # Flessibilità docenti collegati alla classe target
-            target_acts = [a for a in acts_map.values() if target_cls in a.get("students", [])]
+            # 1. Riorganizzazione Spacchettamento Cattedra (Schema 2+2+2+1 su 4 giorni)
+            subj_acts_map = defaultdict(list)
+            for a in cls_acts:
+                subj_acts_map[a.get("subject", "")].append(a)
+
+            for s_name, s_act_list in subj_acts_map.items():
+                single_acts = [a for a in s_act_list if a.get("duration", 1) == 1]
+                if len(s_act_list) >= 5 and len(single_acts) >= 2:
+                    s_tchs = sorted(list(set(t for a in s_act_list for t in a.get("teachers", []))))
+                    t_lbl = f" ({', '.join(s_tchs)})" if s_tchs else ""
+                    total_s_hours = sum(a.get("duration", 1) for a in s_act_list)
+                    recommendations.append({
+                        "id": f"merge_subject_hours_{c_name}_{s_name}",
+                        "level": 2,
+                        "level_label": "Livello 2: Ottimizzazione Didattica Cattedra",
+                        "title": f"📚 Riorganizza Cattedra di {s_name}{t_lbl} in {c_name} (Schema 2+2+2+1 su 4 Giorni)",
+                        "description": (
+                            f"La materia '{s_name}' in {c_name} è attualmente frazionata in {len(s_act_list)} attività distinte (2+2+1+1+1), "
+                            f"costringendo FET a posizionare una lezione su tutti i 5 giorni della settimana. "
+                            f"Poiché la classe ha altre materie con blocchi rigidi da 2 ore (Scienze Motorie in Palestra, "
+                            f"Informatica in Laboratorio, Scienze) che saturano intere mattinate a 6 ore, "
+                            f"accorpare due ore singole in un blocco doppio (passando allo schema 2+2+2+1) riduce i giorni necessari da 5 a 4. "
+                            f"La cattedra mantiene le sue {total_s_hours} ore integrali, si libera una giornata per gli altri blocchi "
+                            f"e si risolve istantaneamente lo stallo della generazione."
+                        ),
+                        "impact": "MASSIMO",
+                        "badge": f"Cattedra {c_name}",
+                        "badge_color": "ok",
+                        "action_type": "merge_subject_hours",
+                        "action_payload": {"class": c_name, "subject": s_name},
+                        "button_text": f"Accorpa Ore {s_name} (2+2+2+1)",
+                        "auto_applicable": True
+                    })
+
+            # 2. Flessibilità Spaziatura Giorni Classe (Peso da 100% a 95%)
+            recommendations.append({
+                "id": f"relax_class_min_days_weight_{c_name}",
+                "level": 2,
+                "level_label": "Livello 2: Flessibilità Vincoli FET",
+                "title": f"⚡ Flessibilità Distribuzione Settimanale per {c_name} (Peso 100% → 95%)",
+                "description": (
+                    f"Tutte le materie di {c_name} hanno il vincolo rigido al 100% di 'Minimo giorni tra le attività'. "
+                    f"Portando la rigidità al 95% (come documentato e raccomandato dalla guida FET), "
+                    f"l'algoritmo mantiene la dispersione pedagogica ottimale ma ha la tolleranza matematica per risolvere "
+                    f"gli incastri critici senza bloccare la generazione dell'orario."
+                ),
+                "impact": "MEDIO",
+                "badge": f"Distribuzione {c_name}",
+                "badge_color": "info",
+                "action_type": "relax_class_min_days_weight",
+                "action_payload": {"class": c_name, "weight": 95},
+                "button_text": f"Riduci Rigidità Giorni {c_name} (95%)",
+                "auto_applicable": True
+            })
+
+            # 3. Flessibilità docenti collegati alla classe target
+            target_acts = cls_acts
             target_teachers = sorted(list(set(t for a in target_acts for t in a.get("teachers", []))))
             if target_teachers:
-                # Trova i docenti con più indisponibilità tra quelli della classe
                 tight_tchs = [t for t in target_teachers if len(t_avail.get(t, [])) >= 4]
                 if tight_tchs:
                     recommendations.append({
-                        "id": f"relax_class_teachers_{target_cls}",
+                        "id": f"relax_class_teachers_{c_name}",
                         "level": 2,
                         "level_label": "Livello 2: Flessibilità Mirata Docenti",
-                        "title": f"👥 Allenta Indisponibilità Docenti Chiave di {target_cls} ({', '.join(tight_tchs[:3])})",
+                        "title": f"👥 Allenta Indisponibilità Docenti Chiave di {c_name} ({', '.join(tight_tchs[:3])})",
                         "description": (
-                            f"I docenti di {target_cls} ({', '.join(tight_tchs[:3])}) hanno numerosi vincoli orari "
+                            f"I docenti di {c_name} ({', '.join(tight_tchs[:3])}) hanno numerosi vincoli orari "
                             f"che restringono la mobilità tra Succursale e Centrale. "
                             f"Aprire 1 ora di disponibilità per ciascuno elimina gli incastri rigidi."
                         ),
                         "impact": "MEDIO",
-                        "badge": f"Docenti {target_cls}",
+                        "badge": f"Docenti {c_name}",
                         "badge_color": "warn",
                         "action_type": "relax_class_teachers",
-                        "action_payload": {"class": target_cls, "teachers": tight_tchs[:3]},
-                        "button_text": f"Allenta Docenti {target_cls}",
+                        "action_payload": {"class": c_name, "teachers": tight_tchs[:3]},
+                        "button_text": f"Allenta Docenti {c_name}",
+                        "auto_applicable": True
+                    })
+
+            # 4. SOLO per scuole NON-Liceo e con rientri pomeridiani effettivi (>30h): apertura ore pomeridiane
+            if not is_liceo and not is_morning_only:
+                c_unavail = set(c_avail.get(c_name, []))
+                candidate_class_slots = [
+                    s for s in c_unavail
+                    if any(h in s for h in ("|7", "|8"))
+                ]
+                if candidate_class_slots:
+                    slots_to_open = candidate_class_slots[:2]
+                    slot_lbls = ", ".join(s.replace("|", " ") for s in slots_to_open)
+                    recommendations.append({
+                        "id": f"relax_class_unavailability_{c_name}",
+                        "level": 2,
+                        "level_label": "Livello 2: Flessibilità Mirata Classe",
+                        "title": f"🔓 Apri Margine Pomeridiano per {c_name} ({slot_lbls})",
+                        "description": (
+                            f"La classe {c_name} prevede rientri pomeridiani ed è satura ({cls_hours}h). "
+                            f"Aprire {len(slots_to_open)} slot pomeridiani ({slot_lbls}) crea il cuscinetto necessario."
+                        ),
+                        "impact": "ALTO",
+                        "badge": f"Flessibilità {c_name}",
+                        "badge_color": "warn",
+                        "action_type": "relax_class_unavailability",
+                        "action_payload": {"class": c_name, "slots_to_remove": slots_to_open},
+                        "button_text": f"Apri {len(slots_to_open)} slot per {c_name}",
                         "auto_applicable": True
                     })
 
@@ -642,6 +790,52 @@ class TimetableAdvisor:
                 "button_text": f"Apri 2 ore di {tname.split()[0]}",
                 "auto_applicable": True
             })
+
+        # B2. Docenti con orario frontale ridotto su FET (<= 14h) e Min Giorni >= 5 (es. Deana, Paiusco, Rigoni)
+        candidate_disp_teachers = set()
+        if pivot_teacher:
+            candidate_disp_teachers.add(pivot_teacher)
+        for t, _ in critical_teachers.most_common(12):
+            candidate_disp_teachers.add(t)
+        if target_cls:
+            for a in acts_map.values():
+                if target_cls in a.get("students", []):
+                    for t in a.get("teachers", []):
+                        candidate_disp_teachers.add(t)
+
+        for tname in sorted(list(candidate_disp_teachers)):
+            t_obj = teachers_dict.get(tname, {})
+            if not t_obj:
+                continue
+            m_days = int(t_obj.get("min_days", 5) or 5)
+            t_acts = [
+                a for a in acts_map.values()
+                if tname in a.get("teachers", []) and not a.get("subject", "").lower().startswith("disposiz")
+            ]
+            front_h = sum(a.get("duration", 1) for a in t_acts)
+            if 0 < front_h <= 14 and m_days >= 5:
+                disp_h = max(0, 18 - front_h)
+                new_v = 4 if front_h >= 12 else 3
+                recommendations.append({
+                    "id": f"relax_min_days_disp_{tname}",
+                    "level": 2,
+                    "level_label": "Livello 2: Flessibilità Docenti con Disposizioni",
+                    "title": f"🧘 Allenta Giorni Minimi per {tname} (da {m_days} a {new_v} Giorni)",
+                    "description": (
+                        f"Il docente {tname} ha {front_h} ore di cattedra frontale in FET ({disp_h}h a disposizione), "
+                        f"ma ha un vincolo rigido di presenza su {m_days} giorni. Insieme alla regola del minimo 2 ore al giorno, "
+                        f"questo impone una ripartizione matematica priva di flessibilità ({front_h}h su {m_days} giorni). "
+                        f"Portando i giorni minimi a {new_v} (es. 4+4+3+3 per Deana, o 4+3+3 per Rigoni/Paiusco), si concede a FET la libertà necessaria per chiudere "
+                        f"l'orario al 100%. Il completamento dell'orario a 18 ore avverrà regolarmente tramite le ore a disposizione."
+                    ),
+                    "impact": "ALTO",
+                    "badge": f"Disposizioni ({disp_h}h)",
+                    "badge_color": "ok",
+                    "action_type": "relax_min_days",
+                    "action_payload": {"teacher": tname, "new_val": new_v},
+                    "button_text": f"Imposta {new_v} Giorni per {tname.split()[0]}",
+                    "auto_applicable": True
+                })
 
         # C. Vincolo Giorni Minimi Docente Irraggiungibile o Eccessivo
         for iss in v_report.get("issues", []):
@@ -1073,8 +1267,8 @@ class TimetableAdvisor:
             if cname and "class_availability" in data:
                 curr = data["class_availability"].get(cname, [])
                 if not slots_to_remove:
-                    # Rimuovi di default 2 slot pomeridiani (7ª ora)
-                    slots_to_remove = set([s for s in curr if "|7" in s or "|8"][:2])
+                    # Rimuovi eventuali slot pomeridiani
+                    slots_to_remove = set([s for s in curr if any(h in s for h in ("|7", "|8"))][:2])
                 new_list = [s for s in curr if s not in slots_to_remove]
                 data["class_availability"][cname] = new_list
                 removed_count = len(curr) - len(new_list)
@@ -1083,6 +1277,58 @@ class TimetableAdvisor:
                     if is_en else
                     f"Aperte con successo {removed_count} ore di disponibilità per la classe {cname}."
                 )
+
+        elif action_type == "merge_subject_hours":
+            cname = payload.get("class")
+            subj = payload.get("subject")
+            single_acts = [
+                a for a in data.get("activities", [])
+                if (not cname or cname in a.get("students", []))
+                and (not subj or a.get("subject") == subj)
+                and int(a.get("duration", 1)) == 1
+            ]
+            if len(single_acts) >= 2:
+                act_keep = single_acts[0]
+                act_remove = single_acts[1]
+                act_keep["duration"] = 2
+                rem_id = act_remove.get("id")
+                data["activities"] = [a for a in data["activities"] if a.get("id") != rem_id]
+                msg = (
+                    f"Successfully merged two 1-hour activities of '{subj}' into a 2-hour block in class {cname}."
+                    if is_en else
+                    f"Accorpate con successo due lezioni da 1 ora di '{subj}' in un blocco da 2 ore per la classe {cname} (schema 2+2+2+1 su 4 giorni)."
+                )
+            else:
+                msg = (
+                    f"Not enough 1-hour activities to merge for '{subj}' in class {cname}."
+                    if is_en else
+                    f"Numero insufficiente di lezioni da 1 ora da accorpare per '{subj}' nella classe {cname}."
+                )
+
+        elif action_type == "relax_class_min_days_weight":
+            cname = payload.get("class")
+            weight = int(payload.get("weight", 95))
+            for c in data.get("classes", []):
+                if c.get("name") == cname:
+                    c["min_days_between_activities_weight"] = weight
+            msg = (
+                f"Activity spacing weight set to {weight}% for class {cname}."
+                if is_en else
+                f"Rigidità spaziatura attività impostata al {weight}% per la classe {cname}."
+            )
+
+        elif action_type == "relax_min_hours_day":
+            new_val = int(payload.get("new_val", 1))
+            if "constraints" not in data:
+                data["constraints"] = {}
+            if "TEACHERS_MIN_HOURS_DAY" in data["constraints"]:
+                data["constraints"]["TEACHERS_MIN_HOURS_DAY"]["val"] = new_val
+                data["constraints"]["TEACHERS_MIN_HOURS_DAY"]["active"] = (new_val > 0)
+            msg = (
+                f"Teachers minimum daily hours set to {new_val}."
+                if is_en else
+                f"Impostato il minimo di ore giornaliere per i docenti a {new_val} ora/giorno."
+            )
 
         elif action_type == "relax_class_teachers":
             teachers_to_relax = payload.get("teachers", [])

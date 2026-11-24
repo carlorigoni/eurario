@@ -1218,10 +1218,12 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
 
     acts_by_id = {str(a["id"]): a for a in emitted_activities}
     teachers_dict = {t["name"]: t for t in data.get("teachers", []) if t.get("name")}
+    classes_dict = {c["name"]: c for c in data.get("classes", []) if c.get("name")}
 
     for k, ids in act_by_cattedra.items():
         if len(ids) > 1:
             eff_max_days_list = []
+            cl_weight = None
             for aid in ids:
                 act_obj = acts_by_id.get(aid)
                 if act_obj:
@@ -1232,12 +1234,23 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
                                 eff_max_days_list.append(int(t_obj["max_days"]))
                             except (ValueError, TypeError):
                                 pass
+                    for s in act_obj.get("students", []):
+                        cl_o = classes_dict.get(s)
+                        if cl_o and cl_o.get("min_days_between_activities_weight"):
+                            try:
+                                cl_weight = min(cl_weight or 100, int(cl_o["min_days_between_activities_weight"]))
+                            except (ValueError, TypeError):
+                                pass
 
             min_days_limit = min(eff_max_days_list) if eff_max_days_list else len(active_days)
-            # Se il numero di sotto-attività supera i giorni disponibili per il docente o per la settimana,
-            # usiamo un peso del 95% (come documentato e raccomandato da FET) per permettere a più attività
-            # di condividere lo stesso giorno senza fallire la validazione pre-computazionale.
-            weight = 95 if len(ids) > min_days_limit else 100
+            # Se la classe ha un override di peso o se il numero di sotto-attività supera i giorni disponibili,
+            # usiamo il peso configurato o 95% (come documentato e raccomandato da FET).
+            if cl_weight is not None:
+                weight = cl_weight
+            elif len(ids) > min_days_limit:
+                weight = 95
+            else:
+                weight = 100
 
             lines.append('    <ConstraintMinDaysBetweenActivities>')
             lines.append(f'      <Weight_Percentage>{weight}</Weight_Percentage>')
