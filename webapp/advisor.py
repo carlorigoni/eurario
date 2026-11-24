@@ -617,60 +617,7 @@ class TimetableAdvisor:
 
             # 1. Riorganizzazione Spacchettamento Cattedra (Schema 2+2+2+1 su 4 giorni)
             subj_acts_map = defaultdict(list)
-            for a in cls_acts:
-                subj_acts_map[a.get("subject", "")].append(a)
-
-            for s_name, s_act_list in subj_acts_map.items():
-                single_acts = [a for a in s_act_list if a.get("duration", 1) == 1]
-                if len(s_act_list) >= 5 and len(single_acts) >= 2:
-                    s_tchs = sorted(list(set(t for a in s_act_list for t in a.get("teachers", []))))
-                    t_lbl = f" ({', '.join(s_tchs)})" if s_tchs else ""
-                    total_s_hours = sum(a.get("duration", 1) for a in s_act_list)
-                    recommendations.append({
-                        "id": f"merge_subject_hours_{c_name}_{s_name}",
-                        "level": 2,
-                        "level_label": "Livello 2: Ottimizzazione Didattica Cattedra",
-                        "title": f"📚 Riorganizza Cattedra di {s_name}{t_lbl} in {c_name} (Schema 2+2+2+1 su 4 Giorni)",
-                        "description": (
-                            f"La materia '{s_name}' in {c_name} è attualmente frazionata in {len(s_act_list)} attività distinte (2+2+1+1+1), "
-                            f"costringendo FET a posizionare una lezione su tutti i 5 giorni della settimana. "
-                            f"Poiché la classe ha altre materie con blocchi rigidi da 2 ore (Scienze Motorie in Palestra, "
-                            f"Informatica in Laboratorio, Scienze) che saturano intere mattinate a 6 ore, "
-                            f"accorpare due ore singole in un blocco doppio (passando allo schema 2+2+2+1) riduce i giorni necessari da 5 a 4. "
-                            f"La cattedra mantiene le sue {total_s_hours} ore integrali, si libera una giornata per gli altri blocchi "
-                            f"e si risolve istantaneamente lo stallo della generazione."
-                        ),
-                        "impact": "MASSIMO",
-                        "badge": f"Cattedra {c_name}",
-                        "badge_color": "ok",
-                        "action_type": "merge_subject_hours",
-                        "action_payload": {"class": c_name, "subject": s_name},
-                        "button_text": f"Accorpa Ore {s_name} (2+2+2+1)",
-                        "auto_applicable": True
-                    })
-
-            # 2. Flessibilità Spaziatura Giorni Classe (Peso da 100% a 95%)
-            recommendations.append({
-                "id": f"relax_class_min_days_weight_{c_name}",
-                "level": 2,
-                "level_label": "Livello 2: Flessibilità Vincoli FET",
-                "title": f"⚡ Flessibilità Distribuzione Settimanale per {c_name} (Peso 100% → 95%)",
-                "description": (
-                    f"Tutte le materie di {c_name} hanno il vincolo rigido al 100% di 'Minimo giorni tra le attività'. "
-                    f"Portando la rigidità al 95% (come documentato e raccomandato dalla guida FET), "
-                    f"l'algoritmo mantiene la dispersione pedagogica ottimale ma ha la tolleranza matematica per risolvere "
-                    f"gli incastri critici senza bloccare la generazione dell'orario."
-                ),
-                "impact": "MEDIO",
-                "badge": f"Distribuzione {c_name}",
-                "badge_color": "info",
-                "action_type": "relax_class_min_days_weight",
-                "action_payload": {"class": c_name, "weight": 95},
-                "button_text": f"Riduci Rigidità Giorni {c_name} (95%)",
-                "auto_applicable": True
-            })
-
-            # 3. Flessibilità docenti collegati alla classe target
+            # Flessibilità docenti collegati alla classe target
             target_acts = cls_acts
             target_teachers = sorted(list(set(t for a in target_acts for t in a.get("teachers", []))))
             if target_teachers:
@@ -790,52 +737,6 @@ class TimetableAdvisor:
                 "button_text": f"Apri 2 ore di {tname.split()[0]}",
                 "auto_applicable": True
             })
-
-        # B2. Docenti con orario frontale ridotto su FET (<= 14h) e Min Giorni >= 5 (es. Deana, Paiusco, Rigoni)
-        candidate_disp_teachers = set()
-        if pivot_teacher:
-            candidate_disp_teachers.add(pivot_teacher)
-        for t, _ in critical_teachers.most_common(12):
-            candidate_disp_teachers.add(t)
-        if target_cls:
-            for a in acts_map.values():
-                if target_cls in a.get("students", []):
-                    for t in a.get("teachers", []):
-                        candidate_disp_teachers.add(t)
-
-        for tname in sorted(list(candidate_disp_teachers)):
-            t_obj = teachers_dict.get(tname, {})
-            if not t_obj:
-                continue
-            m_days = int(t_obj.get("min_days", 5) or 5)
-            t_acts = [
-                a for a in acts_map.values()
-                if tname in a.get("teachers", []) and not a.get("subject", "").lower().startswith("disposiz")
-            ]
-            front_h = sum(a.get("duration", 1) for a in t_acts)
-            if 0 < front_h <= 14 and m_days >= 5:
-                disp_h = max(0, 18 - front_h)
-                new_v = 4 if front_h >= 12 else 3
-                recommendations.append({
-                    "id": f"relax_min_days_disp_{tname}",
-                    "level": 2,
-                    "level_label": "Livello 2: Flessibilità Docenti con Disposizioni",
-                    "title": f"🧘 Allenta Giorni Minimi per {tname} (da {m_days} a {new_v} Giorni)",
-                    "description": (
-                        f"Il docente {tname} ha {front_h} ore di cattedra frontale in FET ({disp_h}h a disposizione), "
-                        f"ma ha un vincolo rigido di presenza su {m_days} giorni. Insieme alla regola del minimo 2 ore al giorno, "
-                        f"questo impone una ripartizione matematica priva di flessibilità ({front_h}h su {m_days} giorni). "
-                        f"Portando i giorni minimi a {new_v} (es. 4+4+3+3 per Deana, o 4+3+3 per Rigoni/Paiusco), si concede a FET la libertà necessaria per chiudere "
-                        f"l'orario al 100%. Il completamento dell'orario a 18 ore avverrà regolarmente tramite le ore a disposizione."
-                    ),
-                    "impact": "ALTO",
-                    "badge": f"Disposizioni ({disp_h}h)",
-                    "badge_color": "ok",
-                    "action_type": "relax_min_days",
-                    "action_payload": {"teacher": tname, "new_val": new_v},
-                    "button_text": f"Imposta {new_v} Giorni per {tname.split()[0]}",
-                    "auto_applicable": True
-                })
 
         # C. Vincolo Giorni Minimi Docente Irraggiungibile o Eccessivo
         for iss in v_report.get("issues", []):
@@ -1277,45 +1178,6 @@ class TimetableAdvisor:
                     if is_en else
                     f"Aperte con successo {removed_count} ore di disponibilità per la classe {cname}."
                 )
-
-        elif action_type == "merge_subject_hours":
-            cname = payload.get("class")
-            subj = payload.get("subject")
-            single_acts = [
-                a for a in data.get("activities", [])
-                if (not cname or cname in a.get("students", []))
-                and (not subj or a.get("subject") == subj)
-                and int(a.get("duration", 1)) == 1
-            ]
-            if len(single_acts) >= 2:
-                act_keep = single_acts[0]
-                act_remove = single_acts[1]
-                act_keep["duration"] = 2
-                rem_id = act_remove.get("id")
-                data["activities"] = [a for a in data["activities"] if a.get("id") != rem_id]
-                msg = (
-                    f"Successfully merged two 1-hour activities of '{subj}' into a 2-hour block in class {cname}."
-                    if is_en else
-                    f"Accorpate con successo due lezioni da 1 ora di '{subj}' in un blocco da 2 ore per la classe {cname} (schema 2+2+2+1 su 4 giorni)."
-                )
-            else:
-                msg = (
-                    f"Not enough 1-hour activities to merge for '{subj}' in class {cname}."
-                    if is_en else
-                    f"Numero insufficiente di lezioni da 1 ora da accorpare per '{subj}' nella classe {cname}."
-                )
-
-        elif action_type == "relax_class_min_days_weight":
-            cname = payload.get("class")
-            weight = int(payload.get("weight", 95))
-            for c in data.get("classes", []):
-                if c.get("name") == cname:
-                    c["min_days_between_activities_weight"] = weight
-            msg = (
-                f"Activity spacing weight set to {weight}% for class {cname}."
-                if is_en else
-                f"Rigidità spaziatura attività impostata al {weight}% per la classe {cname}."
-            )
 
         elif action_type == "relax_min_hours_day":
             new_val = int(payload.get("new_val", 1))

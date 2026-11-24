@@ -6,6 +6,7 @@ FET Engine - Parser, Serializer e Generatore di viste orario per FET 7.13.0.
 import os
 import re
 import copy
+import math
 from collections import defaultdict
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape as xml_escape, unescape as xml_unescape
@@ -1218,12 +1219,17 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
 
     acts_by_id = {str(a["id"]): a for a in emitted_activities}
     teachers_dict = {t["name"]: t for t in data.get("teachers", []) if t.get("name")}
-    classes_dict = {c["name"]: c for c in data.get("classes", []) if c.get("name")}
+
+    # Conteggio ore frontali per docente (escluse disposizioni)
+    teacher_frontal_hours = {}
+    for a in emitted_activities:
+        dur = int(a.get("duration", 1) or 1)
+        for tn in a.get("teachers", []):
+            teacher_frontal_hours[tn] = teacher_frontal_hours.get(tn, 0) + dur
 
     for k, ids in act_by_cattedra.items():
         if len(ids) > 1:
             eff_max_days_list = []
-            cl_weight = None
             for aid in ids:
                 act_obj = acts_by_id.get(aid)
                 if act_obj:
@@ -1234,23 +1240,12 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
                                 eff_max_days_list.append(int(t_obj["max_days"]))
                             except (ValueError, TypeError):
                                 pass
-                    for s in act_obj.get("students", []):
-                        cl_o = classes_dict.get(s)
-                        if cl_o and cl_o.get("min_days_between_activities_weight"):
-                            try:
-                                cl_weight = min(cl_weight or 100, int(cl_o["min_days_between_activities_weight"]))
-                            except (ValueError, TypeError):
-                                pass
 
             min_days_limit = min(eff_max_days_list) if eff_max_days_list else len(active_days)
-            # Se la classe ha un override di peso o se il numero di sotto-attività supera i giorni disponibili,
-            # usiamo il peso configurato o 95% (come documentato e raccomandato da FET).
-            if cl_weight is not None:
-                weight = cl_weight
-            elif len(ids) > min_days_limit:
-                weight = 95
-            else:
-                weight = 100
+            # Se il numero di sotto-attività supera i giorni disponibili per il docente o per la settimana,
+            # usiamo un peso del 95% (come documentato e raccomandato da FET) per permettere a più attività
+            # di condividere lo stesso giorno senza fallire la validazione pre-computazionale.
+            weight = 95 if len(ids) > min_days_limit else 100
 
             lines.append('    <ConstraintMinDaysBetweenActivities>')
             lines.append(f'      <Weight_Percentage>{weight}</Weight_Percentage>')
@@ -1333,13 +1328,33 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
 
         lines.append("    " + xml_str.replace("\n", "\n    "))
 
+    # Mappa classi per docente
+    teacher_classes_map = defaultdict(set)
+    for a in emitted_activities:
+        for tn in a.get("teachers", []):
+            for s in a.get("students", []):
+                teacher_classes_map[tn].add(s)
+
     # Emetti i vincoli impostati nei profili dei docenti
     for tname, md_val in teacher_custom_max.items():
         if 1 <= md_val <= len(active_days) and tname not in emitted_max_days_teachers:
+            t_obj = teachers_dict.get(tname, {})
+            front_h = teacher_frontal_hours.get(tname, 0)
+            max_dl = int(t_obj.get("max_daily_lessons") or 6)
+            min_days_math = math.ceil(front_h / max_dl) if max_dl > 0 else 1
+            t_classes_count = len(teacher_classes_map.get(tname, set()))
+            if not t_obj.get("free_day_strict"):
+                eff_max = max(md_val, min_days_math, min(len(active_days), t_classes_count))
+            else:
+                eff_max = max(md_val, min_days_math)
+
+            if eff_max >= len(active_days):
+                continue  # In una settimana di N giorni, max_days >= N è ridondante
+
             lines.append('    <ConstraintTeacherMaxDaysPerWeek>')
             lines.append('      <Weight_Percentage>100</Weight_Percentage>')
             lines.append(f'      <Teacher>{xml_escape(tname)}</Teacher>')
-            lines.append(f'      <Max_Days_Per_Week>{md_val}</Max_Days_Per_Week>')
+            lines.append(f'      <Max_Days_Per_Week>{eff_max}</Max_Days_Per_Week>')
             lines.append('      <Active>true</Active>')
             lines.append('      <Comments>giorni massimi configurati nel profilo docente</Comments>')
             lines.append('    </ConstraintTeacherMaxDaysPerWeek>')
@@ -1350,14 +1365,24 @@ def generate_fet_xml(data, include_timetable=False, exclude_disposizioni=True):
             num_acts = teacher_emitted_acts_count.get(tname, 0)
             if num_acts == 0:
                 continue  # Nessuna attività per questo docente: evita crash di FET
-            # Auto-cappa mind_val al numero reale di attività emesse in FET (Scudo 2: anti-crash FET)
+            t_obj = teachers_dict.get(tname, {})
+            front_h = teacher_frontal_hours.get(tname, 0)
+            disp_h = t_obj.get("custom_disp_hours") or 0
+            # Se le disposizioni sono escluse da FET e il docente ha ore a disposizione o orario frontale < 15h,
+            # non vincoliamo i giorni minimi frontali in FET: il docente completerà la presenza a 18h tramite le ore D post-calcolo.
+            if exclude_disposizioni and (disp_h > 0 or front_h < 15):
+                continue
+
             capped_mind = min(mind_val, num_acts)
+            if capped_mind <= 1:
+                continue
+
             lines.append('    <ConstraintTeacherMinDaysPerWeek>')
             lines.append('      <Weight_Percentage>100</Weight_Percentage>')
             lines.append(f'      <Teacher>{xml_escape(tname)}</Teacher>')
             lines.append(f'      <Minimum_Days_Per_Week>{capped_mind}</Minimum_Days_Per_Week>')
             lines.append('      <Active>true</Active>')
-            lines.append(f'      <Comments>giorni minimi configurati nel profilo docente{" (auto-cappato su " + str(num_acts) + " attività)" if capped_mind < mind_val else ""}</Comments>')
+            lines.append(f'      <Comments>giorni minimi configurati nel profilo docente{" (auto-cappato su " + str(capped_mind) + " giorni frontali)" if capped_mind < mind_val else ""}</Comments>')
             lines.append('    </ConstraintTeacherMinDaysPerWeek>')
             emitted_min_days_teachers.add(tname)
 
