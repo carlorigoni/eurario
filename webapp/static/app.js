@@ -22,7 +22,8 @@ let pollSolverTimer = null;
 let currentSolverRunning = false;
 
 // --- VERSIONE E IDENTITÀ APPLICATIVA ---
-let APP_VERSION = '1.9.65';
+let APP_VERSION = '1.9.67';
+let FET_VERSION = '7.13.0';
 
 // --- OPTIMISTIC CONCURRENCY CONTROL (OCC) & FETCH INTERCEPTOR ---
 window.CURRENT_DATA_VERSION = null;
@@ -367,7 +368,6 @@ function _t(key, fallback = '') {
   }
   return fallback || key;
 }
-const FET_VERSION = '7.13.0';
 const APP_AUTHOR = 'Carlo Rigoni';
 
 // --- GESTIONE INTERNAZIONALIZZAZIONE (i18n) & TEMI (DARK/LIGHT/AUTO) ---
@@ -1434,12 +1434,37 @@ let authPollInterval = null;
 let googleClientId = '';
 
 function applyVersionTags() {
+  if (stateData && stateData.summary) {
+    if (stateData.summary.app_version) APP_VERSION = stateData.summary.app_version;
+    if (stateData.summary.fet_version) FET_VERSION = stateData.summary.fet_version;
+  }
   const v = `v${APP_VERSION}`;
   const ids = ['sidebarVerTag', 'pageFooterVer', 'aboutModalVer', 'updateCurrentVer'];
   ids.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerText = v;
   });
+
+  const fetV = `v${FET_VERSION}`;
+  const fetIds = ['pageFooterFetVer', 'aboutModalFetVer', 'aboutFetCreditVer'];
+  fetIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = fetV;
+  });
+
+  const stText = document.getElementById('statusIndicatorText');
+  if (stText && (!latestUpdateInfo || !latestUpdateInfo.update_available)) {
+    stText.innerText = `FET ${FET_VERSION}`;
+  }
+  const stBadge = document.getElementById('sidebarStatusBadge');
+  if (stBadge && (!latestUpdateInfo || !latestUpdateInfo.update_available)) {
+    stBadge.title = `Solutore FET v${FET_VERSION} Pronto • Clicca per verificare aggiornamenti`;
+  }
+  const sidebarVer = document.getElementById('sidebarVerTag');
+  if (sidebarVer) {
+    sidebarVer.title = `Versione Eurario Suite v${APP_VERSION}`;
+  }
+
   try {
     const links = document.querySelectorAll('link[rel*="icon"]');
     links.forEach(link => {
@@ -3558,6 +3583,7 @@ async function refreshAppState() {
   try {
     const res = await fetch('/api/summary');
     stateData.summary = await res.json();
+    applyVersionTags();
     const isEn = window.I18N ? window.I18N.getLanguage() === 'en' : false;
     const b = document.getElementById('instBadge');
     const sName = document.getElementById('currentSchoolName');
@@ -3705,11 +3731,11 @@ function renderUpdateStatus(data) {
       dot.className = 'status-indicator-dot dot-green';
     }
     if (text) {
-      text.innerText = 'FET Engine';
+      text.innerText = `FET ${FET_VERSION}`;
     }
     if (badge) {
       badge.classList.remove('status-update-available');
-      badge.title = isEn ? 'Check application & FET updates' : 'Verifica aggiornamenti applicazione e FET';
+      badge.title = isEn ? `FET Engine v${FET_VERSION} Ready • Check updates` : `Solutore FET v${FET_VERSION} Pronto • Verifica aggiornamenti`;
       badge.removeAttribute('aria-label');
     }
     if (aboutVerStatus) {
@@ -5761,7 +5787,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ============================================================================
-// 3. COMPILATORE FET CLI 7.12.1
+// 3. COMPILATORE FET CLI 7.13.0
 // ============================================================================
 let currentSolverLogMode = 'formatted'; // 'formatted' | 'raw'
 let solverAutoScroll = true;

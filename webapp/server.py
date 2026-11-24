@@ -3111,7 +3111,7 @@ Questo messaggio è stato inviato dalla piattaforma Eurario.
             
             now_ts = get_local_now().strftime("[%H:%M:%S]")
             init_logs = [
-                f"{now_ts} 🚀 Avvio di fet-cl 7.12.0 su {total_act} attività (Modalità: {'Verbosa (Stile Desktop)' if verbose else 'Standard'})...",
+                f"{now_ts} 🚀 Avvio di fet-cl {FET_VERSION} su {total_act} attività (Modalità: {'Verbosa (Stile Desktop)' if verbose else 'Standard'})...",
                 f"{now_ts} 📁 Cartella output: {output_dir}"
             ]
             if locked_acts:
